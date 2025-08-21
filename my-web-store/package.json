@@ -1,0 +1,20 @@
+{
+  "name": "my-web-store",
+  "version": "1.0.0",
+  "description": "A virtual store to showcase and sell products online.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "live-server src",
+    "build": "echo 'Build step not defined yet.'"
+  },
+  "keywords": [
+    "store",
+    "ecommerce",
+    "products"
+  ],
+  "author": "Oscar Orozco",
+  "license": "MIT",
+  "dependencies": {
+    "live-server": "^1.2.1"
+  }
+}
