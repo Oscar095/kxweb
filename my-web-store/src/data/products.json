@@ -1,0 +1,8 @@
+[
+  { "id": 1, "name": "Vaso Modelo A", "price": 19.99, "category": "Vasos", "description": "Vaso desechable impreso, 250ml.", "image": "images/4oz.png" },
+  { "id": 2, "name": "Plato Fiesta", "price": 29.99, "category": "Platos", "description": "Plato resistente para eventos.", "image": "images/Productos.png" },
+  { "id": 3, "name": "Anillo Decorativo", "price": 9.99,  "category": "Anillos", "description": "Anillo para vasos decorativo.", "image": "images/portahamburguesa.png" },
+  { "id": 4, "name": "Tapa Universal", "price": 4.99, "category": "Tapas", "description": "Tapa compatible con vasos de 250ml.", "image": "images/7oz.png" },
+  { "id": 5, "name": "Vaso Premium", "price": 24.99, "category": "Vasos", "description": "Vaso premium con acabado mate.", "image": "images/9onza.png" },
+  { "id": 6, "name": "Plato Eco", "price": 12.99, "category": "Platos", "description": "Plato ecológico biodegradable.", "image": "images/PortaPAPA.png" }
+]

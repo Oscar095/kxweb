@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Productos - Mi Tienda</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <div id="app">
+    <header id="site-header"></header>
+    <main>
+      <section class="container">
+        <h1>Catálogo de Productos</h1>
+        <div class="filters">
+          <button data-cat="all" class="cat-btn">Todos</button>
+          <button data-cat="Vasos" class="cat-btn">Vasos</button>
+          <button data-cat="Platos" class="cat-btn">Platos</button>
+          <button data-cat="Anillos" class="cat-btn">Anillos</button>
+          <button data-cat="Tapas" class="cat-btn">Tapas</button>
+        </div>
+        <section id="products" class="product-grid"></section>
+      </section>
+    </main>
+  <div id="cart-drawer"></div>
+  <script type="module" src="./products-page.js"></script>
+  <footer class="site-footer"></footer>
+  </div>
+</body>
+</html>

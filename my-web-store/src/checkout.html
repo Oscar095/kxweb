@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Checkout — Kos Xpress</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <header id="site-header"></header>
+
+  <main class="container">
+    <h1>Checkout</h1>
+
+    <section id="checkout-root">
+      <form id="checkout-form">
+        <fieldset>
+          <legend>Datos de envío</legend>
+          <label>Nombre completo<br/><input name="name" required /></label>
+          <label>Correo<br/><input name="email" type="email" required /></label>
+          <label>Celular<br/><input name="phone" required /></label>
+          <label>Dirección de envío<br/><input name="address" required /></label>
+          <label>Ciudad<br/><input name="city" required /></label>
+          <label>Notas (opcional)<br/><textarea name="notes"></textarea></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Método de pago</legend>
+          <label><input type="radio" name="paymentMethod" value="payu" checked /> PayU</label>
+          <!-- Puedes añadir más métodos aquí -->
+        </fieldset>
+
+        <section id="order-summary"></section>
+
+        <div style="margin-top:12px">
+          <button type="submit" id="pay-btn" class="btn-primary">Pagar ahora</button>
+        </div>
+
+        <div id="checkout-message" aria-live="polite"></div>
+      </form>
+    </section>
+  </main>
+
+  <div id="cart-drawer"></div>
+  <footer class="site-footer"></footer>
+
+  <script type="module" src="./checkout-page.js"></script>
+</body>
+</html>
