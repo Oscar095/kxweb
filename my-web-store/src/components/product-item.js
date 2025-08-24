@@ -5,7 +5,7 @@ export function productItemTemplate(p) {
     <article class="product" data-id="${p.id}">
       <img src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
       <div>
-        <h4>${p.name}</h4>
+        <h3>${p.name}</h3>
         <p class="price">$${Number(p.price).toFixed(2)}</p>
         <p class="desc">${p.description || ''}</p>
       </div>

@@ -1,8 +1,8 @@
 export function renderFooter(mount) {
   if (!mount) return;
   mount.innerHTML = `
-    <div class="container footer-inner">
-      <div class="footer-left">© 2025 Kos Xpress — Todos los derechos reservados</div>
+    <div class="container footer-inner" style="flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;">
+      <div class="footer-left" style="width:100%;text-align:center;font-size:16px;">© 2025 Kos Xpress — Todos los derechos reservados </br></br>  Yumbo - Valle del Cauca </div>
       <div class="footer-social">
         <a class="social-link" href="https://instagram.com/yourprofile" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="5" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="12" r="3.2" stroke="#fff" stroke-width="1.5"/><circle cx="17.6" cy="6.4" r="0.6" fill="#fff"/></svg>

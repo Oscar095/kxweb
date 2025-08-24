@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sobre Nosotros — Kos Xpress</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <div id="app">
+    <header id="site-header"></header>
+    <main>
+      <section class="about-hero">
+        <div class="about-hero-inner container">
+          <img src="images/img1.png" alt="Kos Xpress Hero" class="about-hero-img" />
+          <div>
+            <h1>La solución perfecta para destacar tu marca</h1>
+            <p>Con Kos Xpress puedes personalizar vasos y empaques con tu diseño, en pocas cantidades y con la mejor calidad. ¡Lleva tu identidad a cada cliente!</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="about-products container">
+        <h2>Nuestros Productos</h2>
+        <div class="about-products-grid">
+          <div class="about-product">
+            <img src="images/img2.png" alt="Vaso 4 Oz" />
+            <h3>Vaso 4 Oz</h3>
+            <p>Perfecto para degustaciones y eventos.</p>
+          </div>
+          <div class="about-product">
+            <img src="images/img3.png" alt="Vaso 7 Oz" />
+            <h3>Vaso 7 Oz</h3>
+            <p>Ideal para bebidas frías y calientes.</p>
+          </div>
+          <div class="about-product">
+            <img src="images/img4.png" alt="Vaso 9 Oz" />
+            <h3>Vaso 9 Oz</h3>
+            <p>La opción versátil para tu negocio.</p>
+          </div>
+          <div class="about-product">
+            <img src="images/img5.png" alt="Porta papa" />
+            <h3>Porta papa</h3>
+            <p>Empaque resistente y personalizado.</p>
+          </div>
+          <div class="about-product">
+            <img src="images/img6.png" alt="Porta Hamburguesa" />
+            <h3>Porta Hamburguesa</h3>
+            <p>Presenta tus hamburguesas con estilo.</p>
+          </div>
+          <div class="about-product">
+            <img src="images/img7.png" alt="Porta perro" />
+            <h3>Porta perro</h3>
+            <p>Empaque cuadrado para hot dogs y más.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="about-contact container">
+        <h2>Visítanos</h2>
+        <p>Dirección: Calle 10 # 21a – 120 Acopí – Yumbo, Valle del Cauca</p>
+        <p>Teléfono PBX: (602) 4899939</p>
+        <p>WhatsApp: (+57) 310 218 5211</p>
+        <div class="about-social">
+          <a href="#" class="about-social-link">Facebook</a>
+          <a href="#" class="about-social-link">Instagram</a>
+          <a href="#" class="about-social-link">LinkedIn</a>
+          <a href="#" class="about-social-link">TikTok</a>
+        </div>
+      </section>
+
+      <section class="about-pay container">
+        <h2>Paga Aquí</h2>
+        <a href="#" class="about-pay-btn">Realizar Pago</a>
+      </section>
+    </main>
+    <div id="cart-drawer"></div>
+    <footer class="site-footer"></footer>
+  </div>
+  <script type="module">
+    import { renderHeader } from './components/header.js';
+    import { renderCartDrawer } from './components/cart-drawer.js';
+    renderHeader(document.getElementById('site-header'));
+    renderCartDrawer(document.getElementById('cart-drawer'));
+  </script>
+</body>
+</html>

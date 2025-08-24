@@ -1,11 +1,40 @@
 export function renderHeader(mount) {
+  // Animación de rectángulo en nav
+  setTimeout(() => {
+    const nav = document.querySelector('.nav-animated');
+    const rect = nav ? nav.querySelector('.nav-rect') : null;
+    const links = nav ? nav.querySelectorAll('.nav-link') : [];
+    if (!rect || !links.length) return;
+    function moveRect(e) {
+      const link = e.currentTarget;
+      const { left, top, width, height } = link.getBoundingClientRect();
+      const navRect = nav.getBoundingClientRect();
+      rect.style.left = (left - navRect.left) + 'px';
+      rect.style.top = (top - navRect.top) + 'px';
+      rect.style.width = width + 'px';
+      rect.style.height = height + 'px';
+      rect.style.opacity = '1';
+    }
+    function hideRect() {
+      rect.style.opacity = '0';
+      rect.style.width = '0';
+    }
+    links.forEach(link => {
+      link.addEventListener('mouseenter', moveRect);
+      link.addEventListener('focus', moveRect);
+      link.addEventListener('mouseleave', hideRect);
+      link.addEventListener('blur', hideRect);
+    });
+  }, 100);
   mount.innerHTML = `
     <div class="header-inner container">
-      <div class="logo"><a href="index.html"><img src="images/LogoKos2.png" alt="Kos Xpress" class="logo-img"/></a></div>
-      <nav class="nav">
-        <a href="index.html">Inicio</a>
-        <a href="products.html">Productos</a>
-        <a href="contact.html">Contacto</a>
+      <div class="logo"><a href="index.html"><img src="images/LogoKos2.png" alt="Kos Xpress" class="logo-img" style="height:99px;width:auto;"/></a></div>
+      <nav class="nav nav-animated">
+        <a href="index.html" class="nav-link" data-nav="inicio">Inicio</a>
+        <a href="products.html" class="nav-link" data-nav="productos">Productos</a>
+        <a href="about.html" class="nav-link" data-nav="about">Sobre Nosotros</a>
+        <a href="contact.html" class="nav-link" data-nav="contacto">Contacto</a>
+        <span class="nav-rect"></span>
       </nav>
       <div class="search">
         <input id="search-input" placeholder="Buscar productos..." />

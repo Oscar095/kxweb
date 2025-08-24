@@ -4,13 +4,13 @@ export function renderCartDrawer(mount) {
   mount.className = 'cart-drawer';
   mount.innerHTML = `
     <div class="cart-header">
-      <strong>Carrito de Compras</strong>
-      <button id="close-cart">Cerrar</button>
+      <strong style="font-size: 1.25rem;color: #fff">Carrito de Compras</strong>
+      <button id="close-cart" style="background: none; border: none; color: #fff; font-size: 1.25rem;">X</button>
     </div>
     <div class="cart-body" id="cart-body"></div>
-    <div class="cart-footer">
-      <div id="cart-total">Total: $0.00</div>
-      <button id="checkout" class="btn-primary">Ir a Pagar</button>
+    <div class="cart-footer" style="display: flex; align-items: center; justify-content: space-between;">
+      <a id="cart-total" style="margin-right: auto;">Total: $0.00</a>
+      <button id="checkout" class="btn-primary" style="flex-shrink: 0; scale: 0.75;;">Ir a Pagar</button>
     </div>
   `;
 
@@ -22,7 +22,7 @@ export function renderCartDrawer(mount) {
         <div>${i.name}</div>
         <div style="color:var(--muted);font-size:13px">$${Number(i.price).toFixed(2)}</div>
       </div>
-      <button data-id="${i.id}" class="remove" style="color:black;font-size:12px;padding:2px 8px;">Eliminar</button>
+      <button data-id="${i.id}" class="remove" style="color:black;font-size:14px;padding:8px 8px;">Eliminar</button>
       </div>
     `).join('') : '<div>Tu carrito está vacío</div>';
 
