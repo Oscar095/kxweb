@@ -4,7 +4,8 @@
   "description": "A virtual store to showcase and sell products online.",
   "main": "src/app.js",
   "scripts": {
-    "start": "live-server src",
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
     "build": "echo 'Build step not defined yet.'"
   },
   "keywords": [
@@ -15,6 +16,8 @@
   "author": "Oscar Orozco",
   "license": "MIT",
   "dependencies": {
-    "live-server": "^1.2.1"
+    "dotenv": "^17.2.2",
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0"
   }
 }

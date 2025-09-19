@@ -302,6 +302,31 @@ header{background:#2ea2cc;position:sticky;top:0;z-index:60;color: #fff}
 .cart-item{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px dashed #f2f2f2;font-size: 16px;}
 .cart-item .meta{flex:1}
 
+/* --- Checkout form layout --- */
+#checkout-form .field {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+#checkout-form label {
+  font-weight: 400;
+  color: black;
+}
+#checkout-form input,
+#checkout-form textarea,
+#checkout-form select {
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 520px) {
+  #checkout-form .field {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* responsive */
 @media (max-width:900px){
   .product-grid{grid-template-columns:repeat(2,1fr)}

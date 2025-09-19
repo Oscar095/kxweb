@@ -5,28 +5,49 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Checkout — Kos Xpress</title>
   <link rel="stylesheet" href="styles/main.css">
+  <!-- Quitar el script estático que falla -->
+  <!-- <script src="https://cdn.wompi.co/libs/widget/v1.js"></script> -->
 </head>
 <body>
   <header id="site-header"></header>
 
   <main class="container">
-    <h1>Checkout</h1>
+    <h1>Finalizar Orden</h1>
 
     <section id="checkout-root">
       <form id="checkout-form">
         <fieldset>
-          <legend>Datos de envío</legend>
-          <label>Nombre completo<br/><input name="name" required /></label>
-          <label>Correo<br/><input name="email" type="email" required /></label>
-          <label>Celular<br/><input name="phone" required /></label>
-          <label>Dirección de envío<br/><input name="address" required /></label>
-          <label>Ciudad<br/><input name="city" required /></label>
-          <label>Notas (opcional)<br/><textarea name="notes"></textarea></label>
+          <legend style="color: black; font-size: 18px; font-weight: 500;">Datos de envío</legend>
+
+          <div class="field">
+            <label for="name">Nombre:</label>
+            <input id="name" name="name" required />
+          </div>
+          <div class="field">
+            <label for="email">Correo:</label>
+            <input id="email" name="email" type="email" required />
+          </div>
+          <div class="field">
+            <label for="phone">Celular:</label>
+            <input id="phone" name="phone" required />
+          </div>
+          <div class="field">
+            <label for="address">Dirección de envío:</label>
+            <input id="address" name="address" required />
+          </div>
+          <div class="field">
+            <label for="city">Ciudad:</label>
+            <input id="city" name="city" required />
+          </div>
+          <div class="field">
+            <label for="notes">Notas (opcional):</label>
+            <textarea id="notes" name="notes"></textarea>
+          </div>
         </fieldset>
 
         <fieldset>
-          <legend>Método de pago</legend>
-          <label><input type="radio" name="paymentMethod" value="payu" checked /> PayU</label>
+          <legend style="color: black; font-size: 18px; font-weight: 500;">Método de pago</legend>
+          <label><input type="radio" name="paymentMethod" value="wompi" checked/> Tarjeta de crédito/debito, Transferencias</label>
           <!-- Puedes añadir más métodos aquí -->
         </fieldset>
 

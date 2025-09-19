@@ -4,77 +4,175 @@ import { renderCartDrawer } from './components/cart-drawer.js';
 renderHeader(document.getElementById('site-header'));
 renderCartDrawer(document.getElementById('cart-drawer'));
 
-// Leer carrito desde localStorage (misma llave que usa tu cart-service)
-const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-
-function renderSummary(mount, items) {
-  if (!mount) return;
-  if (!items.length) {
-    mount.innerHTML = '<p>El carrito está vacío.</p>';
-    return;
+// Utilidades
+function readCart() {
+  try {
+    // Tu app guarda el carrito bajo la llave 'cart'
+    const raw = localStorage.getItem('cart');
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
   }
-  const total = items.reduce((s,i)=> s + Number(i.price || 0), 0);
-  mount.innerHTML = `
-    <h2>Resumen de la orden</h2>
-    <ul>
-      ${items.map(i=>`<li>${i.name} — $${Number(i.price).toFixed(2)}</li>`).join('')}
-    </ul>
-    <p><strong>Total: $${total.toFixed(2)}</strong></p>
-  `;
-  return total;
 }
 
-const summaryMount = document.getElementById('order-summary');
-const total = renderSummary(summaryMount, cart);
+function computeTotal(items) {
+  return items.reduce((s, i) => s + Number(i.price || 0), 0);
+}
+function computeTotalInCents(items) {
+  return Math.round(computeTotal(items) * 100);
+}
 
-const form = document.getElementById('checkout-form');
-const message = document.getElementById('checkout-message');
+function renderOrderSummary() {
+  const el = document.getElementById('order-summary');
+  const items = readCart();
+  const cents = computeTotalInCents(items);
+  const amount = (cents / 100).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  message.textContent = '';
+  el.innerHTML = `
+    <h3 style="color: black; font-size: 18px; font-weight: 500;">Resumen de la Orden</h3>
+    <p style="color: black; font-size: 16px;">Total a pagar: <strong>${amount}</strong></p>
+  `;
+  return { items, amountInCents: cents };
+}
 
-  if (!cart.length) {
-    message.textContent = 'El carrito está vacío.';
-    return;
+function showReturnMessageFromWompi() {
+  const msgEl = document.getElementById('checkout-message');
+  const p = new URLSearchParams(location.search);
+  const status = p.get('status');
+  const id = p.get('id');
+  if (status) {
+    msgEl.textContent = `Estado del pago: ${status}${id ? ` (Transacción: ${id})` : ''}`;
   }
+}
 
-  const data = Object.fromEntries(new FormData(form).entries());
-  // construir payload para el servidor
-  const payload = {
-    shipping: {
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      address: data.address,
-      city: data.city,
-      notes: data.notes || ''
-    },
-    paymentMethod: data.paymentMethod,
-    items: cart
-  };
+// Cargar scripts con timeout
+function loadScript(url, timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.async = false;
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      s.remove();
+      reject(new Error(`Timeout cargando ${url}`));
+    }, timeout);
+    s.onload = () => { if (!done) { done = true; clearTimeout(timer); resolve(); } };
+    s.onerror = () => { if (!done) { done = true; clearTimeout(timer); reject(new Error(`Error cargando ${url}`)); } };
+    document.head.appendChild(s);
+  });
+}
 
-  try {
-    document.getElementById('pay-btn').disabled = true;
-    message.textContent = 'Creando orden...';
-
-    // Llamar a tu backend que comunica con PayU y devuelve la URL donde redirigir
-    const res = await fetch('/api/create-payu-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const body = await res.json();
-    if (res.ok && body.redirectUrl) {
-      // redirigir al checkout de PayU (o a la página de pago retornada por tu servidor)
-      window.location.href = body.redirectUrl;
-    } else {
-      message.textContent = body.message || 'Error al crear la orden.';
-      document.getElementById('pay-btn').disabled = false;
+// Intentar varias URLs del CDN
+async function ensureWompiWidgetLoaded() {
+  if (window.WidgetCheckout) return;
+  const candidates = [
+    'https://cdn.wompi.co/libs/widget/v1.js',
+    'https://cdn.wompi.co/libs/widget/v1.1.1.js',
+    'https://cdn.wompi.co/libs/widget/v1.1.0.js'
+  ];
+  let lastErr;
+  for (const url of candidates) {
+    try {
+      await loadScript(url);
+      if (window.WidgetCheckout) {
+        console.log('Wompi widget cargado desde', url);
+        return;
+      }
+    } catch (e) {
+      console.warn(e.message);
+      lastErr = e;
     }
-  } catch (err) {
-    console.error(err);
-    message.textContent = 'Error de red, intenta de nuevo.';
-    document.getElementById('pay-btn').disabled = false;
   }
+  throw lastErr || new Error('No se pudo cargar el Widget de Wompi.');
+}
+
+async function openWompi(form, amountInCents) {
+  const msgEl = document.getElementById('checkout-message');
+  const reference = `KOSX-${Date.now()}`;
+  const redirectUrl = `${location.origin}/checkout.html`;
+
+  // 1) Obtener firma desde el backend
+  const resp = await fetch('/api/wompi/signature', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reference, amountInCents, currency: 'COP', redirectUrl })
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`No se pudo obtener firma: ${txt}`);
+  }
+  const { publicKey, signature, currency, redirectUrl: finalRedirect } = await resp.json();
+
+  // 2) Intentar cargar el widget; si falla, redirigir al checkout de Wompi
+  try {
+    await ensureWompiWidgetLoaded();
+
+    const checkout = new WidgetCheckout({
+      currency,
+      amountInCents,
+      reference,
+      publicKey,
+      signature, // { integrity: '...' }
+      redirectUrl: finalRedirect,
+      customerData: {
+        email: form.email.value,
+        fullName: form.name.value,
+        phoneNumber: form.phone.value
+      },
+      shippingAddress: {
+        addressLine1: form.address.value,
+        city: form.city.value
+      }
+    });
+
+    msgEl.textContent = 'Abriendo pasarela de pago...';
+    checkout.open(function onResult(result) {
+      if (result) console.log('Wompi result:', result);
+    });
+  } catch (e) {
+    console.warn('No se pudo cargar el widget. Fallback a redirección:', e?.message);
+
+    // 3) Fallback: redirección al Checkout Web de Wompi
+    const url = new URL('https://checkout.wompi.co/p/');
+    url.searchParams.set('public-key', publicKey);
+    url.searchParams.set('currency', currency);
+    url.searchParams.set('amount-in-cents', String(amountInCents));
+    url.searchParams.set('reference', reference);
+    url.searchParams.set('redirect-url', finalRedirect);
+    url.searchParams.set('signature-integrity', signature.integrity);
+
+    msgEl.textContent = 'Redirigiendo a Wompi...';
+    window.location.href = url.toString();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('checkout-form');
+  const payBtn = document.getElementById('pay-btn');
+
+  renderOrderSummary();
+  showReturnMessageFromWompi();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const { amountInCents } = renderOrderSummary();
+    const msg = document.getElementById('checkout-message');
+
+    if (amountInCents <= 0) {
+      msg.textContent = 'Tu carrito está vacío.';
+      return;
+    }
+
+    payBtn.disabled = true;
+    try {
+      await openWompi(form, amountInCents);
+    } catch (err) {
+      console.error(err);
+      msg.textContent = err.message || 'Error de pago, intenta de nuevo.';
+      payBtn.disabled = false;
+    }
+  });
 });
