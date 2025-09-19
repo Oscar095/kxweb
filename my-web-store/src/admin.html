@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin - Productos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/styles/main.css" />
+  <style>
+    .admin-product-card {
+      border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px;
+      display: flex; gap: 12px; align-items: flex-start; background: #fafafa;
+    }
+    .admin-product-details { flex: 1; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>Panel de Administración</h1>
+      <nav>
+        <a href="/index.html">Inicio</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" style="padding: 1rem;">
+    <section>
+      <h2>Crear o Actualizar producto</h2>
+      <form id="product-form" method="post" enctype="multipart/form-data">
+        <div class="form-row">
+          <label>ID (opcional): <input type="number" name="id" placeholder="Deja vacío para autoincremento" /></label>
+        </div>
+        <div class="form-row">
+          <label>Nombre*: <input type="text" name="name" required /></label>
+        </div>
+        <div class="form-row">
+          <label>Precio*: <input type="number" name="price" min="0" step="1" required /></label>
+        </div>
+        <div class="form-row">
+          <label>Categoría: <input type="text" name="category" /></label>
+        </div>
+        <div class="form-row">
+          <label>Descripción:<br />
+            <textarea name="description" rows="3"></textarea>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Imagen:
+            <input type="file" name="image" accept="image/*" />
+          </label>
+        </div>
+        <div class="form-row">
+          <button type="submit">Guardar</button>
+        </div>
+        <p id="form-status" style="margin-top: .5rem;"></p>
+      </form>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>Productos</h2>
+      <div id="products-grid" class="products-grid"></div>
+    </section>
+  </main>
+
+  <script src="/admin-page.js" type="module"></script>
+</body>
+</html>

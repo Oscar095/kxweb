@@ -1,4 +1,4 @@
-export function renderHeader(mount) {
+export function renderHeader(container) {
   // Animación de rectángulo en nav
   setTimeout(() => {
     const nav = document.querySelector('.nav-animated');
@@ -26,7 +26,7 @@ export function renderHeader(mount) {
       link.addEventListener('blur', hideRect);
     });
   }, 100);
-  mount.innerHTML = `
+  container.innerHTML = `
     <div class="header-inner container">
       <div class="logo"><a href="index.html"><img src="images/LogoKos2.png" alt="Kos Xpress" class="logo-img" style="height:99px;width:auto;"/></a></div>
       <nav class="nav nav-animated">
@@ -34,6 +34,7 @@ export function renderHeader(mount) {
         <a href="products.html" class="nav-link" data-nav="productos">Productos</a>
         <a href="about.html" class="nav-link" data-nav="about">Sobre Nosotros</a>
         <a href="contact.html" class="nav-link" data-nav="contacto">Contacto</a>
+        <a href="admin.html" class="nav-link" data-nav="admin">Administración</a>
         <span class="nav-rect"></span>
       </nav>
       <div class="search">

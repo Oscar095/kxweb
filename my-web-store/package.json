@@ -18,6 +18,8 @@
   "dependencies": {
     "dotenv": "^17.2.2",
     "express": "^4.19.2",
+    "mongoose": "^8.18.1",
+    "multer": "^2.0.2",
     "node-fetch": "^2.7.0"
   }
 }

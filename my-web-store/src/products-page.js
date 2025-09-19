@@ -6,7 +6,7 @@ async function init() {
   renderHeader(document.getElementById('site-header'));
   renderCartDrawer(document.getElementById('cart-drawer'));
 
-  const res = await fetch('./data/products.json');
+  const res = await fetch('/api/products');
   const products = await res.json();
   const mount = document.getElementById('products');
   renderProducts(products, mount);

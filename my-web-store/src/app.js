@@ -13,7 +13,7 @@ async function init() {
     if (drawerMount) renderCartDrawer(drawerMount);
 
     console.log('Fetch: cargando ./data/products.json ... desde', location.href);
-    const res = await fetch('./data/products.json', { cache: 'no-store' });
+    const res = await fetch('/api/products', { cache: 'no-store' });
     console.log('Fetch status:', res.status, 'ok:', res.ok);
     if (!res.ok) {
       throw new Error(`Error al cargar products.json: ${res.status}`);
