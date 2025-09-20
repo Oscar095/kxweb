@@ -32,9 +32,9 @@ export function renderHeader(container) {
       <nav class="nav nav-animated">
         <a href="index.html" class="nav-link" data-nav="inicio">Inicio</a>
         <a href="products.html" class="nav-link" data-nav="productos">Productos</a>
-        <a href="about.html" class="nav-link" data-nav="about">Sobre Nosotros</a>
+        <a href="about.html" class="nav-link" data-nav="about">Nosotros</a>
         <a href="contact.html" class="nav-link" data-nav="contacto">Contacto</a>
-        <a href="admin.html" class="nav-link" data-nav="admin">Administración</a>
+        <a href="admin.html" class="nav-link" data-nav="admin">Admin</a>
         <span class="nav-rect"></span>
       </nav>
       <div class="search">

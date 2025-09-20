@@ -6,53 +6,100 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/styles/main.css" />
   <style>
-    .admin-product-card {
-      border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px;
-      display: flex; gap: 12px; align-items: flex-start; background: #fafafa;
-    }
+    .admin-product-card { border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px; display: flex; gap: 12px; align-items: flex-start; background: #fafafa; }
     .admin-product-details { flex: 1; }
+    .img-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px,1fr)); gap: 8px; margin-top: 8px; }
+    .img-preview-grid img { width: 100%; height: 88px; object-fit: cover; border: 1px solid #eee; background: #fff; border-radius: 6px; }
+
+    /* --- Admin form: black text + aligned inputs --- */
+    #product-form { color: #111; }
+    #product-form legend { color: #111; font-weight: 600; }
+    #product-form .field { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+    #product-form .field > label { margin: 0; color: #111; font-weight: 500; }
+    #product-form .field > input[type="text"],
+    #product-form .field > input[type="number"],
+    #product-form .field > input[type="file"],
+    #product-form .field > textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid #cfcfcf;
+      border-radius: 6px;
+      background: #fff;
+      color: #111;
+    }
+    #product-form .field > input[type="file"] { padding: 8px; }
+    #product-form ::placeholder { color: #666; }
+
+    /* Button uses global styles from main.css; no override here */
+
+    /* Responsive: stack label above input on small screens */
+    @media (max-width: 640px) {
+      #product-form .field { grid-template-columns: 1fr; align-items: start; }
+    }
   </style>
 </head>
 <body>
   <header class="site-header">
     <div class="container">
       <h1>Panel de Administración</h1>
-      <nav>
-        <a href="/index.html">Inicio</a>
-      </nav>
+      <nav><a href="/index.html">Inicio</a></nav>
     </div>
   </header>
 
   <main class="container" style="padding: 1rem;">
     <section>
       <h2>Crear o Actualizar producto</h2>
+
       <form id="product-form" method="post" enctype="multipart/form-data">
-        <div class="form-row">
-          <label>ID (opcional): <input type="number" name="id" placeholder="Deja vacío para autoincremento" /></label>
+        <fieldset>
+          <legend style="color:black; font-size:18px; font-weight:500;">Datos del producto</legend>
+
+          <div class="field">
+            <label for="p-id" style="color:black;">ID (opcional) : </label>
+            <input id="p-id" type="number" name="id" placeholder="Deja vacío para autoincremento" />
+          </div>
+
+          <div class="field">
+            <label for="p-name" style="color:black;">Nombre : </label>
+            <input id="p-name" type="text" name="name" required />
+          </div>
+
+          <div class="field">
+            <label for="p-price" style="color:black;">Precio : </label>
+            <input id="p-price" type="number" name="price" min="0" step="1" required />
+          </div>
+
+          <div class="field">
+            <label for="p-category" style="color:black;">Categoría : </label>
+            <input id="p-category" type="text" name="category" />
+          </div>
+
+          <div class="field">
+            <label for="p-desc" style="color:black;">Descripción : </label>
+            <textarea id="p-desc" name="description" rows="3"></textarea>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend style="color:black; font-size:18px; font-weight:500;">Imágenes del producto</legend>
+          <div class="field">
+            <label for="p-images" style="color:black;">Selecciona imágenes (puedes elegir varias) : </label>
+            <input id="p-images" type="file" name="images" accept="image/*" multiple />
+          </div>
+          <div id="new-previews" class="img-preview-grid" aria-live="polite"></div>
+          <div style="margin-top:6px; color:#666; font-size:12px;">Las imágenes nuevas reemplazarán a las existentes al guardar.</div>
+
+          <div style="margin-top:10px;">
+            <div style="font-weight:600; margin-bottom:6px;">Imágenes actuales</div>
+            <div id="current-images" class="img-preview-grid"></div>
+          </div>
+        </fieldset>
+
+        <div style="margin-top:12px">
+          <button type="submit" class="btn-primary">Guardar</button>
         </div>
-        <div class="form-row">
-          <label>Nombre*: <input type="text" name="name" required /></label>
-        </div>
-        <div class="form-row">
-          <label>Precio*: <input type="number" name="price" min="0" step="1" required /></label>
-        </div>
-        <div class="form-row">
-          <label>Categoría: <input type="text" name="category" /></label>
-        </div>
-        <div class="form-row">
-          <label>Descripción:<br />
-            <textarea name="description" rows="3"></textarea>
-          </label>
-        </div>
-        <div class="form-row">
-          <label>Imagen:
-            <input type="file" name="image" accept="image/*" />
-          </label>
-        </div>
-        <div class="form-row">
-          <button type="submit">Guardar</button>
-        </div>
-        <p id="form-status" style="margin-top: .5rem;"></p>
+        <p id="form-status" style="margin-top:.5rem;"></p>
       </form>
     </section>
 
