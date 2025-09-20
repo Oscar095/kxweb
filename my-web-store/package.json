@@ -4,9 +4,7 @@
   "description": "A virtual store to showcase and sell products online.",
   "main": "src/app.js",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node server/index.js",
-    "build": "echo 'Build step not defined yet.'"
+    "start": "node server/index.js"
   },
   "keywords": [
     "store",
