@@ -1,3 +1,4 @@
+import { formatMoney } from '../utils/format.js';
 export function productItemTemplate(p) {
   // Normaliza precio desde price o precio
   const priceNum = (() => {
@@ -10,12 +11,14 @@ export function productItemTemplate(p) {
   const qtyInputId = `qty-${p.id}`;
   return /* html */`
     <article class="product" data-id="${p.id}">
-      <img src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
-      <div>
-        <h3>${p.name}</h3>
-        <p class="price">$${priceNum.toFixed(2)}</p>
-        <p class="desc">${p.description || ''}</p>
-      </div>
+      <a href="/product.html?id=${p.id}" style="color:inherit;text-decoration:none;display:block">
+        <img src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
+        <div>
+          <h3>${p.name}</h3>
+          <p class="price">$${formatMoney(priceNum)}</p>
+          <p class="desc">${p.description || ''}</p>
+        </div>
+      </a>
       <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
         <label for="${qtyInputId}" class="qty-label" style="font-size:0.9rem;">Cantidad</label>
         <input id="${qtyInputId}" type="number" class="qty-input" min="1" value="1" aria-label="Cantidad" style="width:64px;padding:4px;">

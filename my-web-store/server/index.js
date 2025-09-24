@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const mongoose = require('mongoose');
 const Product = require('./models/Product');
+const Category = require('./models/Category');
 
 const multer = require('multer');
 const upload = multer({
@@ -47,6 +48,46 @@ const PORT = process.env.PORT || 3000;
 // Wompi
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY;
 const WOMPI_INTEGRITY_SECRET = process.env.WOMPI_INTEGRITY_SECRET;
+const ADMIN_USER = process.env.ADMIN_USER || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS;
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'change-this-in-env';
+
+// --- Auth helpers (cookie token HMAC) ---
+function signToken(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const mac = crypto.createHmac('sha256', ADMIN_SECRET).update(body).digest('base64url');
+  return `${body}.${mac}`;
+}
+function verifyToken(tok) {
+  if (!tok || typeof tok !== 'string' || !tok.includes('.')) return null;
+  const [body, mac] = tok.split('.');
+  const exp = crypto.createHmac('sha256', ADMIN_SECRET).update(body).digest('base64url');
+  if (!crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(exp))) return null;
+  try { return JSON.parse(Buffer.from(body, 'base64url').toString('utf8')); } catch { return null; }
+}
+function getCookies(req) {
+  const c = req.headers.cookie || '';
+  return Object.fromEntries(c.split(';').map(s => s.trim()).filter(Boolean).map(pair => {
+    const i = pair.indexOf('=');
+    if (i < 0) return [pair, ''];
+    return [decodeURIComponent(pair.slice(0, i)), decodeURIComponent(pair.slice(1 + i))];
+  }));
+}
+function setCookie(res, name, value, opts = {}) {
+  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+  if (opts.path) parts.push(`Path=${opts.path}`); else parts.push('Path=/');
+  if (opts.httpOnly !== false) parts.push('HttpOnly');
+  if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`); else parts.push('SameSite=Lax');
+  if (opts.maxAge != null) parts.push(`Max-Age=${opts.maxAge}`);
+  if (opts.secure) parts.push('Secure');
+  res.setHeader('Set-Cookie', parts.join('; '));
+}
+function requireAdmin(req, res, next) {
+  const { adminToken } = getCookies(req);
+  const data = verifyToken(adminToken);
+  if (!data || data.sub !== 'admin') return res.status(401).json({ message: 'No autorizado' });
+  next();
+}
 
 // --- Firma para Wompi ---
 app.post('/api/wompi/signature', (req, res) => {
@@ -80,6 +121,35 @@ app.post('/api/wompi/signature', (req, res) => {
 });
 // --- fin firma ---
 
+// --- Admin Auth API ---
+app.post('/api/admin/login', (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!ADMIN_PASSWORD) return res.status(500).json({ message: 'ADMIN_PASSWORD no configurada' });
+    if ((username || ADMIN_USER) !== ADMIN_USER || password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ message: 'Credenciales inválidas' });
+    }
+    const token = signToken({ sub: 'admin', user: ADMIN_USER, iat: Date.now() });
+    setCookie(res, 'adminToken', token, { httpOnly: true, sameSite: 'Lax' });
+    res.json({ ok: true, user: ADMIN_USER });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error en login' });
+  }
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  setCookie(res, 'adminToken', '', { maxAge: 0 });
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/me', (req, res) => {
+  const { adminToken } = getCookies(req);
+  const data = verifyToken(adminToken);
+  if (!data || data.sub !== 'admin') return res.status(401).json({ ok: false });
+  res.json({ ok: true, user: data.user });
+});
+
 // Servir frontend estático
 const staticDir = path.resolve(__dirname, '..', 'src');
 app.use(express.static(staticDir));
@@ -93,7 +163,11 @@ mongoose.connect(process.env.MONGODB_URI, {})
 // GET listado: incluye array images y mantiene 'image' como la primera
 app.get('/api/products', async (req, res) => {
   try {
-    const docs = await Product.find().sort({ id: 1 }).lean().exec();
+    const filter = {};
+    if (req.query.category && req.query.category !== 'all') {
+      filter.category = String(req.query.category);
+    }
+    const docs = await Product.find(filter).sort({ id: 1 }).lean().exec();
     const out = docs.map(d => {
       const hasImagesArr = Array.isArray(d.images) && d.images.length > 0;
       const ver = d.updatedAt ? new Date(d.updatedAt).getTime() : Date.now();
@@ -114,6 +188,45 @@ app.get('/api/products', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error listando productos' });
+  }
+});
+
+// GET detalle de un producto por id
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const d = await Product.findOne({ id }).lean().exec();
+    if (!d) return res.status(404).json({ message: 'Producto no encontrado' });
+    const hasImagesArr = Array.isArray(d.images) && d.images.length > 0;
+    const ver = d.updatedAt ? new Date(d.updatedAt).getTime() : Date.now();
+    const arr = hasImagesArr
+      ? d.images.map((_, i) => `/api/products/${d.id}/images/${i}?v=${ver}`)
+      : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
+    const out = {
+      id: d.id,
+      name: d.name,
+      price: d.price,
+      category: d.category,
+      description: d.description,
+      image: arr[0] || '/images/placeholder.svg',
+      images: arr
+    };
+    res.json(out);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error obteniendo producto' });
+  }
+});
+
+// API Categories
+app.get('/api/categories', async (req, res) => {
+  try {
+    const cats = await Category.find().sort({ id: 1 }).lean().exec();
+    res.json(cats);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error listando categorías' });
   }
 });
 
@@ -174,6 +287,7 @@ app.get('/api/products/:id/images/:idx', async (req, res) => {
 
 // Crear/actualizar producto: acepta múltiples imágenes
 app.post('/api/products',
+  requireAdmin,
   upload.fields([{ name: 'images', maxCount: 6 }, { name: 'image', maxCount: 1 }]),
   async (req, res) => {
     try {
@@ -223,6 +337,10 @@ app.post('/api/products',
 );
 
 app.delete('/api/products/:id', async (req, res) => {
+  // proteger borrado
+  const { adminToken } = getCookies(req);
+  const data = verifyToken(adminToken);
+  if (!data || data.sub !== 'admin') return res.status(401).json({ message: 'No autorizado' });
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });

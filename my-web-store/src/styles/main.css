@@ -294,7 +294,7 @@ header{background:#2ea2cc;position:sticky;top:0;z-index:60;color: #fff}
   .social-link:hover{background:rgba(255,255,255,0.06)}
 
 /* cart drawer */
-.cart-drawer{position:fixed;right:0;top:0;height:100%;width:360px;max-width:90vw;background:#fff;box-shadow:-6px 0 24px rgba(0,0,0,0.12);transform:translateX(110%);transition:transform .25s ease;z-index:120}
+.cart-drawer{position:fixed;right:0;top:0;height:100%;width:480px;max-width:96vw;background:#fff;box-shadow:-6px 0 24px rgba(0,0,0,0.12);transform:translateX(110%);transition:transform .25s ease;z-index:120}
 .cart-drawer.open{transform:translateX(0)}
 .cart-header{padding:20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;background: #2ea2cc;}
 .cart-body{padding:16px;overflow:auto;height:calc(100% - 120px)}

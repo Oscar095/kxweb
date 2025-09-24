@@ -1,15 +1,16 @@
 import { cartService } from '../services/cart-service.js';
+import { formatMoney } from '../utils/format.js';
 
 export function renderCartDrawer(mount) {
   mount.className = 'cart-drawer';
   mount.innerHTML = `
     <div class="cart-header">
       <strong style="font-size: 1.25rem;color: #fff">Carrito de Compras</strong>
-      <button id="close-cart" style="background: none; border: none; color: #fff; font-size: 1.25rem;">X</button>
+      <button id="close-cart" style="background: none; border: none; color: #fff; font-size: 1.25rem;">x</button>
     </div>
     <div class="cart-body" id="cart-body"></div>
     <div class="cart-footer" style="display: flex; align-items: center; justify-content: space-between;">
-      <a id="cart-total" style="margin-right: auto;">Total: $0.00</a>
+  <a id="cart-total" style="margin-right: auto;">Total: $0,00</a>
       <button id="checkout" class="btn-primary" style="flex-shrink: 0; scale: 0.75;;">Ir a Pagar</button>
     </div>
   `;
@@ -27,7 +28,10 @@ export function renderCartDrawer(mount) {
       const id = it.id;
       const price = priceOf(it);
       const qty = Math.max(1, Number(it._qty) || 1); // usa _qty si existe; sino 1
-      const g = map.get(id) || { id, name: it.name, price, quantity: 0, subtotal: 0 };
+      // Determina imagen de portada
+      const cover = (Array.isArray(it.images) && it.images[0]) ? it.images[0] : (it.image || '/images/placeholder.svg');
+      const g = map.get(id) || { id, name: it.name, price, image: cover, quantity: 0, subtotal: 0 };
+      if (!g.image) g.image = cover;
       g.quantity += qty;
       g.subtotal = g.price * g.quantity;
       map.set(id, g);
@@ -39,10 +43,11 @@ export function renderCartDrawer(mount) {
     const grouped = groupItems(items);
     const body = document.getElementById('cart-body');
     body.innerHTML = grouped.length ? grouped.map(i => `
-      <div class="cart-item" data-id="${i.id}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <div class="meta" style="flex:1;">
-          <div style="font-weight:600;">${i.name}</div>
-          <div style="color:var(--muted);font-size:13px">$${i.price.toFixed(2)} c/u · Subtotal $${i.subtotal.toFixed(2)}</div>
+      <div class="cart-item" data-id="${i.id}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <img src="${i.image || '/images/placeholder.svg'}" alt="${i.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'" style="width:56px;height:56px;object-fit:contain;background:#fff;border:1px solid #eee;border-radius:6px;flex-shrink:0;" />
+        <div class="meta" style="flex:1;min-width:0;">
+          <div style="font-weight:600;white-space:normal;overflow:visible;">${i.name}</div>
+          <div style="color:var(--muted);font-size:13px">$${formatMoney(i.price)} c/u · Subtotal $${formatMoney(i.subtotal)}</div>
         </div>
         <div class="qty-controls" style="display:flex;align-items:center;gap:6px;">
           <button class="dec" aria-label="Disminuir" style="width:28px;height:28px;border-radius:6px;">-</button>
@@ -53,8 +58,8 @@ export function renderCartDrawer(mount) {
       </div>
     `).join('') : '<div>Tu carrito está vacío</div>';
 
-    const total = grouped.reduce((s, it) => s + it.subtotal, 0);
-    document.getElementById('cart-total').textContent = `Total: $${total.toFixed(2)}`;
+  const total = grouped.reduce((s, it) => s + it.subtotal, 0);
+  document.getElementById('cart-total').textContent = `Total: $${formatMoney(total)}`;
   }
 
   cartService.onChange = update;

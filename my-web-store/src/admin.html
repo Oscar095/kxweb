@@ -48,8 +48,20 @@
   </header>
 
   <main class="container" style="padding: 1rem;">
-    <section>
+    <section id="login-section" style="display:none;max-width:480px;margin:0 auto;">
+      <h2>Iniciar sesión</h2>
+      <form id="login-form">
+        <div class="field"><label for="u">Usuario</label><input id="u" name="username" required /></div>
+        <div class="field"><label for="p">Contraseña</label><input id="p" name="password" type="password" required /></div>
+        <button class="btn-primary" type="submit">Entrar</button>
+        <p id="login-msg" style="color:#b00"></p>
+      </form>
+    </section>
+    <section id="admin-section" style="display:none;">
       <h2>Crear o Actualizar producto</h2>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+        <button id="logout-btn" style="background:#eee;border:1px solid #ddd;border-radius:6px;padding:8px 12px;cursor:pointer">Cerrar sesión</button>
+      </div>
 
       <form id="product-form" method="post" enctype="multipart/form-data">
         <fieldset>
@@ -72,7 +84,7 @@
 
           <div class="field">
             <label for="p-category" style="color:black;">Categoría : </label>
-            <input id="p-category" type="text" name="category" />
+            <select id="p-category" name="category"></select>
           </div>
 
           <div class="field">

@@ -1,5 +1,6 @@
 import { renderHeader } from './components/header.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
+import { cartService } from './services/cart-service.js';
 
 renderHeader(document.getElementById('site-header'));
 renderCartDrawer(document.getElementById('cart-drawer'));
@@ -16,8 +17,16 @@ function readCart() {
   }
 }
 
+function priceOf(item) {
+  const raw = item?.price ?? item?.precio ?? 0;
+  const num = typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw);
+  return Number.isFinite(num) ? num : 0;
+}
 function computeTotal(items) {
-  return items.reduce((s, i) => s + Number(i.price || 0), 0);
+  return items.reduce((s, i) => {
+    const qty = Math.max(1, Number(i._qty) || 1);
+    return s + priceOf(i) * qty;
+  }, 0);
 }
 function computeTotalInCents(items) {
   return Math.round(computeTotal(items) * 100);
@@ -26,12 +35,52 @@ function computeTotalInCents(items) {
 function renderOrderSummary() {
   const el = document.getElementById('order-summary');
   const items = readCart();
+
+  // Agrupar por id con cantidades
+  const map = new Map();
+  for (const it of items) {
+    const id = it.id;
+    const qty = Math.max(1, Number(it._qty) || 1);
+    const price = priceOf(it);
+    const cover = (Array.isArray(it.images) && it.images[0]) ? it.images[0] : (it.image || '/images/placeholder.svg');
+    const g = map.get(id) || { id, name: it.name, price, qty: 0, image: cover };
+    g.qty += qty;
+    g.image = g.image || cover;
+    map.set(id, g);
+  }
+  const grouped = Array.from(map.values());
+
   const cents = computeTotalInCents(items);
   const amount = (cents / 100).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
 
+  if (grouped.length === 0) {
+    el.innerHTML = `
+      <h3 style="color: black; font-size: 18px; font-weight: 500;">Resumen de la Orden</h3>
+      <p>Tu carrito está vacío.</p>
+    `;
+    return { items, amountInCents: cents };
+  }
+
+  const rows = grouped.map(it => {
+    const unit = it.price.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+    const sub = (it.price * it.qty).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed #eee;">
+        <img src="${it.image}" alt="${it.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'" style="width:56px;height:56px;object-fit:contain;background:#fff;border:1px solid #eee;border-radius:6px;flex-shrink:0;" />
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;color:black;white-space:normal;">${it.name}</div>
+          <div style="color:#555;font-size:13px;">${unit} x ${it.qty} = <strong>${sub}</strong></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
   el.innerHTML = `
     <h3 style="color: black; font-size: 18px; font-weight: 500;">Resumen de la Orden</h3>
-    <p style="color: black; font-size: 16px;">Total a pagar: <strong>${amount}</strong></p>
+    <div>${rows}</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px;color:black;font-size:16px;">
+      Total a pagar: <strong style="margin-left:6px;">${amount}</strong>
+    </div>
   `;
   return { items, amountInCents: cents };
 }
@@ -155,6 +204,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderOrderSummary();
   showReturnMessageFromWompi();
+
+  // Actualizar resumen cuando cambie el carrito (desde el drawer u otras páginas)
+  cartService.subscribe(() => renderOrderSummary());
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'cart') renderOrderSummary();
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

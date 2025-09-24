@@ -67,7 +67,16 @@ async function loadProducts() {
         form.id.value = prod.id;
         form.name.value = prod.name || '';
         form.price.value = prod.price || 0;
-        form.category.value = prod.category || '';
+        // Ensure category select has the current value
+        const sel = form.category;
+        const val = prod.category || '';
+        if (![...sel.options].some(o => o.value === val) && val) {
+          const opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = val;
+          sel.appendChild(opt);
+        }
+        sel.value = val;
         form.description.value = prod.description || '';
         form.images.value = ''; // limpia selección
 
@@ -136,8 +145,79 @@ async function submitForm(ev) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function ensureAuth() {
+  try {
+    const r = await fetch('/api/admin/me', { cache: 'no-store' });
+    return r.ok;
+  } catch { return false; }
+}
+
+async function showLogin() {
+  document.getElementById('login-section').style.display = '';
+  document.getElementById('admin-section').style.display = 'none';
+}
+async function showAdmin() {
+  document.getElementById('login-section').style.display = 'none';
+  document.getElementById('admin-section').style.display = '';
+}
+
+async function initAdmin() {
+  // Populate categories select
+  try {
+    const sel = $('#p-category');
+    if (sel) {
+      sel.innerHTML = '<option value="">Cargando categorías...</option>';
+      const r = await fetch('/api/categories', { cache: 'no-store' });
+      const cats = r.ok ? await r.json() : [];
+      sel.innerHTML = '<option value="">(sin categoría)</option>' +
+        cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
+    }
+  } catch (e) { console.error('No se pudieron cargar categorías', e); }
+
   $('#product-form').addEventListener('submit', submitForm);
   $('#p-images').addEventListener('change', (e) => renderNewPreviews(e.target.files));
   await loadProducts();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Auth gate
+  const authed = await ensureAuth();
+  if (!authed) {
+    await showLogin();
+  } else {
+    await showAdmin();
+    await initAdmin();
+  }
+
+  // Login form
+  const loginForm = document.getElementById('login-form');
+  loginForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(loginForm);
+    const payload = { username: fd.get('username'), password: fd.get('password') };
+    const msg = document.getElementById('login-msg');
+    msg.textContent = '';
+    try {
+      const r = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        msg.textContent = 'Error: ' + t;
+        return;
+      }
+      await showAdmin();
+      await initAdmin();
+    } catch (err) {
+      console.error(err);
+      msg.textContent = 'No se pudo iniciar sesión';
+    }
+  });
+
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await fetch('/api/admin/logout', { method: 'POST' });
+    await showLogin();
+  });
 });
