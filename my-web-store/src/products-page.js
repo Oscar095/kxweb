@@ -48,6 +48,120 @@ async function init() {
     setTimeout(() => btn.classList.remove('added'), 350);
   });
 
+  // Delegado: navegación de imágenes (prev/next)
+  mount.addEventListener('click', (e) => {
+    const prev = e.target.closest('.img-prev');
+    const next = e.target.closest('.img-next');
+    const nav = prev || next;
+    if (!nav || !mount.contains(nav)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const card = nav.closest('.product');
+    const id = Number(card?.dataset.id);
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    const imgs = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
+    const wrap = card.querySelector('.product-img-wrap');
+    const imgEl = card.querySelector('.product-img');
+    let idx = Number(wrap?.dataset.index || 0);
+    if (prev) idx = (idx - 1 + imgs.length) % imgs.length;
+    if (next) idx = (idx + 1) % imgs.length;
+    wrap.dataset.index = String(idx);
+    if (imgEl) imgEl.src = imgs[idx] || '/images/placeholder.svg';
+    // Sync lens background with current image if visible
+    const lens = wrap?.querySelector('.img-lens');
+    if (lens && imgEl) {
+      lens.style.backgroundImage = `url("${imgEl.src}")`;
+    }
+  });
+
+  // --- LENS MAGNIFIER EFFECT ---
+  const showLens = (wrap) => {
+    const lens = wrap.querySelector('.img-lens');
+    const img = wrap.querySelector('.product-img');
+    if (!lens || !img) return;
+    lens.style.display = 'block';
+    lens.style.backgroundImage = `url("${img.src}")`;
+  };
+
+  const hideLens = (wrap) => {
+    const lens = wrap.querySelector('.img-lens');
+    if (!lens) return;
+    lens.style.display = 'none';
+  };
+
+  const moveLens = (wrap, clientX, clientY) => {
+    const lens = wrap.querySelector('.img-lens');
+    const img = wrap.querySelector('.product-img');
+    if (!lens || !img) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const imgRect = img.getBoundingClientRect();
+    const lw = lens.offsetWidth;
+    const lh = lens.offsetHeight;
+
+    let left = clientX - wrapRect.left - lw / 2;
+    let top = clientY - wrapRect.top - lh / 2;
+    // clamp within wrapper bounds
+    left = Math.max(0, Math.min(left, wrapRect.width - lw));
+    top = Math.max(0, Math.min(top, wrapRect.height - lh));
+    lens.style.left = left + 'px';
+    lens.style.top = top + 'px';
+
+    // background position based on position relative to the image itself
+    let relX = clientX - imgRect.left;
+    let relY = clientY - imgRect.top;
+    relX = Math.max(0, Math.min(relX, imgRect.width));
+    relY = Math.max(0, Math.min(relY, imgRect.height));
+    const pctX = (relX / imgRect.width) * 100;
+    const pctY = (relY / imgRect.height) * 100;
+    lens.style.backgroundPosition = pctX + '% ' + pctY + '%';
+  };
+
+  // Mouse over to show lens (use mouseover/mouseout because mouseenter/leave don't bubble)
+  mount.addEventListener('mouseover', (e) => {
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap)) return;
+    showLens(wrap);
+  });
+
+  mount.addEventListener('mouseout', (e) => {
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap)) return;
+    // if moving within the same wrapper, ignore
+    if (wrap.contains(e.relatedTarget)) return;
+    hideLens(wrap);
+  });
+
+  mount.addEventListener('mousemove', (e) => {
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap)) return;
+    moveLens(wrap, e.clientX, e.clientY);
+  });
+
+  // Touch support
+  mount.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap) || !touch) return;
+    e.preventDefault();
+    showLens(wrap);
+    moveLens(wrap, touch.clientX, touch.clientY);
+  }, { passive: false });
+
+  mount.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap) || !touch) return;
+    e.preventDefault();
+    moveLens(wrap, touch.clientX, touch.clientY);
+  }, { passive: false });
+
+  mount.addEventListener('touchend', (e) => {
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap)) return;
+    hideLens(wrap);
+  });
+
   // category buttons (delegate to container for dynamic elements)
   if (catWrap) {
     catWrap.addEventListener('click', (e) => {

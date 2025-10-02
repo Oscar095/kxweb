@@ -42,6 +42,7 @@ async function loadProducts() {
       details.className = 'admin-product-details';
       details.innerHTML = `
         <div class="product-name">${p.name}</div>
+        <div class="product-sku" style="color:#555">Código: ${p.codigo || ''}</div>
         <div class="product-category">${p.category || ''}</div>
         <div class="product-description">${p.description || ''}</div>
         <div class="product-price">$${Number(p.price || 0).toLocaleString()}</div>
@@ -64,6 +65,7 @@ async function loadProducts() {
         if (!prod) return;
 
         const form = $('#product-form');
+  form.codigo.value = prod.codigo || '';
         form.id.value = prod.id;
         form.name.value = prod.name || '';
         form.price.value = prod.price || 0;

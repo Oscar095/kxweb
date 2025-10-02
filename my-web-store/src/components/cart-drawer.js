@@ -6,7 +6,10 @@ export function renderCartDrawer(mount) {
   mount.innerHTML = `
     <div class="cart-header">
       <strong style="font-size: 1.25rem;color: #fff">Carrito de Compras</strong>
-      <button id="close-cart" style="background: none; border: none; color: #fff; font-size: 1.25rem;">x</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button id="clear-cart" class="btn-primary" title="Vaciar carrito" style="font-size: 1.2rem; padding: 6px 10px; border-radius: 6px; scale: 0.75;">Vaciar Carrito</button>
+        <button id="close-cart" class="btn-primary" title="Cerrar" style="padding: 6px 10px; border-radius: 6px; scale: 0.75; font-size: 1.2rem;">X</button>
+      </div>
     </div>
     <div class="cart-body" id="cart-body"></div>
     <div class="cart-footer" style="display: flex; align-items: center; justify-content: space-between;">
@@ -54,7 +57,7 @@ export function renderCartDrawer(mount) {
           <input type="number" class="qty" min="1" value="${i.quantity}" style="width:56px;text-align:center;"/>
           <button class="inc" aria-label="Aumentar" style="width:28px;height:28px;border-radius:6px;">+</button>
         </div>
-        <button data-id="${i.id}" class="remove" style="color:black;font-size:14px;padding:8px 8px;">Eliminar</button>
+        <button data-id="${i.id}" class="remove" style="color:black;font-size:10px;padding:3px 5px;border-radius:6px;">Eliminar</button>
       </div>
     `).join('') : '<div>Tu carrito está vacío</div>';
 
@@ -66,6 +69,9 @@ export function renderCartDrawer(mount) {
   cartService._notify();
 
   mount.querySelector('#close-cart').addEventListener('click', () => mount.classList.remove('open'));
+  mount.querySelector('#clear-cart').addEventListener('click', () => {
+    if (confirm('¿Vaciar todo el carrito?')) cartService.clear();
+  });
   mount.addEventListener('click', (e)=> {
     const removeBtn = e.target.closest('.remove');
     if (removeBtn) {

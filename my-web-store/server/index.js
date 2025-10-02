@@ -5,6 +5,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Product = require('./models/Product');
 const Category = require('./models/Category');
+const Contact = require('./models/Contact');
 
 const multer = require('multer');
 const upload = multer({
@@ -121,6 +122,33 @@ app.post('/api/wompi/signature', (req, res) => {
 });
 // --- fin firma ---
 
+// --- Contactos API ---
+const contactUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB por archivo
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype) || file.mimetype === 'application/pdf') return cb(null, true);
+    cb(new Error('Solo se permiten imágenes (png, jpg, gif, webp) o PDF'));
+  }
+});
+
+app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res) => {
+  try {
+    const { name, email, phone, message } = req.body || {};
+    if (!name || !email || !message) {
+      return res.status(400).json({ message: 'name, email y message son requeridos' });
+    }
+    const id = await Contact.nextId();
+    const files = Array.isArray(req.files) ? req.files : [];
+    const attachments = files.map(f => ({ data: f.buffer, type: f.mimetype, filename: f.originalname, size: f.size }));
+    const saved = await Contact.create({ id, name: String(name).trim(), email: String(email).trim(), phone: String(phone || '').trim(), message: String(message).trim(), attachments });
+    res.status(201).json({ ok: true, id: saved.id });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error guardando contacto' });
+  }
+});
+
 // --- Admin Auth API ---
 app.post('/api/admin/login', (req, res) => {
   try {
@@ -176,6 +204,7 @@ app.get('/api/products', async (req, res) => {
         : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
       return {
         id: d.id,
+        codigo: d.codigo || '',
         name: d.name,
         price: d.price,
         category: d.category,
@@ -205,6 +234,7 @@ app.get('/api/products/:id', async (req, res) => {
       : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
     const out = {
       id: d.id,
+      codigo: d.codigo || '',
       name: d.name,
       price: d.price,
       category: d.category,
@@ -291,7 +321,7 @@ app.post('/api/products',
   upload.fields([{ name: 'images', maxCount: 6 }, { name: 'image', maxCount: 1 }]),
   async (req, res) => {
     try {
-      const { id, name, price, category, description } = req.body || {};
+  const { id, name, price, category, description, codigo } = req.body || {};
       const numericPrice = Number(price);
       if (!name || Number.isNaN(numericPrice)) {
         return res.status(400).json({ message: 'Nombre y precio son requeridos' });
@@ -302,6 +332,7 @@ app.post('/api/products',
 
       const doc = {
         id: newId,
+        codigo: (codigo == null ? '' : String(codigo).trim()),
         name: String(name).trim(),
         price: numericPrice,
         category: category || '',

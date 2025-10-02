@@ -9,6 +9,7 @@ const imageSchema = new mongoose.Schema({
 
 const productSchema = new mongoose.Schema({
   id: { type: Number, unique: true, index: true },
+  codigo: { type: String, default: '', trim: true, index: true },
   name: { type: String, required: true, trim: true },
   price: { type: Number, required: true, min: 0 },
   category: { type: String, default: '' },

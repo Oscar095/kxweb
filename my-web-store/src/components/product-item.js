@@ -7,18 +7,25 @@ export function productItemTemplate(p) {
     return Number.isFinite(num) ? num : 0;
   })();
   // Use placeholder.svg by default and fallback on image load error
-  const imgSrc = p.image || 'images/placeholder.svg';
+  const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || 'images/placeholder.svg';
   const qtyInputId = `qty-${p.id}`;
   return /* html */`
     <article class="product" data-id="${p.id}">
-      <a href="/product.html?id=${p.id}" style="color:inherit;text-decoration:none;display:block">
-        <img src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
-        <div>
-          <h3>${p.name}</h3>
-          <p class="price">$${formatMoney(priceNum)}</p>
-          <p class="desc">${p.description || ''}</p>
+      <div class="product-media">
+        <div class="product-img-wrap" data-index="0" style="position:relative;">
+          <div class="img-lens"></div>
+          <img class="product-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
+          ${Array.isArray(p.images) && p.images.length > 1 ? `
+            <button class="img-prev" aria-label="Imagen anterior">‹</button>
+            <button class="img-next" aria-label="Imagen siguiente">›</button>
+          ` : ''}
         </div>
-      </a>
+      </div>
+      <div>
+        <a href="/product.html?id=${p.id}" class="product-link" style="color:inherit;text-decoration:none"><h3>${p.name}</h3></a>
+        <p class="price">$${formatMoney(priceNum)}</p>
+        <p class="desc">${p.description || ''}</p>
+      </div>
       <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
         <label for="${qtyInputId}" class="qty-label" style="font-size:0.9rem;">Cantidad</label>
         <input id="${qtyInputId}" type="number" class="qty-input" min="1" value="1" aria-label="Cantidad" style="width:64px;padding:4px;">
