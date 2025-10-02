@@ -28,7 +28,7 @@ export function renderHeader(container) {
   }, 100);
   container.innerHTML = `
     <div class="header-inner container">
-      <div class="logo"><a href="index.html"><img src="images/LogoKos2.png" alt="Kos Xpress" class="logo-img" style="height:99px;width:auto;"/></a></div>
+      <div class="logo"><a href="index.html"><img src="images/LogoKos2.png" alt="Kos Xpress" class="logo-img"/></a></div>
       <nav class="nav nav-animated">
         <a href="index.html" class="nav-link" data-nav="inicio">Inicio</a>
         <a href="products.html" class="nav-link" data-nav="productos">Productos</a>
@@ -38,6 +38,7 @@ export function renderHeader(container) {
         <span class="nav-rect"></span>
       </nav>
       <div class="search">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menú">☰</button>
         <input id="search-input" placeholder="Buscar productos..." />
         <button id="cart-toggle" title="Carrito" class="cart-btn">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
@@ -49,6 +50,7 @@ export function renderHeader(container) {
         </button>
       </div>
     </div>
+    <div id="nav-backdrop" class="nav-backdrop" aria-hidden="true"></div>
   `;
 
   const cartToggle = document.getElementById('cart-toggle');
@@ -77,4 +79,35 @@ export function renderHeader(container) {
       try { mod.renderFooter(footerContainer); } catch (err) { console.warn('renderFooter failed', err); }
     }).catch(err => { console.warn('No se pudo cargar footer module', err); });
   }
+
+  // Mobile nav toggle
+  const nav = container.querySelector('.nav');
+  const menuBtn = document.getElementById('menu-toggle');
+  const backdrop = document.getElementById('nav-backdrop');
+  const closeNav = () => { nav?.classList.remove('open'); backdrop?.classList.remove('open'); };
+  const openNav = () => { nav?.classList.add('open'); backdrop?.classList.add('open'); };
+  menuBtn?.addEventListener('click', () => {
+    if (!nav) return;
+    if (nav.classList.contains('open')) closeNav();
+    else openNav();
+  });
+  backdrop?.addEventListener('click', closeNav);
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNav(); });
+  // Close nav when resizing to desktop
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 900) closeNav();
+  });
+
+  // Mark active link (applies orange background in mobile)
+  try {
+    const current = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    nav?.querySelectorAll('a').forEach(a => {
+      const href = (a.getAttribute('href') || '').toLowerCase();
+      if (href.endsWith(current)) a.classList.add('is-active');
+      // Also treat root as index
+      if ((current === '' || current === '/') && (href.endsWith('index.html') || href === '/')) {
+        a.classList.add('is-active');
+      }
+    });
+  } catch {}
 }
