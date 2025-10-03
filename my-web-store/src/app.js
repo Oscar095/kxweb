@@ -50,6 +50,32 @@ async function init() {
       setTimeout(() => btn.classList.remove('added'), 350);
     });
 
+    // Delegado: navegación de imágenes (prev/next) por tarjeta
+    productsMount.addEventListener('click', (e) => {
+      const prev = e.target.closest('.img-prev');
+      const next = e.target.closest('.img-next');
+      const nav = prev || next;
+      if (!nav || !productsMount.contains(nav)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const card = nav.closest('.product');
+      const id = Number(card?.dataset.id);
+      const product = products.find(p => p.id === id);
+      if (!product) return;
+      const imgs = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
+      const wrap = card.querySelector('.product-img-wrap');
+      const imgEl = card.querySelector('.product-img');
+      let idx = Number(wrap?.dataset.index || 0);
+      if (prev) idx = (idx - 1 + imgs.length) % imgs.length;
+      if (next) idx = (idx + 1) % imgs.length;
+      if (wrap) wrap.dataset.index = String(idx);
+      if (imgEl) imgEl.src = imgs[idx] || '/images/placeholder.svg';
+      const lens = wrap?.querySelector('.img-lens');
+      if (lens && imgEl) {
+        lens.style.backgroundImage = `url("${imgEl.src}")`;
+      }
+    });
+
     // search filter (global event dispatched from header)
     window.addEventListener('search', (e) => {
       const q = (e.detail || '').toLowerCase();
