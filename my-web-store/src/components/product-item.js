@@ -14,7 +14,9 @@ export function productItemTemplate(p) {
       <div class="product-media">
         <div class="product-img-wrap" data-index="0" style="position:relative;">
           <div class="img-lens"></div>
-          <img class="product-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
+          <a href="/product.html?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
+            <img class="product-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
+          </a>
           ${Array.isArray(p.images) && p.images.length > 1 ? `
             <button class="img-prev" aria-label="Imagen anterior">‹</button>
             <button class="img-next" aria-label="Imagen siguiente">›</button>

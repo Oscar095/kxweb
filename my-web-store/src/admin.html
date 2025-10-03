@@ -117,6 +117,11 @@
           <button type="submit" class="btn-primary">Guardar</button>
         </div>
         <p id="form-status" style="margin-top:.5rem;"></p>
+
+        <div style="margin-top:16px">
+          <div style="font-weight:600; margin-bottom:6px;">Imágenes seleccionadas desde Biblioteca (se adjuntarán al guardar)</div>
+          <div id="lib-selected" class="img-preview-grid"></div>
+        </div>
       </form>
     </section>
 
@@ -125,6 +130,26 @@
     <section>
       <h2>Productos</h2>
       <div id="products-grid" class="products-grid"></div>
+    </section>
+
+    <hr />
+
+    <section id="library-section" style="display:none; margin-top: 1rem;">
+      <h2>Biblioteca de Imágenes</h2>
+      <form id="library-form" enctype="multipart/form-data" style="max-width:640px;">
+        <div class="field">
+          <label for="lib-nombre">Nombre</label>
+          <input id="lib-nombre" name="nombre" type="text" placeholder="Nombre descriptivo" required />
+        </div>
+        <div class="field">
+          <label for="lib-imagen">Imagen</label>
+          <input id="lib-imagen" name="imagen" type="file" accept="image/*" required />
+        </div>
+        <button type="submit" class="btn-primary">Subir a Biblioteca</button>
+        <span id="library-status" style="margin-left:8px;"></span>
+      </form>
+      <div style="margin:1rem 0; font-weight:600;">Imágenes guardadas</div>
+      <div id="library-grid" class="img-preview-grid"></div>
     </section>
   </main>
 

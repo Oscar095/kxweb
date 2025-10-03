@@ -57,7 +57,7 @@ async function init() {
       const nav = prev || next;
       if (!nav || !productsMount.contains(nav)) return;
       e.preventDefault();
-      e.stopPropagation();
+      e.stopPropagation(); // evita navegar al link de la imagen
       const card = nav.closest('.product');
       const id = Number(card?.dataset.id);
       const product = products.find(p => p.id === id);
@@ -75,6 +75,14 @@ async function init() {
         lens.style.backgroundImage = `url("${imgEl.src}")`;
       }
     });
+
+    // Evita que clicks en la lupa (lens) interfieran con navegación
+    productsMount.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.img-lens')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
 
     // search filter (global event dispatched from header)
     window.addEventListener('search', (e) => {

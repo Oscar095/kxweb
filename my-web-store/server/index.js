@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const Product = require('./models/Product');
 const Category = require('./models/Category');
 const Contact = require('./models/Contact');
+const LibraryImage = require('./models/LibraryImage');
 
 const multer = require('multer');
 const upload = multer({
@@ -257,6 +258,83 @@ app.get('/api/categories', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error listando categorías' });
+  }
+});
+
+// --- Biblioteca de imágenes ---
+// Listar biblioteca (metadatos)
+app.get('/api/biblioteca', async (req, res) => {
+  try {
+    const docs = await LibraryImage.find().sort({ id: 1 }).lean().exec();
+    const ver = Date.now();
+    const out = docs.map(d => ({
+      id: d.id,
+      nombre: d.nombre,
+      url: `/api/biblioteca/${d.id}/imagen?v=${ver}`
+    }));
+    res.json(out);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error listando biblioteca' });
+  }
+});
+
+// Obtener binario de imagen de biblioteca
+app.get('/api/biblioteca/:id/imagen', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).send('ID inválido');
+    const doc = await LibraryImage.findOne({ id }).select('imagen').exec();
+    if (!doc || !doc.imagen || !doc.imagen.data) return res.status(404).send('No encontrada');
+    const buf = Buffer.isBuffer(doc.imagen.data) ? doc.imagen.data : Buffer.from(doc.imagen.data);
+    const ctype = doc.imagen.type || detectImageMime(buf) || 'image/jpeg';
+    res.set('Content-Type', ctype);
+    res.set('Content-Length', String(buf.length));
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.end(buf);
+  } catch (e) {
+    console.error(e);
+    res.status(500).send('Error obteniendo imagen');
+  }
+});
+
+// Crear elemento de biblioteca (protegido)
+const libUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Solo se permiten imágenes PNG/JPG/GIF/WebP'));
+  }
+});
+
+app.post('/api/biblioteca', requireAdmin, libUpload.single('imagen'), async (req, res) => {
+  try {
+    const { nombre } = req.body || {};
+    if (!nombre || !req.file) {
+      return res.status(400).json({ message: 'nombre e imagen son requeridos' });
+    }
+    const id = await LibraryImage.nextId();
+    const imagen = { data: req.file.buffer, type: req.file.mimetype, filename: req.file.originalname, size: req.file.size };
+    const saved = await LibraryImage.create({ id, nombre: String(nombre).trim(), imagen });
+    res.status(201).json({ ok: true, id: saved.id });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error creando elemento de biblioteca' });
+  }
+});
+
+// Eliminar elemento de biblioteca (protegido)
+app.delete('/api/biblioteca/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const r = await LibraryImage.deleteOne({ id });
+    if (r.deletedCount === 0) return res.status(404).json({ message: 'No encontrado' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error eliminando elemento de biblioteca' });
   }
 });
 

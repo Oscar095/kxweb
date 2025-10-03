@@ -31,8 +31,6 @@ export function renderHeader(container) {
       <div class="logo"><a href="index.html"><img src="images/LogoKos2.png" alt="Kos Xpress" class="logo-img"/></a></div>
       <nav class="nav nav-animated">
         <a href="index.html" class="nav-link" data-nav="inicio">Inicio</a>
-        <a href="products.html" class="nav-link" data-nav="productos">Productos</a>
-        <a href="about.html" class="nav-link" data-nav="about">Nosotros</a>
         <a href="contact.html" class="nav-link" data-nav="contacto">Contacto</a>
         <a href="admin.html" class="nav-link" data-nav="admin">Admin</a>
         <span class="nav-rect"></span>
@@ -41,10 +39,23 @@ export function renderHeader(container) {
         <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menú">☰</button>
         <input id="search-input" placeholder="Buscar productos..." />
         <button id="cart-toggle" title="Carrito" class="cart-btn">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 6h15l-1.5 9h-12L4 2H2" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="10" cy="20" r="1.5" fill="#fff"/>
-            <circle cx="18" cy="20" r="1.5" fill="#fff"/>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="cartGrid" width="3" height="3" patternUnits="userSpaceOnUse">
+                <path d="M3 0H0M0 0V3" stroke="currentColor" stroke-width="0.3"/>
+              </pattern>
+            </defs>
+            <!-- Handle -->
+            <path d="M4 4 H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <!-- Basket (trapezoid) with grid fill -->
+            <polygon points="6,6 21,6 19.5,13.5 8.5,13.5" fill="url(#cartGrid)" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            <!-- Base line under basket -->
+            <path d="M8.5 13.5 L19.5 13.5" stroke="currentColor" stroke-width="1.5"/>
+            <!-- Legs to wheels -->
+            <path d="M8.5 13.5 L7.5 18 M19.5 13.5 L20.5 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <!-- Wheels (outlined) -->
+            <circle cx="10" cy="20" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="18" cy="20" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
           </svg>
           <span id="cart-count" class="cart-count">0</span>
         </button>

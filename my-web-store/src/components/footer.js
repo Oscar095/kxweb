@@ -5,10 +5,10 @@ export function renderFooter(mount) {
       <div class="footer-left" style="width:100%;text-align:center;font-size:16px;">© 2025 Kos Xpress — Todos los derechos reservados </br></br>  Yumbo - Valle del Cauca </div>
       <div class="footer-social">
         <a class="social-link" href="https://instagram.com/yourprofile" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="5" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="12" r="3.2" stroke="#fff" stroke-width="1.5"/><circle cx="17.6" cy="6.4" r="0.6" fill="#fff"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.5"/><circle cx="17.6" cy="6.4" r="0.6" fill="currentColor"/></svg>
         </a>
         <a class="social-link" href="https://facebook.com/yourpage" target="_blank" rel="noopener" aria-label="Facebook" title="Facebook">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 2h-3a4 4 0 00-4 4v3H8v4h3v8h4v-8h3l1-4h-4V6a1 1 0 011-1h2V2z" fill="#fff"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 2h-3a4 4 0 00-4 4v3H8v4h3v8h4v-8h3l1-4h-4V6a1 1 0 011-1h2V2z" fill="currentColor"/></svg>
         </a>
         <a class="social-link" href="https://wa.me/1234567890" target="_blank" rel="noopener" aria-label="Chat por WhatsApp">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" width="24" height="24">

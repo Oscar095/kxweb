@@ -128,6 +128,26 @@ async function submitForm(ev) {
     const fd = new FormData(formEl);
     if (!fd.get('id')) fd.delete('id');
 
+    // Adjuntar también imágenes seleccionadas desde Biblioteca (si existen)
+    if (window.__libSelected && window.__libSelected.length) {
+      const input = document.getElementById('p-images');
+      const already = input && input.files ? input.files.length : 0;
+      const MAX = 6; // debe coincidir con el backend
+      const remaining = Math.max(0, MAX - already);
+      const toAdd = window.__libSelected.slice(0, remaining);
+      for (const it of toAdd) {
+        try {
+          const resp = await fetch(it.url, { cache: 'no-store' });
+          const blob = await resp.blob();
+          const file = new File([blob], it.filename || (`lib-${it.id}.jpg`), { type: blob.type || 'image/jpeg' });
+          fd.append('images', file);
+        } catch (e) { console.warn('No se pudo adjuntar imagen de biblioteca', it, e); }
+      }
+      if (window.__libSelected.length > toAdd.length) {
+        alert(`Solo se pueden enviar ${MAX} imágenes por producto. Se adjuntaron ${toAdd.length} de la biblioteca.`);
+      }
+    }
+
     const res = await fetch('/api/products', { method: 'POST', body: fd });
 
     if (!res.ok) {
@@ -179,6 +199,12 @@ async function initAdmin() {
   $('#product-form').addEventListener('submit', submitForm);
   $('#p-images').addEventListener('change', (e) => renderNewPreviews(e.target.files));
   await loadProducts();
+
+  // Biblioteca init
+  document.getElementById('library-section').style.display = '';
+  await loadLibrary();
+  const libForm = document.getElementById('library-form');
+  libForm?.addEventListener('submit', submitLibraryForm);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -223,3 +249,133 @@ document.addEventListener('DOMContentLoaded', async () => {
     await showLogin();
   });
 });
+
+// ---- Biblioteca ----
+async function loadLibrary() {
+  try {
+    const r = await fetch('/api/biblioteca', { cache: 'no-store' });
+    const items = r.ok ? await r.json() : [];
+    const grid = document.getElementById('library-grid');
+    grid.innerHTML = '';
+    for (const it of items) {
+      const wrap = document.createElement('div');
+      wrap.style.position = 'relative';
+      wrap.style.borderRadius = '6px';
+      wrap.style.overflow = 'hidden';
+
+      const img = document.createElement('img');
+      img.src = it.url;
+      img.alt = it.nombre || '';
+      img.title = `${it.nombre} (#${it.id})`;
+      img.style.width = '100%';
+      img.style.height = '88px';
+      img.style.objectFit = 'cover';
+
+      const bar = document.createElement('div');
+      bar.style.display = 'flex';
+      bar.style.gap = '6px';
+      bar.style.padding = '4px';
+
+      const addBtn = document.createElement('button');
+      addBtn.textContent = 'Usar';
+      addBtn.type = 'button';
+      addBtn.addEventListener('click', () => addLibrarySelection(it));
+
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = 'Copiar URL';
+      copyBtn.type = 'button';
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(it.url);
+          copyBtn.textContent = 'Copiado!';
+          setTimeout(() => (copyBtn.textContent = 'Copiar URL'), 1200);
+        } catch {}
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Eliminar';
+      delBtn.type = 'button';
+      delBtn.style.background = '#d9534f';
+      delBtn.style.color = '#fff';
+      delBtn.addEventListener('click', async () => {
+        if (!confirm(`Eliminar imagen de biblioteca #${it.id}?`)) return;
+        try {
+          const rr = await fetch(`/api/biblioteca/${it.id}`, { method: 'DELETE' });
+          if (!rr.ok) return alert('No se pudo eliminar');
+          await loadLibrary();
+        } catch (e) {
+          console.error(e);
+          alert('Error eliminando');
+        }
+      });
+
+      bar.appendChild(copyBtn);
+      bar.appendChild(delBtn);
+      wrap.appendChild(img);
+      wrap.appendChild(bar);
+      grid.appendChild(wrap);
+    }
+  } catch (e) {
+    console.error('Error cargando biblioteca', e);
+    const grid = document.getElementById('library-grid');
+    if (grid) grid.innerHTML = '<p>Error cargando biblioteca.</p>';
+  }
+}
+
+
+function addLibrarySelection(item) {
+  window.__libSelected = window.__libSelected || [];
+  if (!window.__libSelected.find(x => x.id === item.id)) {
+    window.__libSelected.push(item);
+    renderLibrarySelection();
+  }
+}
+
+function removeLibrarySelection(id) {
+  window.__libSelected = (window.__libSelected || []).filter(x => x.id !== id);
+  renderLibrarySelection();
+}
+
+function renderLibrarySelection() {
+  const wrap = document.getElementById('lib-selected');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (const it of (window.__libSelected || [])) {
+    const cell = document.createElement('div');
+    const img = document.createElement('img');
+    img.src = it.url;
+    img.alt = it.nombre || '';
+    img.style.width = '100%';
+    img.style.height = '88px';
+    img.style.objectFit = 'cover';
+    const rm = document.createElement('button');
+    rm.textContent = 'Quitar';
+    rm.type = 'button';
+    rm.style.marginTop = '4px';
+    rm.addEventListener('click', () => removeLibrarySelection(it.id));
+    cell.appendChild(img);
+    cell.appendChild(rm);
+    wrap.appendChild(cell);
+  }
+}
+async function submitLibraryForm(ev) {
+  ev.preventDefault();
+  const form = ev.currentTarget;
+  const status = document.getElementById('library-status');
+  status.textContent = 'Subiendo...';
+  try {
+    const fd = new FormData(form);
+    const r = await fetch('/api/biblioteca', { method: 'POST', body: fd });
+    if (!r.ok) {
+      status.textContent = 'Error subiendo imagen';
+      return;
+    }
+    status.textContent = 'Subida correcta';
+    form.reset();
+    await loadLibrary();
+    setTimeout(() => (status.textContent = ''), 1200);
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'Error subiendo imagen';
+  }
+}
