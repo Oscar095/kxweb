@@ -17,7 +17,7 @@ body{font-family:inherit;margin:0;color:#222;background:#fff}
 header{background:#fff;position:sticky;top:0;z-index:60;color:#222;border-bottom:1px solid #eee}
 .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 24px}
 .logo{font-weight:700;color:#000;font-size:20px}
-.logo-img{height:56px;width:auto;display:block}
+.logo-img{height:67px;width:auto;display:block}
 .nav{display:flex;gap:18px;align-items:center}
 .nav a{color:#222;text-decoration:none;padding:8px;border-radius:6px;cursor:pointer;font-weight:700}
 /* No rectangle highlight; hover/active turn blue */
@@ -149,7 +149,7 @@ h1,h2,h3,h4,h5,h6{color:#000;font-weight:700}
 	.product-grid{grid-template-columns:repeat(2,1fr)}
 	.filters{display:none}
 	.header-inner{gap:10px}
-	.logo-img{height:48px}
+	.logo-img{height:58px}
 	.nav{position:fixed;left:0;top:0;height:100%;width:280px;background:#fff;flex-direction:column;align-items:flex-start;padding:80px 18px;gap:8px;transform:translateX(-110%);transition:transform .25s ease;z-index:140;border-right:1px solid #eee}
 	.nav.open{transform:translateX(0)}
 	.nav-animated .nav-rect{display:none}

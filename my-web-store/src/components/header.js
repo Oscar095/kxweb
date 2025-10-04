@@ -28,7 +28,7 @@ export function renderHeader(container) {
   }, 100);
   container.innerHTML = `
     <div class="header-inner container">
-      <div class="logo"><a href="index.html"><img src="images/LogoKos2.png" alt="Kos Xpress" class="logo-img"/></a></div>
+  <div class="logo"><a href="index.html"><img src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/></a></div>
       <nav class="nav nav-animated">
         <a href="index.html" class="nav-link" data-nav="inicio">Inicio</a>
         <a href="contact.html" class="nav-link" data-nav="contacto">Contacto</a>
