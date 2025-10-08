@@ -18,10 +18,10 @@ export function renderCartDrawer(mount) {
     </div>
   `;
 
-  // Normaliza precio desde price o precio (string o número)
+  // Precio por caja: intenta usar campo dinámico precioCaja si existe, sino derivar
   function priceOf(item) {
-    const raw = item?.price ?? item?.precio ?? 0;
-    const num = typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw);
+    const rawCandidate = item?.precioCaja ?? item?.precio_caja ?? item?.price ?? item?.precio ?? 0;
+    const num = typeof rawCandidate === 'string' ? Number(rawCandidate.replace(/[^\d.-]/g, '')) : Number(rawCandidate);
     return Number.isFinite(num) ? num : 0;
   }
 
@@ -50,7 +50,7 @@ export function renderCartDrawer(mount) {
         <img src="${i.image || '/images/placeholder.svg'}" alt="${i.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'" style="width:56px;height:56px;object-fit:contain;background:#fff;border:1px solid #eee;border-radius:6px;flex-shrink:0;" />
         <div class="meta" style="flex:1;min-width:0;">
           <div style="font-weight:600;white-space:normal;overflow:visible;">${i.name}</div>
-          <div style="color:var(--muted);font-size:13px">$${formatMoney(i.price)} c/u · Subtotal $${formatMoney(i.subtotal)}</div>
+          <div style="color:var(--muted);font-size:13px">$${formatMoney(i.price)} / caja · Subtotal $${formatMoney(i.subtotal)}</div>
         </div>
         <div class="qty-controls" style="display:flex;align-items:center;gap:6px;">
           <button class="dec" aria-label="Disminuir" style="width:28px;height:28px;border-radius:6px;">-</button>

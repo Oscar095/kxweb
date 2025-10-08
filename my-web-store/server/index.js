@@ -7,6 +7,7 @@ const Product = require('./models/Product');
 const Category = require('./models/Category');
 const Contact = require('./models/Contact');
 const LibraryImage = require('./models/LibraryImage');
+const EscalonCantidad = require('./models/Cantidad');
 
 const multer = require('multer');
 const upload = multer({
@@ -194,26 +195,75 @@ app.get('/api/products', async (req, res) => {
   try {
     const filter = {};
     if (req.query.category && req.query.category !== 'all') {
-      filter.category = String(req.query.category);
+      filter.$or = [ { category: String(req.query.category) }, { Categoria: String(req.query.category) } ];
     }
-    const docs = await Product.find(filter).sort({ id: 1 }).lean().exec();
-    const out = docs.map(d => {
+    const docs = await Product.find(filter).sort({ codigo: 1, Codigo: 1, cantidad: 1, Cantidad: 1 }).lean().exec();
+
+    // Agrupar por código (normalizado)
+    const map = new Map();
+    for (const d of docs) {
+      const code = (d.codigo || d.Codigo || '').toString();
+      if (!code) continue; // omitir sin código
+      const existing = map.get(code);
+      const qty = Number(d.cantidad ?? d.Cantidad) || 0;
       const hasImagesArr = Array.isArray(d.images) && d.images.length > 0;
       const ver = d.updatedAt ? new Date(d.updatedAt).getTime() : Date.now();
       const arr = hasImagesArr
         ? d.images.map((_, i) => `/api/products/${d.id}/images/${i}?v=${ver}`)
         : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
-      return {
-        id: d.id,
-        codigo: d.codigo || '',
-        name: d.name,
-        price: d.price,
-        category: d.category,
-        description: d.description,
+      const baseObj = {
+        id: d.id, // se conservará el id del primer documento (o el menor escalón)
+        codigo: code,
+        name: d.name || d.Nombre || '',
+        price: (d.price != null ? d.price : d.Precio) ?? 0,
+        precio_unitario: (d.precio_unitario != null ? d.precio_unitario : d['Precio Unitario']) ?? null,
+        cantidad: (d.cantidad != null ? d.cantidad : d.Cantidad) ?? null,
+        category: d.category || d.Categoria || '',
+        linea: d.linea || d.Linea || '',
+        description: d.description || d.Descripcion || '',
         image: arr[0] || '/images/placeholder.svg',
-        images: arr
+        images: arr,
+        _escalones: [qty]
       };
-    });
+      if (!existing) {
+        map.set(code, baseObj);
+      } else {
+        // Mantener el de menor cantidad como representativo
+        const existingQty = Number(existing.cantidad) || 0;
+        if (qty > 0 && (existingQty === 0 || qty < existingQty)) {
+          baseObj._escalones = Array.from(new Set([...existing._escalones, qty]));
+          map.set(code, baseObj);
+        } else {
+          existing._escalones = Array.from(new Set([...existing._escalones, qty]));
+        }
+      }
+    }
+
+    // Si hubo productos sin código, podríamos opcionalmente incluirlos
+    const codeLess = docs.filter(d => !(d.codigo || d.Codigo));
+    for (const d of codeLess) {
+      const hasImagesArr = Array.isArray(d.images) && d.images.length > 0;
+      const ver = d.updatedAt ? new Date(d.updatedAt).getTime() : Date.now();
+      const arr = hasImagesArr
+        ? d.images.map((_, i) => `/api/products/${d.id}/images/${i}?v=${ver}`)
+        : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
+      map.set(`__id_${d.id}`, {
+        id: d.id,
+        codigo: '',
+        name: d.name || d.Nombre || '',
+        price: (d.price != null ? d.price : d.Precio) ?? 0,
+        precio_unitario: (d.precio_unitario != null ? d.precio_unitario : d['Precio Unitario']) ?? null,
+        cantidad: (d.cantidad != null ? d.cantidad : d.Cantidad) ?? null,
+        category: d.category || d.Categoria || '',
+        linea: d.linea || d.Linea || '',
+        description: d.description || d.Descripcion || '',
+        image: arr[0] || '/images/placeholder.svg',
+        images: arr,
+        _escalones: [Number(d.cantidad ?? d.Cantidad) || 0]
+      });
+    }
+
+    const out = Array.from(map.values());
     res.json(out);
   } catch (e) {
     console.error(e);
@@ -235,11 +285,14 @@ app.get('/api/products/:id', async (req, res) => {
       : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
     const out = {
       id: d.id,
-      codigo: d.codigo || '',
-      name: d.name,
-      price: d.price,
-      category: d.category,
-      description: d.description,
+      codigo: d.codigo || d.Codigo || '',
+      name: d.name || d.Nombre || '',
+      price: (d.price != null ? d.price : d.Precio) ?? 0,
+      precio_unitario: (d.precio_unitario != null ? d.precio_unitario : d['Precio Unitario']) ?? null,
+      cantidad: (d.cantidad != null ? d.cantidad : d.Cantidad) ?? null,
+      category: d.category || d.Categoria || '',
+      linea: d.linea || d.Linea || '',
+      description: d.description || d.Descripcion || '',
       image: arr[0] || '/images/placeholder.svg',
       images: arr
     };
@@ -399,10 +452,35 @@ app.post('/api/products',
   upload.fields([{ name: 'images', maxCount: 6 }, { name: 'image', maxCount: 1 }]),
   async (req, res) => {
     try {
-  const { id, name, price, category, description, codigo } = req.body || {};
-      const numericPrice = Number(price);
-      if (!name || Number.isNaN(numericPrice)) {
-        return res.status(400).json({ message: 'Nombre y precio son requeridos' });
+      // Aceptar tanto minúsculas como las variantes en español
+      const body = req.body || {};
+      const {
+        id,
+        name, Nombre,
+        price, Precio,
+        precio_unitario, 'Precio Unitario': PrecioUnitario,
+        cantidad, Cantidad,
+        category, Categoria,
+        linea, Linea,
+        description, Descripcion,
+        codigo, Codigo
+      } = body;
+
+      const finalName = (name || Nombre || '').trim();
+      const valCantidad = cantidad != null ? cantidad : Cantidad;
+      const valPU = precio_unitario != null ? precio_unitario : PrecioUnitario;
+      let valPrice = price != null ? price : Precio;
+      if ((valPrice == null || valPrice === '' || Number.isNaN(Number(valPrice))) && valCantidad != null && valPU != null) {
+        const mult = Number(valCantidad) * Number(valPU);
+        if (Number.isFinite(mult)) valPrice = mult;
+      }
+      const numericPrice = Number(valPrice);
+
+      if (!finalName) {
+        return res.status(400).json({ message: 'Nombre requerido' });
+      }
+      if (Number.isNaN(numericPrice)) {
+        return res.status(400).json({ message: 'Precio inválido (o no se pudo calcular)' });
       }
 
       const newId = (id == null || id === '') ? await Product.nextId() : Number(id);
@@ -410,12 +488,26 @@ app.post('/api/products',
 
       const doc = {
         id: newId,
-        codigo: (codigo == null ? '' : String(codigo).trim()),
-        name: String(name).trim(),
+        codigo: (codigo || Codigo || '').trim(),
+        Codigo: (codigo || Codigo || '').trim(),
+        name: finalName,
+        Nombre: finalName,
         price: numericPrice,
-        category: category || '',
-        description: description || ''
+        Precio: numericPrice,
+        precio_unitario: valPU != null ? Number(valPU) : undefined,
+        'Precio Unitario': valPU != null ? Number(valPU) : undefined,
+        cantidad: valCantidad != null ? Number(valCantidad) : undefined,
+        Cantidad: valCantidad != null ? Number(valCantidad) : undefined,
+        category: (category || Categoria || '').trim(),
+        Categoria: (category || Categoria || '').trim(),
+        linea: (linea || Linea || '').trim(),
+        Linea: (linea || Linea || '').trim(),
+        description: (description || Descripcion || '').trim(),
+        Descripcion: (description || Descripcion || '').trim()
       };
+
+      // Eliminar undefined para no sobreescribir con campos vacíos
+      Object.keys(doc).forEach(k => doc[k] === undefined && delete doc[k]);
 
       // Construir imágenes desde los archivos si llegaron
       const imgs = [];
@@ -465,5 +557,103 @@ app.delete('/api/products/:id', async (req, res) => {
 });
 
 // --- API Payments (mantener tus endpoints existentes) ---
+
+// --- Precio dinámico por código y cantidad ---
+// Query params: codigo (string/number), n (cantidad base que se multiplicará * 1000)
+// Regla:
+//  - cantidadReal = n * 1000
+//  - tomar escalón <= cantidadReal (floor). Si no hay menor, usar el menor disponible si existe exacto? (aquí devolver 0)
+//  - si cantidadReal supera todos, usar escalón máximo
+//  - buscar producto por { Codigo|codigo: codigo, Cantidad|cantidad: escalon }
+//  - devolver: precio = (precio_unitario del producto) * cantidadReal
+app.get('/api/precio', async (req, res) => {
+  try {
+    const { codigo, n, debugPrecio } = req.query || {};
+    if (!codigo) return res.status(400).json({ message: 'codigo requerido' });
+    const mult = Number(n);
+    if (!Number.isFinite(mult) || mult <= 0) return res.status(400).json({ message: 'n inválido' });
+
+    const cantidadReal = mult * 1000; // Regla fija
+
+    // Obtener escalones desde colección Cantidad o derivarlos de productos si no hay
+    let escalonesDocs = await EscalonCantidad.find().lean().exec();
+    let escalones = escalonesDocs.map(e => e.cantidad).filter(c => Number.isFinite(c));
+    if (!escalones.length) {
+      // Derivar escalones de los productos con este código
+      const codigoStr = String(codigo);
+      const prodDocs = await Product.find({ $or: [ { codigo: codigoStr }, { Codigo: codigoStr } ] }).lean().exec();
+      escalones = prodDocs.map(p => p.cantidad ?? p.Cantidad).filter(c => Number.isFinite(Number(c))).map(Number);
+    }
+    escalones = escalones.filter(c => Number.isFinite(c)).sort((a,b) => a-b);
+    if (!escalones.length) return res.status(404).json({ message: 'No hay escalones disponibles para el código', codigo });
+
+    // Selección floor
+    let escalon = escalones.filter(c => c <= cantidadReal).pop();
+    if (escalon == null) escalon = escalones[0]; // si todos son mayores, tomar el menor (aunque será > cantidadReal)
+    if (cantidadReal > escalones[escalones.length - 1]) {
+      escalon = escalones[escalones.length - 1]; // escala más alta
+    }
+
+    // Buscar producto que coincida con el escalón elegido
+    const codigoStr = String(codigo);
+    const codigoNum = Number(codigo);
+    const escalonNum = Number(escalon);
+    const query = {
+      $and: [
+        { $or: [
+          { codigo: codigoStr }, { Codigo: codigoStr },
+          ...(Number.isFinite(codigoNum) ? [ { codigo: codigoNum }, { Codigo: codigoNum } ] : [])
+        ] },
+        { $or: [
+          { cantidad: escalonNum }, { Cantidad: escalonNum },
+          { cantidad: String(escalonNum) }, { Cantidad: String(escalonNum) }
+        ] }
+      ]
+    };
+    const prod = await Product.findOne(query).lean().exec();
+    if (debugPrecio === 'true') {
+      console.log('[DEBUG /api/precio]', { codigo, cantidadReal, escalon, query, found: !!prod });
+    }
+
+    let chosen = prod;
+    if (!chosen) {
+      // Fallback: buscar el producto con mayor Cantidad <= escalon (ya debería ser escalon) o el máximo disponible para el código
+      const allCode = await Product.find({ $or: [ { codigo: codigoStr }, { Codigo: codigoStr } ] }).lean().exec();
+      const withQty = allCode.map(p => ({ doc: p, qty: Number(p.cantidad ?? p.Cantidad) })).filter(x => Number.isFinite(x.qty));
+      const floorCandidates = withQty.filter(x => x.qty <= escalonNum).sort((a,b) => b.qty - a.qty);
+      if (floorCandidates.length) chosen = floorCandidates[0].doc; else if (withQty.length) {
+        // usar el menor o mayor según regla? usamos mayor (último escalón) consistente con política previa
+        chosen = withQty.sort((a,b) => b.qty - a.qty)[0].doc;
+      }
+      if (!chosen) {
+        return res.status(404).json({ message: 'Sin productos asociados al código', codigo: codigoStr });
+      }
+      if (debugPrecio === 'true') console.log('[DEBUG /api/precio] fallback producto', { codigo: codigoStr, escalon, chosenQty: chosen.cantidad ?? chosen.Cantidad });
+    }
+
+    // Precio total almacenado para ese escalón (preferimos el guardado, NO escalamos a cantidadReal)
+    const precioEscalon = (chosen.price != null ? chosen.price : chosen.Precio);
+    const qtyChosen = chosen.cantidad ?? chosen.Cantidad;
+    const precioUnitario = chosen.precio_unitario ?? chosen['Precio Unitario'] ?? ((precioEscalon && qtyChosen) ? (precioEscalon / qtyChosen) : null);
+    if (precioEscalon == null) {
+      return res.status(500).json({ message: 'Producto sin Precio total en el escalón', productoId: chosen.id, escalon });
+    }
+
+    return res.json({
+      codigo: String(codigo),
+      solicitado: cantidadReal,
+      multiplicadorBase: mult,
+      escalonUsado: escalon,
+      precioEscalon, // Precio total del escalón seleccionado
+      precio: precioEscalon, // Alias para el frontend existente
+      precioUnitario: precioUnitario != null ? precioUnitario : null,
+      productoId: chosen.id,
+      qtyProducto: qtyChosen
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error calculando precio' });
+  }
+});
 
 app.listen(PORT, () => console.log(`API server listening on ${PORT}`));

@@ -40,12 +40,16 @@ async function loadProducts() {
 
       const details = document.createElement('div');
       details.className = 'admin-product-details';
+      const safe = (v) => (v == null ? '' : v);
       details.innerHTML = `
-        <div class="product-name">${p.name}</div>
-        <div class="product-sku" style="color:#555">Código: ${p.codigo || ''}</div>
-        <div class="product-category">${p.category || ''}</div>
-        <div class="product-description">${p.description || ''}</div>
-        <div class="product-price">$${Number(p.price || 0).toLocaleString()}</div>
+        <div class="product-name">${safe(p.name)}</div>
+        <div class="product-sku" style="color:#555">Código: ${safe(p.codigo)}</div>
+        <div class="product-category">Categoría: ${safe(p.category)}</div>
+        <div style="color:#444">Línea: ${safe(p.linea)}</div>
+        <div style="color:#444">Cantidad: ${p.cantidad != null ? p.cantidad : ''}</div>
+        <div style="color:#444">Precio Unitario: ${p.precio_unitario != null ? ('$' + Number(p.precio_unitario).toLocaleString()) : ''}</div>
+        <div class="product-description">${safe(p.description)}</div>
+        <div class="product-price">Precio Total: $${Number(p.price || 0).toLocaleString()}</div>
         <div class="product-actions" style="display:flex; gap:8px;">
           <button data-id="${p.id}" class="fill-form">Editar</button>
           <button data-id="${p.id}" class="delete-prod" style="background:#d9534f;color:#fff;">Eliminar</button>
@@ -68,7 +72,10 @@ async function loadProducts() {
   form.codigo.value = prod.codigo || '';
         form.id.value = prod.id;
         form.name.value = prod.name || '';
-        form.price.value = prod.price || 0;
+  form.price.value = prod.price || 0;
+  if (form.cantidad) form.cantidad.value = prod.cantidad != null ? prod.cantidad : '';
+  if (form.precio_unitario) form.precio_unitario.value = prod.precio_unitario != null ? prod.precio_unitario : '';
+  if (form.linea) form.linea.value = prod.linea || '';
         // Ensure category select has the current value
         const sel = form.category;
         const val = prod.category || '';
@@ -198,6 +205,21 @@ async function initAdmin() {
 
   $('#product-form').addEventListener('submit', submitForm);
   $('#p-images').addEventListener('change', (e) => renderNewPreviews(e.target.files));
+
+  // Auto cálculo de precio total
+  const cantidadInput = document.getElementById('p-cantidad');
+  const puInput = document.getElementById('p-precio-u');
+  const totalInput = document.getElementById('p-price');
+  function recalc() {
+    if (!cantidadInput || !puInput || !totalInput) return;
+    const c = Number(cantidadInput.value);
+    const u = Number(puInput.value);
+    if (Number.isFinite(c) && Number.isFinite(u)) {
+      totalInput.value = (c * u).toFixed(0);
+    }
+  }
+  cantidadInput?.addEventListener('input', recalc);
+  puInput?.addEventListener('input', recalc);
   await loadProducts();
 
   // Biblioteca init

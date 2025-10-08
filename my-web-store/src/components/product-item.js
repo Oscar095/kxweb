@@ -25,14 +25,86 @@ export function productItemTemplate(p) {
       </div>
       <div>
         <a href="/product.html?id=${p.id}" class="product-link" style="color:inherit;text-decoration:none"><h3>${p.name}</h3></a>
-        <p class="price">$${formatMoney(priceNum)}</p>
+  <p class="price" data-base-price="${priceNum}" data-codigo="${p.codigo || ''}">$${formatMoney(priceNum)} <span style="font-size:0.7rem;color:#666;">/ caja</span></p>
         <p class="desc">${p.description || ''}</p>
       </div>
       <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
         <label for="${qtyInputId}" class="qty-label" style="font-size:0.9rem;">Cantidad</label>
-        <input id="${qtyInputId}" type="number" class="qty-input" min="1" value="1" aria-label="Cantidad" style="width:64px;padding:4px;">
+        <input id="${qtyInputId}" type="number" class="qty-input" min="1" value="1" aria-label="Cantidad" style="width:64px;padding:4px;" data-dynamic-price="1">
         <button class="add-to-cart" data-id="${p.id}">Agregar</button>
       </div>
     </article>
   `;
+}
+
+// Listener helper para ser llamado tras insertar en el DOM (desde product list renderer)
+export function attachDynamicPriceBehavior(rootEl) {
+  if (!rootEl) return;
+  const qtyInput = rootEl.querySelector('.qty-input[data-dynamic-price]');
+  const priceEl = rootEl.querySelector('.price[data-codigo]');
+  if (!qtyInput || !priceEl) return;
+  const codigo = priceEl.getAttribute('data-codigo');
+  if (!codigo) return;
+
+  let controller = null;
+  const BOX_SIZE = 1000; // unidades por caja
+  const fmt = (n) => new Intl.NumberFormat('es-CO').format(Math.round(n));
+
+  function renderUnitBoxPrice(data, fallbackBase) {
+    // precioUnitario viene por unidad; convertir a precio por caja
+    let unitario = Number(data?.precioUnitario);
+    if (!Number.isFinite(unitario) || unitario <= 0) {
+      // derivar de precio total del escalón si falta
+      const totalEscalon = Number(data?.precio);
+      const escalon = Number(data?.escalonUsado);
+      if (Number.isFinite(totalEscalon) && Number.isFinite(escalon) && escalon > 0) {
+        // precio por caja = (total escalón / escalón unidades) * BOX_SIZE
+        unitario = (totalEscalon / escalon);
+      } else {
+        unitario = Number(fallbackBase) / BOX_SIZE;
+      }
+    }
+    const precioCaja = unitario * BOX_SIZE;
+  priceEl.textContent = '$' + fmt(precioCaja) + ' / caja';
+    priceEl.dataset.precioCaja = String(precioCaja);
+    if (data?.escalonUsado) {
+      priceEl.dataset.dynamicEscalon = String(data.escalonUsado);
+    }
+  }
+
+  async function recalc() {
+    const mult = Number(qtyInput.value);
+    if (!Number.isFinite(mult) || mult <= 0) return;
+    try {
+      if (controller) controller.abort();
+      controller = new AbortController();
+      priceEl.classList.add('loading');
+      const r = await fetch(`/api/precio?codigo=${encodeURIComponent(codigo)}&n=${encodeURIComponent(mult)}`, {
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      const base = priceEl.getAttribute('data-base-price') || '0';
+      if (!r.ok) {
+        try { await r.json(); } catch {}
+        renderUnitBoxPrice(null, base);
+        priceEl.classList.remove('loading');
+        return;
+      }
+      const data = await r.json();
+      renderUnitBoxPrice(data, base);
+      priceEl.classList.remove('loading');
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      const base = priceEl.getAttribute('data-base-price') || '0';
+      renderUnitBoxPrice(null, base);
+      priceEl.classList.remove('loading');
+    }
+  }
+
+  qtyInput.addEventListener('input', () => {
+    clearTimeout(qtyInput._t);
+    qtyInput._t = setTimeout(recalc, 160);
+  });
+
+  recalc();
 }

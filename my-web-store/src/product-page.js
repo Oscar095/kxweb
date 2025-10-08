@@ -37,7 +37,8 @@ function renderProduct(p){
 
   name.textContent = p.name || '';
   cat.textContent = p.category ? `Categoría: ${p.category}` : '';
-  price.textContent = `$${formatMoney(Number(p.price||0))}`;
+  price.textContent = `$${formatMoney(Number(p.price||0))} / caja`;
+  price.dataset.codigo = p.codigo || '';
   desc.textContent = p.description || '';
 
   const imgs = Array.isArray(p.images) && p.images.length ? p.images : [p.image || '/images/placeholder.svg'];
@@ -70,6 +71,42 @@ function renderProduct(p){
     idx = (idx + 1) % imgs.length;
     updateMain();
   });
+
+  const qtyInput = document.getElementById('pd-qty');
+  async function recalcDetail() {
+    const codigo = price.dataset.codigo;
+    if (!codigo) return; // sin código no recalcula
+    const mult = Number(qtyInput.value);
+    if (!Number.isFinite(mult) || mult <= 0) return;
+    try {
+      price.classList.add('loading');
+      const r = await fetch(`/api/precio?codigo=${encodeURIComponent(codigo)}&n=${encodeURIComponent(mult)}`, { cache: 'no-store' });
+      if (!r.ok) {
+        try { const e = await r.json(); console.warn('Detalle precio dinámico error', e); } catch {}
+        price.classList.remove('loading');
+        return;
+      }
+      const data = await r.json();
+      const BOX_SIZE = 1000;
+      let unitario = Number(data.precioUnitario);
+      if (!Number.isFinite(unitario) || unitario <= 0) {
+        const totalEscalon = Number(data.precio);
+        const escalon = Number(data.escalonUsado);
+        if (Number.isFinite(totalEscalon) && Number.isFinite(escalon) && escalon > 0) {
+          unitario = totalEscalon / escalon;
+        }
+      }
+      if (!Number.isFinite(unitario) || unitario <= 0) {
+        // fallback: usar p.price / BOX_SIZE
+        unitario = Number(p.price) / BOX_SIZE;
+      }
+      const precioCaja = unitario * BOX_SIZE;
+      price.textContent = '$' + formatMoney(precioCaja) + ' / caja';
+      price.classList.remove('loading');
+    } catch { price.classList.remove('loading'); }
+  }
+  qtyInput?.addEventListener('input', () => { clearTimeout(qtyInput._t); qtyInput._t = setTimeout(recalcDetail, 180); });
+  recalcDetail();
 
   document.getElementById('pd-add').addEventListener('click', () => {
     const qty = Math.max(1, Number(document.getElementById('pd-qty').value) || 1);

@@ -1,2 +1,3 @@
 my-web-store/node_modules/
 .env
+QuerysMongo.js
