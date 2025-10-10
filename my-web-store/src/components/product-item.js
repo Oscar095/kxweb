@@ -30,8 +30,8 @@ export function productItemTemplate(p) {
       </div>
       <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
         <label for="${qtyInputId}" class="qty-label" style="font-size:0.9rem;">Cantidad</label>
-        <input id="${qtyInputId}" type="number" class="qty-input" min="1" value="1" aria-label="Cantidad" style="width:64px;padding:4px;" data-dynamic-price="1">
-        <button class="add-to-cart" data-id="${p.id}">Agregar</button>
+        <input id="${qtyInputId}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" style="width:64px;padding:4px;" data-dynamic-price="1">
+        <button class="add-to-cart" data-id="${p.id}";">Agregar</button>
       </div>
     </article>
   `;
@@ -49,6 +49,26 @@ export function attachDynamicPriceBehavior(rootEl) {
   let controller = null;
   const BOX_SIZE = 1000; // unidades por caja
   const fmt = (n) => new Intl.NumberFormat('es-CO').format(Math.round(n));
+
+  // Bloquear decimales y notación científica
+  qtyInput.addEventListener('keydown', (e) => {
+    const blocked = ['.', ',', 'e', 'E', '+', '-'];
+    if (blocked.includes(e.key)) e.preventDefault();
+  });
+  qtyInput.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+    const digits = text.replace(/\D+/g, '');
+    qtyInput.value = digits || '1';
+    qtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  function sanitizeToInteger() {
+    let v = String(qtyInput.value || '').replace(/\D+/g, '');
+    if (v === '' || v === '0') v = '1';
+    qtyInput.value = v;
+    return Number(v);
+  }
 
   function renderUnitBoxPrice(data, fallbackBase) {
     // precioUnitario viene por unidad; convertir a precio por caja
@@ -73,7 +93,7 @@ export function attachDynamicPriceBehavior(rootEl) {
   }
 
   async function recalc() {
-    const mult = Number(qtyInput.value);
+    const mult = sanitizeToInteger();
     if (!Number.isFinite(mult) || mult <= 0) return;
     try {
       if (controller) controller.abort();
@@ -94,17 +114,20 @@ export function attachDynamicPriceBehavior(rootEl) {
       renderUnitBoxPrice(data, base);
       priceEl.classList.remove('loading');
     } catch (e) {
-      if (e.name === 'AbortError') return;
+      if (e && e.name === 'AbortError') return;
       const base = priceEl.getAttribute('data-base-price') || '0';
       renderUnitBoxPrice(null, base);
       priceEl.classList.remove('loading');
     }
   }
 
+  // Recalcular con debounce al cambiar la cantidad (solo enteros)
   qtyInput.addEventListener('input', () => {
+    sanitizeToInteger();
     clearTimeout(qtyInput._t);
     qtyInput._t = setTimeout(recalc, 160);
   });
 
+  // Cálculo inicial
   recalc();
 }
