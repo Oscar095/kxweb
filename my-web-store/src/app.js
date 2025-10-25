@@ -98,4 +98,19 @@ async function init() {
   }
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+  const main = document.querySelector('main');
+  if (main && !document.querySelector('.hero')) {
+    const hero = document.createElement('section');
+    hero.id = 'hero';
+    hero.className = 'hero';
+    hero.innerHTML = `
+      <div class="hero-inner">
+        <!-- Puedes agregar aquí un título o slogan si lo deseas -->
+      </div>
+    `;
+    main.insertBefore(hero, main.firstChild);
+  }
+});
+
 init();

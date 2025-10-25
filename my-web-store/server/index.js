@@ -446,92 +446,77 @@ app.get('/api/products/:id/images/:idx', async (req, res) => {
   }
 });
 
-// Crear/actualizar producto: acepta múltiples imágenes
+// Helper numérico seguro
+function asNumber(v) {
+  if (v === undefined || v === null || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+// Crear producto (con sanitización de numéricos)
 app.post('/api/products',
   requireAdmin,
-  upload.fields([{ name: 'images', maxCount: 6 }, { name: 'image', maxCount: 1 }]),
+  upload.array('images', 6),
   async (req, res) => {
     try {
-      // Aceptar tanto minúsculas como las variantes en español
-      const body = req.body || {};
-      const {
-        id,
-        name, Nombre,
-        price, Precio,
-        precio_unitario, 'Precio Unitario': PrecioUnitario,
-        cantidad, Cantidad,
-        category, Categoria,
-        linea, Linea,
-        description, Descripcion,
-        codigo, Codigo
-      } = body;
+      const b = req.body || {};
 
-      const finalName = (name || Nombre || '').trim();
-      const valCantidad = cantidad != null ? cantidad : Cantidad;
-      const valPU = precio_unitario != null ? precio_unitario : PrecioUnitario;
-      let valPrice = price != null ? price : Precio;
-      if ((valPrice == null || valPrice === '' || Number.isNaN(Number(valPrice))) && valCantidad != null && valPU != null) {
-        const mult = Number(valCantidad) * Number(valPU);
-        if (Number.isFinite(mult)) valPrice = mult;
-      }
-      const numericPrice = Number(valPrice);
+      // Campos string
+      const codigo = (b.codigo || b.Codigo || '').toString().trim();
+      const name = (b.name || b.Nombre || '').toString().trim();
+      const linea = (b.linea || b.Linea || '').toString().trim();
+      const category = (b.category || b.Categoria || '').toString().trim();
+      const description = (b.description || b.Descripcion || '').toString().trim();
 
-      if (!finalName) {
-        return res.status(400).json({ message: 'Nombre requerido' });
-      }
-      if (Number.isNaN(numericPrice)) {
-        return res.status(400).json({ message: 'Precio inválido (o no se pudo calcular)' });
+      // Numéricos con conversión segura
+      const cantidad = asNumber(b.cantidad ?? b.Cantidad);
+      const precioUnit = asNumber(b.precio_unitario ?? b['Precio Unitario']);
+      let price = asNumber(b.price ?? b.Precio);
+
+      if (!name) return res.status(400).json({ message: 'Nombre requerido' });
+
+      if (price === undefined && cantidad !== undefined && precioUnit !== undefined) {
+        const mult = Number(cantidad) * Number(precioUnit);
+        if (Number.isFinite(mult)) price = mult;
       }
 
-      const newId = (id == null || id === '') ? await Product.nextId() : Number(id);
-      if (Number.isNaN(newId)) return res.status(400).json({ message: 'ID inválido' });
+      // ID
+      let idNum = asNumber(b.id);
+      if (!idNum) idNum = await Product.nextId();
 
+      // Imágenes desde archivos
+      const files = req.files || [];
+      const images = files.map(f => ({
+        data: f.buffer,
+        type: f.mimetype,
+        filename: f.originalname
+      }));
+
+      // Construir doc sin campos inválidos
       const doc = {
-        id: newId,
-        codigo: (codigo || Codigo || '').trim(),
-        Codigo: (codigo || Codigo || '').trim(),
-        name: finalName,
-        Nombre: finalName,
-        price: numericPrice,
-        Precio: numericPrice,
-        precio_unitario: valPU != null ? Number(valPU) : undefined,
-        'Precio Unitario': valPU != null ? Number(valPU) : undefined,
-        cantidad: valCantidad != null ? Number(valCantidad) : undefined,
-        Cantidad: valCantidad != null ? Number(valCantidad) : undefined,
-        category: (category || Categoria || '').trim(),
-        Categoria: (category || Categoria || '').trim(),
-        linea: (linea || Linea || '').trim(),
-        Linea: (linea || Linea || '').trim(),
-        description: (description || Descripcion || '').trim(),
-        Descripcion: (description || Descripcion || '').trim()
+        id: idNum,
+        codigo, Codigo: codigo,
+        name, Nombre: name,
+        linea, Linea: linea,
+        category, Categoria: category,
+        description, Descripcion: description,
+        cantidad, Cantidad: cantidad,
+        precio_unitario: precioUnit, 'Precio Unitario': precioUnit,
+        price, Precio: price,
+        images
       };
 
-      // Eliminar undefined para no sobreescribir con campos vacíos
+      // Limpia undefined para evitar CastError
       Object.keys(doc).forEach(k => doc[k] === undefined && delete doc[k]);
 
-      // Construir imágenes desde los archivos si llegaron
-      const imgs = [];
-      const many = (req.files?.images || []);
-      const single = (req.files?.image || []);
-      for (const f of [...many, ...single]) {
-        imgs.push({ data: f.buffer, type: f.mimetype, filename: f.originalname });
-      }
-      if (imgs.length > 0) {
-        doc.images = imgs;
-        // opcional: limpiar legacy para no duplicar almacenamiento
-        doc.imageData = undefined;
-        doc.imageType = undefined;
-      }
-
-      const saved = await Product.findOneAndUpdate(
-        { id: newId },
-        { $set: doc },
-        { new: true, upsert: true }
-      ).lean();
-
-      res.status(201).json({ ok: true, id: saved.id });
+      const created = await Product.create(doc);
+      res.status(201).json({ ok: true, id: created.id });
     } catch (e) {
-      console.error(e);
+      console.error('POST /api/products error', e);
+      // Si es validación de mongoose, responder 400
+      if (e.name === 'ValidationError' || e.name === 'CastError') {
+        return res.status(400).json({ message: 'Datos inválidos', detail: e.message });
+      }
       res.status(500).json({ message: 'Error creando producto' });
     }
   }
@@ -657,3 +642,64 @@ app.get('/api/precio', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`API server listening on ${PORT}`));
+
+app.put('/api/products/:id',
+  requireAdmin,
+  upload.array('images', 6),
+  async (req, res) => {
+    try {
+      const key = (req.params.id || '').trim();
+
+      // Buscar por _id (ObjectId) o por id numérico
+      let product = null;
+      if (mongoose.Types.ObjectId.isValid(key)) {
+        product = await Product.findById(key);
+      }
+      if (!product && !Number.isNaN(Number(key))) {
+        product = await Product.findOne({ id: Number(key) });
+      }
+      if (!product) return res.status(404).json({ message: 'No encontrado' });
+
+      const b = req.body || {};
+      const asNumber = v => (v === '' || v == null ? undefined : (Number.isFinite(Number(v)) ? Number(v) : undefined));
+
+      // Strings
+      product.codigo = product.Codigo = (b.codigo || b.Codigo || '').toString().trim();
+      product.name = product.Nombre = (b.name || b.Nombre || '').toString().trim();
+      product.linea = product.Linea = (b.linea || b.Linea || '').toString().trim();
+      product.category = product.Categoria = (b.category || b.Categoria || '').toString().trim();
+      product.description = product.Descripcion = (b.description || b.Descripcion || '').toString().trim();
+
+      // Números
+      const cantidad = asNumber(b.cantidad ?? b.Cantidad);
+      const pu = asNumber(b.precio_unitario ?? b['Precio Unitario']);
+      let price = asNumber(b.price ?? b.Precio);
+      if (price === undefined && cantidad !== undefined && pu !== undefined) {
+        const mult = Number(cantidad) * Number(pu);
+        if (Number.isFinite(mult)) price = mult;
+      }
+      if (cantidad !== undefined) product.cantidad = product.Cantidad = cantidad;
+      if (pu !== undefined) product.precio_unitario = product['Precio Unitario'] = pu;
+      if (price !== undefined) product.price = product.Precio = price;
+
+      // Adjuntar nuevas imágenes (binario en memoria)
+      const files = req.files || [];
+      for (const f of files) {
+        product.images.push({ data: f.buffer, type: f.mimetype, filename: f.originalname });
+      }
+      if (files.length > 0) {
+        product.imageData = undefined;
+        product.imageType = undefined;
+      }
+
+      await product.save();
+      res.json({ ok: true, id: product.id, _id: product._id });
+    } catch (e) {
+      console.error('PUT /api/products/:id error', e);
+      if (e.name === 'ValidationError' || e.name === 'CastError') {
+        return res.status(400).json({ message: 'Datos inválidos', detail: e.message });
+      }
+      res.status(500).json({ message: 'Error actualizando producto' });
+    }
+  }
+);

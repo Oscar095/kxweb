@@ -34,8 +34,11 @@ const productSchema = new mongoose.Schema({
   imageData: { type: Buffer },
   imageType: { type: String },
 
-  // Nuevo: múltiples imágenes
-  images: { type: [imageSchema], default: [] }
+  // Nuevo: múltiples imágenes en binario
+  images: {
+    type: [imageSchema],
+    default: []
+  }
 }, { timestamps: true, collection: 'productos', strict: false });
 
 // Sincroniza campos antes de validar/guardar para mantener ambas variantes

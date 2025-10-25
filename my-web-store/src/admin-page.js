@@ -127,50 +127,28 @@ async function loadProducts() {
 async function submitForm(ev) {
   ev.preventDefault();
   const formEl = ev.currentTarget;
-
-  const status = $('#form-status');
-  status.textContent = 'Guardando...';
+  const status = $('#form-status'); status.textContent = 'Guardando...';
 
   try {
     const fd = new FormData(formEl);
-    if (!fd.get('id')) fd.delete('id');
+    const idParam = (fd.get('_id') || fd.get('id') || '').toString().trim();
+    const url = idParam ? `/api/products/${encodeURIComponent(idParam)}` : `/api/products`;
+    const method = idParam ? 'PUT' : 'POST';
 
-    // Adjuntar también imágenes seleccionadas desde Biblioteca (si existen)
-    if (window.__libSelected && window.__libSelected.length) {
-      const input = document.getElementById('p-images');
-      const already = input && input.files ? input.files.length : 0;
-      const MAX = 6; // debe coincidir con el backend
-      const remaining = Math.max(0, MAX - already);
-      const toAdd = window.__libSelected.slice(0, remaining);
-      for (const it of toAdd) {
-        try {
-          const resp = await fetch(it.url, { cache: 'no-store' });
-          const blob = await resp.blob();
-          const file = new File([blob], it.filename || (`lib-${it.id}.jpg`), { type: blob.type || 'image/jpeg' });
-          fd.append('images', file);
-        } catch (e) { console.warn('No se pudo adjuntar imagen de biblioteca', it, e); }
-      }
-      if (window.__libSelected.length > toAdd.length) {
-        alert(`Solo se pueden enviar ${MAX} imágenes por producto. Se adjuntaron ${toAdd.length} de la biblioteca.`);
-      }
-    }
-
-    const res = await fetch('/api/products', { method: 'POST', body: fd });
-
+    const res = await fetch(url, { method, body: fd });
     if (!res.ok) {
-      const msg = await res.text();
-      status.textContent = 'Error: ' + msg;
+      const txt = await res.text().catch(()=>'');
+      let msg = txt; try { msg = JSON.parse(txt).message || txt; } catch {}
+      status.textContent = 'Error: ' + (msg || 'No se pudo guardar');
       return;
     }
-
-    status.textContent = 'Guardado correctamente.';
+    status.textContent = idParam ? 'Actualizado correctamente.' : 'Creado correctamente.';
     formEl.reset();
     $('#new-previews').innerHTML = '';
     $('#current-images').innerHTML = '';
     await loadProducts();
   } catch (e) {
-    console.error(e);
-    status.textContent = 'Error guardando producto.';
+    console.error(e); status.textContent = 'Error guardando producto.';
   }
 }
 
