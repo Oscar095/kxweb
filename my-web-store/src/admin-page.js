@@ -47,6 +47,7 @@ async function loadProducts() {
         <div class="product-category">Categoría: ${safe(p.category)}</div>
         <div style="color:#444">Descripción: ${safe(p.description)}</div>
         <div style="color:#444">Precio Unitario: ${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</div>
+        <div style="color:#444">Cantidad: ${safe(p.cantidad ?? p.Cantidad)}</div>
         <div class="product-actions" style="display:flex; gap:8px;">
           <button data-id="${p.id}" class="fill-form">Editar</button>
           <button data-id="${p.id}" class="delete-prod" style="background:#d9534f;color:#fff;">Eliminar</button>
