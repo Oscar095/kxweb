@@ -43,13 +43,10 @@ async function loadProducts() {
       const safe = (v) => (v == null ? '' : v);
       details.innerHTML = `
         <div class="product-name">${safe(p.name)}</div>
-        <div class="product-sku" style="color:#555">Código: ${safe(p.codigo)}</div>
+        <div class="product-sku" style="color:#555">Código SIESA: ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
         <div class="product-category">Categoría: ${safe(p.category)}</div>
-        <div style="color:#444">Línea: ${safe(p.linea)}</div>
-        <div style="color:#444">Cantidad: ${p.cantidad != null ? p.cantidad : ''}</div>
-        <div style="color:#444">Precio Unitario: ${p.precio_unitario != null ? ('$' + Number(p.precio_unitario).toLocaleString()) : ''}</div>
-        <div class="product-description">${safe(p.description)}</div>
-        <div class="product-price">Precio Total: $${Number(p.price || 0).toLocaleString()}</div>
+        <div style="color:#444">Descripción: ${safe(p.description)}</div>
+        <div style="color:#444">Precio Unitario: ${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</div>
         <div class="product-actions" style="display:flex; gap:8px;">
           <button data-id="${p.id}" class="fill-form">Editar</button>
           <button data-id="${p.id}" class="delete-prod" style="background:#d9534f;color:#fff;">Eliminar</button>
@@ -69,13 +66,10 @@ async function loadProducts() {
         if (!prod) return;
 
         const form = $('#product-form');
-  form.codigo.value = prod.codigo || '';
-        form.id.value = prod.id;
-        form.name.value = prod.name || '';
-  form.price.value = prod.price || 0;
-  if (form.cantidad) form.cantidad.value = prod.cantidad != null ? prod.cantidad : '';
-  if (form.precio_unitario) form.precio_unitario.value = prod.precio_unitario != null ? prod.precio_unitario : '';
-  if (form.linea) form.linea.value = prod.linea || '';
+    form.codigo_siesa ? form.codigo_siesa.value = prod.codigo_siesa || '' : (form.querySelector('#p-codigo').value = prod.codigo_siesa || '');
+    form.id.value = prod.id;
+    form.name.value = prod.name || '';
+    if (form['price_unit']) form['price_unit'].value = prod.price_unit != null ? prod.price_unit : '';
         // Ensure category select has the current value
         const sel = form.category;
         const val = prod.category || '';
@@ -108,7 +102,7 @@ async function loadProducts() {
         const id = e.currentTarget.getAttribute('data-id');
         if (!confirm(`Eliminar producto #${id}?`)) return;
         try {
-          const r = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+          const r = await fetch(`/api/products/${id}`, { method: 'DELETE', credentials: 'same-origin' });
           if (!r.ok) return alert('Error eliminando producto');
           await loadProducts();
         } catch (err) {
@@ -130,26 +124,70 @@ async function submitForm(ev) {
   const status = $('#form-status'); status.textContent = 'Guardando...';
 
   try {
-    const fd = new FormData(formEl);
-    const idParam = (fd.get('_id') || fd.get('id') || '').toString().trim();
+    // Build payload (send JSON). Upload selected files to Azure Blob using SAS signed by backend.
+    const idParam = (formEl.id && formEl.id.value) ? formEl.id.value : (formEl._id ? formEl._id.value : '' ) || formEl.querySelector('#p-id')?.value || '';
+    const payload = {};
+    payload.codigo_siesa = formEl.querySelector('#p-codigo')?.value || '';
+    payload.name = formEl.querySelector('#p-name')?.value || '';
+    payload.price_unit = formEl.querySelector('#p-price-unit')?.value || '';
+    payload.category = formEl.querySelector('#p-category')?.value || '';
+    payload.description = formEl.querySelector('#p-desc')?.value || '';
+
+    // Files selected
+      const fileInput = document.getElementById('p-images');
+      const files = fileInput ? Array.from(fileInput.files) : [];
+      const libCount = (window.__libSelected || []).length;
+      if (libCount + files.length > 4) {
+        status.textContent = 'No se pueden agregar más de 4 imágenes (incluyendo biblioteca)';
+        return;
+      }
+    const uploadedUrls = [];
+    for (const f of files) {
+      const url = await uploadFileFromBrowser(f);
+      uploadedUrls.push(url);
+    }
+
+    // Include selected library images
+    const libUrls = (window.__libSelected || []).map(x => x.url).filter(Boolean);
+    payload.images = [...libUrls, ...uploadedUrls];
+
     const url = idParam ? `/api/products/${encodeURIComponent(idParam)}` : `/api/products`;
     const method = idParam ? 'PUT' : 'POST';
 
-    const res = await fetch(url, { method, body: fd });
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), credentials: 'same-origin' });
     if (!res.ok) {
       const txt = await res.text().catch(()=>'');
       let msg = txt; try { msg = JSON.parse(txt).message || txt; } catch {}
       status.textContent = 'Error: ' + (msg || 'No se pudo guardar');
       return;
     }
-    status.textContent = idParam ? 'Actualizado correctamente.' : 'Creado correctamente.';
+    if (idParam) {
+      status.innerHTML = '<strong style="color:green">Actualizado correctamente.</strong>';
+    } else {
+      status.innerHTML = '<strong style="color:green">Creado correctamente.</strong>';
+    }
     formEl.reset();
     $('#new-previews').innerHTML = '';
     $('#current-images').innerHTML = '';
+    window.__libSelected = [];
     await loadProducts();
   } catch (e) {
     console.error(e); status.textContent = 'Error guardando producto.';
   }
+}
+
+async function uploadFileFromBrowser(file) {
+  // Upload via server to avoid CORS issues
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+  const r = await fetch('/api/upload-file', { method: 'POST', body: fd, credentials: 'same-origin' });
+  if (!r.ok) {
+    const txt = await r.text().catch(()=>null);
+    throw new Error('upload_failed ' + (txt || r.status));
+  }
+  const j = await r.json();
+  if (!j || !j.blobUrl) throw new Error('no_blob_url');
+  return j.blobUrl;
 }
 
 async function ensureAuth() {
@@ -177,9 +215,17 @@ async function initAdmin() {
       const r = await fetch('/api/categories', { cache: 'no-store' });
       const cats = r.ok ? await r.json() : [];
       sel.innerHTML = '<option value="">(sin categoría)</option>' +
-        cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
+        cats.map(c => {
+          const label = (c.descripcion || c.nombre || c.description || c.nombre);
+          return `<option value="${c.id}">${label}</option>`;
+        }).join('');
     }
   } catch (e) { console.error('No se pudieron cargar categorías', e); }
+
+  // Also populate categories list UI
+  try {
+    await loadCategoriesList();
+  } catch (e) {}
 
   $('#product-form').addEventListener('submit', submitForm);
   $('#p-images').addEventListener('change', (e) => renderNewPreviews(e.target.files));
@@ -248,7 +294,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
     await showLogin();
   });
+
+  // Tab buttons
+  document.getElementById('show-categories-tab')?.addEventListener('click', () => {
+    document.getElementById('category-section').style.display = '';
+    // optionally hide product form area
+    // keep product form visible too but scroll to categories
+    document.getElementById('category-section').scrollIntoView({ behavior: 'smooth' });
+  });
+  document.getElementById('show-products-tab')?.addEventListener('click', () => {
+    document.getElementById('category-section').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  // Category form handlers
+  const catForm = document.getElementById('category-form');
+  catForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('cat-id').value;
+    const descripcion = document.getElementById('cat-desc').value.trim();
+    if (!descripcion) return alert('Ingrese una descripción');
+    try {
+      const payload = { descripcion };
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `/api/categories/${encodeURIComponent(id)}` : '/api/categories';
+      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), credentials: 'same-origin' });
+      if (!r.ok) {
+        const txt = await r.text().catch(()=>'');
+        alert('Error: ' + txt);
+        return;
+      }
+      // reset
+      document.getElementById('cat-id').value = '';
+      document.getElementById('cat-desc').value = '';
+      await initAdmin();
+      await loadCategoriesList();
+      alert('Categoría guardada');
+    } catch (err) { console.error(err); alert('Error guardando categoría'); }
+  });
+  document.getElementById('cat-cancel')?.addEventListener('click', () => {
+    document.getElementById('cat-id').value = '';
+    document.getElementById('cat-desc').value = '';
+  });
 });
+
+// Load categories into the categories-list panel
+async function loadCategoriesList() {
+  try {
+    const r = await fetch('/api/categories', { cache: 'no-store' });
+    const cats = r.ok ? await r.json() : [];
+    const wrap = document.getElementById('categories-list');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    for (const c of cats) {
+      const row = document.createElement('div');
+      row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems = 'center'; row.style.padding = '6px 0';
+      const label = document.createElement('div');
+      label.textContent = `${c.id} — ${c.descripcion || c.nombre || ''}`;
+      const actions = document.createElement('div');
+      const edit = document.createElement('button'); edit.textContent = 'Editar'; edit.type = 'button'; edit.style.marginRight = '8px';
+      edit.addEventListener('click', () => {
+        document.getElementById('cat-id').value = c.id;
+        document.getElementById('cat-desc').value = c.descripcion || c.nombre || '';
+        document.getElementById('show-categories-tab')?.click();
+      });
+      const del = document.createElement('button'); del.textContent = 'Eliminar'; del.type = 'button'; del.style.background = '#d9534f'; del.style.color = '#fff';
+      del.addEventListener('click', async () => {
+        if (!confirm(`Eliminar categoría #${c.id}?`)) return;
+        try {
+          const rr = await fetch(`/api/categories/${encodeURIComponent(c.id)}`, { method: 'DELETE', credentials: 'same-origin' });
+          if (!rr.ok) { const t = await rr.text().catch(()=>''); alert('Error: ' + t); return; }
+          await loadCategoriesList();
+          await initAdmin();
+        } catch (err) { console.error(err); alert('Error eliminando'); }
+      });
+      actions.appendChild(edit); actions.appendChild(del);
+      row.appendChild(label); row.appendChild(actions);
+      wrap.appendChild(row);
+    }
+  } catch (e) { console.error('loadCategoriesList error', e); }
+}
 
 // ---- Biblioteca ----
 async function loadLibrary() {
@@ -300,7 +425,7 @@ async function loadLibrary() {
       delBtn.addEventListener('click', async () => {
         if (!confirm(`Eliminar imagen de biblioteca #${it.id}?`)) return;
         try {
-          const rr = await fetch(`/api/biblioteca/${it.id}`, { method: 'DELETE' });
+          const rr = await fetch(`/api/biblioteca/${it.id}`, { method: 'DELETE', credentials: 'same-origin' });
           if (!rr.ok) return alert('No se pudo eliminar');
           await loadLibrary();
         } catch (e) {
@@ -365,7 +490,7 @@ async function submitLibraryForm(ev) {
   status.textContent = 'Subiendo...';
   try {
     const fd = new FormData(form);
-    const r = await fetch('/api/biblioteca', { method: 'POST', body: fd });
+    const r = await fetch('/api/biblioteca', { method: 'POST', body: fd, credentials: 'same-origin' });
     if (!r.ok) {
       status.textContent = 'Error subiendo imagen';
       return;

@@ -2,12 +2,9 @@ const express = require('express');
 const path = require('path');
 require('dotenv').config();
 
-const mongoose = require('mongoose');
-const Product = require('./models/Product');
-const Category = require('./models/Category');
-const Contact = require('./models/Contact');
-const LibraryImage = require('./models/LibraryImage');
-const EscalonCantidad = require('./models/Cantidad');
+// switching to SQL Server + Azure Blob storage
+const db = require('./db');
+const { StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions, BlobServiceClient } = require('@azure/storage-blob');
 
 const multer = require('multer');
 const upload = multer({
@@ -184,86 +181,104 @@ app.get('/api/admin/me', (req, res) => {
 const staticDir = path.resolve(__dirname, '..', 'src');
 app.use(express.static(staticDir));
 
-// Conexión Mongo
-mongoose.connect(process.env.MONGODB_URI, {})
-  .then(() => console.log('MongoDB conectado'))
-  .catch(err => console.error('Error conectando a MongoDB', err));
+// Inicializar esquema SQL y conexión
+db.ensureSchema().then(() => console.log('SQL Server schema ensured')).catch(err => console.error('Error asegurando esquema SQL', err));
+
+// Parse storage connection string for account name/key
+function parseConnectionString(conn) {
+  const mName = conn ? conn.match(/AccountName=([^;]+)/) : null;
+  const mKey = conn ? conn.match(/AccountKey=([^;]+)/) : null;
+  return { accountName: mName ? mName[1] : null, accountKey: mKey ? mKey[1] : null };
+}
+
+const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING || '';
+const { accountName, accountKey } = parseConnectionString(connStr);
+const containerName = process.env.AZURE_STORAGE_CONTAINER || 'images';
+const rootPath = (process.env.AZURE_ADLS_ROOT_PATH || '').replace(/^\//, '').replace(/\/$/, '');
+
+const blobServiceClient = connStr ? BlobServiceClient.fromConnectionString(connStr) : null;
+
+// Helper: generate read SAS for a blob URL (if accountKey available)
+function generateReadSasForBlob(blobUrl) {
+  if (!accountName || !accountKey || !blobUrl) return blobUrl;
+  try {
+    // blobUrl is like https://{account}.blob.core.windows.net/{container}/{path}
+    const parts = new URL(blobUrl);
+    const path = parts.pathname.replace(/^\//, ''); // container/segment/...
+    const idx = path.indexOf('/');
+    if (idx < 0) return blobUrl;
+    const container = path.slice(0, idx);
+    const blobName = path.slice(idx + 1);
+    // blobName from URL may contain percent-escaped segments (e.g. '%2F'); decode to get the actual blob name
+    const decodedBlobName = decodeURIComponent(blobName);
+
+    const credential = new StorageSharedKeyCredential(accountName, accountKey);
+    const permissions = BlobSASPermissions.parse('r');
+    const expiresOn = new Date(Date.now() + (parseInt(process.env.AZURE_SAS_EXPIRY_MIN || '15', 10) * 60 * 1000));
+    const sas = generateBlobSASQueryParameters({ containerName: container, blobName: decodedBlobName, permissions, expiresOn }, credential).toString();
+    const blobPathEscaped = decodedBlobName.split('/').map(encodeURIComponent).join('/');
+    return `https://${accountName}.blob.core.windows.net/${container}/${blobPathEscaped}?${sas}`;
+  } catch (e) {
+    console.error('generateReadSasForBlob error', e);
+    return blobUrl;
+  }
+}
+
+app.get('/api/upload-sas', async (req, res) => {
+  try {
+    if (!accountName || !accountKey) return res.status(500).json({ error: 'missing_storage_credentials' });
+    const originalName = req.query.name || `upload-${Date.now()}`;
+    const contentType = req.query.contentType || 'application/octet-stream';
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${originalName}`;
+    const blobName = rootPath ? `${rootPath}/${filename}` : filename;
+
+    const credential = new StorageSharedKeyCredential(accountName, accountKey);
+    const permissions = BlobSASPermissions.parse('cw'); // create + write
+    const expiresOn = new Date(Date.now() + (parseInt(process.env.AZURE_SAS_EXPIRY_MIN || '15', 10) * 60 * 1000));
+
+    const sasToken = generateBlobSASQueryParameters({ containerName, blobName, permissions, expiresOn }, credential).toString();
+    const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+    const uploadUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}?${sasToken}`;
+    const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+    res.json({ uploadUrl, blobUrl, contentType });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'failed_to_create_sas' });
+  }
+});
 
 // API Products
 // GET listado: incluye array images y mantiene 'image' como la primera
 app.get('/api/products', async (req, res) => {
   try {
-    const filter = {};
-    if (req.query.category && req.query.category !== 'all') {
-      filter.$or = [ { category: String(req.query.category) }, { Categoria: String(req.query.category) } ];
-    }
-    const docs = await Product.find(filter).sort({ codigo: 1, Codigo: 1, cantidad: 1, Cantidad: 1 }).lean().exec();
-
-    // Agrupar por código (normalizado)
-    const map = new Map();
-    for (const d of docs) {
-      const code = (d.codigo || d.Codigo || '').toString();
-      if (!code) continue; // omitir sin código
-      const existing = map.get(code);
-      const qty = Number(d.cantidad ?? d.Cantidad) || 0;
-      const hasImagesArr = Array.isArray(d.images) && d.images.length > 0;
-      const ver = d.updatedAt ? new Date(d.updatedAt).getTime() : Date.now();
-      const arr = hasImagesArr
-        ? d.images.map((_, i) => `/api/products/${d.id}/images/${i}?v=${ver}`)
-        : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
-      const baseObj = {
-        id: d.id, // se conservará el id del primer documento (o el menor escalón)
-        codigo: code,
-        name: d.name || d.Nombre || '',
-        price: (d.price != null ? d.price : d.Precio) ?? 0,
-        precio_unitario: (d.precio_unitario != null ? d.precio_unitario : d['Precio Unitario']) ?? null,
-        cantidad: (d.cantidad != null ? d.cantidad : d.Cantidad) ?? null,
-        category: d.category || d.Categoria || '',
-        linea: d.linea || d.Linea || '',
-        description: d.description || d.Descripcion || '',
-        image: arr[0] || '/images/placeholder.svg',
-        images: arr,
-        _escalones: [qty]
-      };
-      if (!existing) {
-        map.set(code, baseObj);
-      } else {
-        // Mantener el de menor cantidad como representativo
-        const existingQty = Number(existing.cantidad) || 0;
-        if (qty > 0 && (existingQty === 0 || qty < existingQty)) {
-          baseObj._escalones = Array.from(new Set([...existing._escalones, qty]));
-          map.set(code, baseObj);
-        } else {
-          existing._escalones = Array.from(new Set([...existing._escalones, qty]));
-        }
+    const sqlQuery = `SELECT * FROM dbo.products ORDER BY id`;
+    const rows = await db.query(sqlQuery);
+    const out = rows.map(d => {
+      const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
+      // include image2..image4 if present and not already in imgs
+      if (d.image2) {
+        const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v);
       }
-    }
-
-    // Si hubo productos sin código, podríamos opcionalmente incluirlos
-    const codeLess = docs.filter(d => !(d.codigo || d.Codigo));
-    for (const d of codeLess) {
-      const hasImagesArr = Array.isArray(d.images) && d.images.length > 0;
-      const ver = d.updatedAt ? new Date(d.updatedAt).getTime() : Date.now();
-      const arr = hasImagesArr
-        ? d.images.map((_, i) => `/api/products/${d.id}/images/${i}?v=${ver}`)
-        : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
-      map.set(`__id_${d.id}`, {
+      if (d.image3) {
+        const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v);
+      }
+      if (d.image4) {
+        const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v);
+      }
+      return {
         id: d.id,
-        codigo: '',
-        name: d.name || d.Nombre || '',
-        price: (d.price != null ? d.price : d.Precio) ?? 0,
-        precio_unitario: (d.precio_unitario != null ? d.precio_unitario : d['Precio Unitario']) ?? null,
-        cantidad: (d.cantidad != null ? d.cantidad : d.Cantidad) ?? null,
-        category: d.category || d.Categoria || '',
-        linea: d.linea || d.Linea || '',
-        description: d.description || d.Descripcion || '',
-        image: arr[0] || '/images/placeholder.svg',
-        images: arr,
-        _escalones: [Number(d.cantidad ?? d.Cantidad) || 0]
-      });
-    }
-
-    const out = Array.from(map.values());
+        codigo_siesa: d.codigo_siesa || '',
+        name: d.name || '',
+        price_unit: d.price_unit != null ? d.price_unit : null,
+        category: d.category != null ? d.category : null,
+        description: d.description || '',
+        images: imgs,
+        image: imgs[0] || '/images/placeholder.svg',
+        image2: d.image2 || '',
+        image3: d.image3 || '',
+        image4: d.image4 || ''
+      };
+    });
     res.json(out);
   } catch (e) {
     console.error(e);
@@ -276,25 +291,25 @@ app.get('/api/products/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
-    const d = await Product.findOne({ id }).lean().exec();
+    const rows = await db.query('SELECT * FROM dbo.products WHERE id = @id', { id });
+    const d = rows[0];
     if (!d) return res.status(404).json({ message: 'Producto no encontrado' });
-    const hasImagesArr = Array.isArray(d.images) && d.images.length > 0;
-    const ver = d.updatedAt ? new Date(d.updatedAt).getTime() : Date.now();
-    const arr = hasImagesArr
-      ? d.images.map((_, i) => `/api/products/${d.id}/images/${i}?v=${ver}`)
-      : (d.imageData ? [`/api/products/${d.id}/image?v=${ver}`] : (d.image ? [d.image] : []));
+    const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
+    if (d.image2) { const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+    if (d.image3) { const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+    if (d.image4) { const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
     const out = {
       id: d.id,
-      codigo: d.codigo || d.Codigo || '',
-      name: d.name || d.Nombre || '',
-      price: (d.price != null ? d.price : d.Precio) ?? 0,
-      precio_unitario: (d.precio_unitario != null ? d.precio_unitario : d['Precio Unitario']) ?? null,
-      cantidad: (d.cantidad != null ? d.cantidad : d.Cantidad) ?? null,
-      category: d.category || d.Categoria || '',
-      linea: d.linea || d.Linea || '',
-      description: d.description || d.Descripcion || '',
-      image: arr[0] || '/images/placeholder.svg',
-      images: arr
+      codigo_siesa: d.codigo_siesa || '',
+      name: d.name || '',
+      price_unit: d.price_unit != null ? d.price_unit : null,
+      category: d.category != null ? d.category : null,
+      description: d.description || '',
+      image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
+      images: imgs,
+      image2: d.image2 || '',
+      image3: d.image3 || '',
+      image4: d.image4 || ''
     };
     res.json(out);
   } catch (e) {
@@ -306,7 +321,12 @@ app.get('/api/products/:id', async (req, res) => {
 // API Categories
 app.get('/api/categories', async (req, res) => {
   try {
-    const cats = await Category.find().sort({ id: 1 }).lean().exec();
+    const rows = await db.query('SELECT * FROM dbo.categories ORDER BY Id');
+    const cats = (rows || []).map(r => ({
+      id: (r.Id || r.id || r.ID || null),
+      nombre: (r.nombre || r.Nombre || r.name || ''),
+      descripcion: (r.descripcion || r.Descripcion || r.description || '')
+    }));
     res.json(cats);
   } catch (e) {
     console.error(e);
@@ -314,17 +334,61 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
+// Create category
+app.post('/api/categories', requireAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const descripcion = (b.descripcion || b.description || b.nombre || b.name || '').toString().trim();
+    if (!descripcion) return res.status(400).json({ message: 'descripcion requerida' });
+    const r = await db.query('INSERT INTO dbo.categories (descripcion) OUTPUT INSERTED.Id VALUES (@descripcion);', { descripcion });
+    const newId = r && r[0] && r[0].Id;
+    res.status(201).json({ ok: true, id: newId });
+  } catch (e) {
+    console.error('/api/categories POST error', e);
+    res.status(500).json({ message: 'Error creando categoría' });
+  }
+});
+
+// Update category
+app.put('/api/categories/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const b = req.body || {};
+    const descripcion = (b.descripcion || b.description || b.nombre || b.name || '').toString().trim();
+    if (!descripcion) return res.status(400).json({ message: 'descripcion requerida' });
+    const r = await db.query('UPDATE dbo.categories SET descripcion = @descripcion WHERE Id = @id; SELECT @@ROWCOUNT AS affected;', { id, descripcion });
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Categoría no encontrada' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/categories PUT error', e);
+    res.status(500).json({ message: 'Error actualizando categoría' });
+  }
+});
+
+// Delete category
+app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    // optionally check FK constraints: let SQL handle it
+    const r = await db.query('DELETE FROM dbo.categories WHERE Id = @id; SELECT @@ROWCOUNT AS affected;', { id });
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Categoría no encontrada' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/categories DELETE error', e);
+    res.status(500).json({ message: 'Error eliminando categoría' });
+  }
+});
+
 // --- Biblioteca de imágenes ---
 // Listar biblioteca (metadatos)
 app.get('/api/biblioteca', async (req, res) => {
   try {
-    const docs = await LibraryImage.find().sort({ id: 1 }).lean().exec();
-    const ver = Date.now();
-    const out = docs.map(d => ({
-      id: d.id,
-      nombre: d.nombre,
-      url: `/api/biblioteca/${d.id}/imagen?v=${ver}`
-    }));
+    const rows = await db.query('SELECT id,nombre,url FROM dbo.library ORDER BY id');
+    const out = rows.map(r => ({ id: r.id, nombre: r.nombre, url: process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url) }));
     res.json(out);
   } catch (e) {
     console.error(e);
@@ -337,14 +401,11 @@ app.get('/api/biblioteca/:id/imagen', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).send('ID inválido');
-    const doc = await LibraryImage.findOne({ id }).select('imagen').exec();
-    if (!doc || !doc.imagen || !doc.imagen.data) return res.status(404).send('No encontrada');
-    const buf = Buffer.isBuffer(doc.imagen.data) ? doc.imagen.data : Buffer.from(doc.imagen.data);
-    const ctype = doc.imagen.type || detectImageMime(buf) || 'image/jpeg';
-    res.set('Content-Type', ctype);
-    res.set('Content-Length', String(buf.length));
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
-    return res.end(buf);
+    const rows = await db.query('SELECT url FROM dbo.library WHERE id = @id', { id });
+    const row = rows[0];
+    if (!row || !row.url) return res.status(404).send('No encontrada');
+    // Redirect to blob URL
+    return res.redirect(row.url);
   } catch (e) {
     console.error(e);
     res.status(500).send('Error obteniendo imagen');
@@ -364,16 +425,74 @@ const libUpload = multer({
 app.post('/api/biblioteca', requireAdmin, libUpload.single('imagen'), async (req, res) => {
   try {
     const { nombre } = req.body || {};
-    if (!nombre || !req.file) {
-      return res.status(400).json({ message: 'nombre e imagen son requeridos' });
+    console.log('[POST /api/biblioteca] request received', { nombre: nombre || null, file: req.file ? { originalname: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype } : null });
+    if (!nombre || !req.file) return res.status(400).json({ message: 'nombre e imagen son requeridos' });
+    if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${req.file.originalname}`;
+    const blobName = rootPath ? `${rootPath}/${filename}` : filename;
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    try {
+      // ensure container exists and set public access (blob) so blobs are readable anonymously
+      await containerClient.createIfNotExists({ access: 'blob' });
+      try {
+        await containerClient.setAccessPolicy('blob');
+      } catch (errSet) {
+        // setAccessPolicy may fail due to permissions; log but continue
+        console.warn('[POST /api/biblioteca] setAccessPolicy warning', errSet && errSet.message);
+      }
+    } catch (errCreate) {
+      console.error('[POST /api/biblioteca] createIfNotExists error', errCreate);
+      // continue, maybe already exists or permission issue will surface on upload
     }
-    const id = await LibraryImage.nextId();
-    const imagen = { data: req.file.buffer, type: req.file.mimetype, filename: req.file.originalname, size: req.file.size };
-    const saved = await LibraryImage.create({ id, nombre: String(nombre).trim(), imagen });
-    res.status(201).json({ ok: true, id: saved.id });
+
+    const blockClient = containerClient.getBlockBlobClient(blobName);
+    try {
+      await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+      // verify
+      const props = await blockClient.getProperties();
+      console.log('[POST /api/biblioteca] uploaded blob', { blobName, contentLength: props.contentLength, contentType: props.contentType });
+    } catch (errUpload) {
+      console.error('[POST /api/biblioteca] upload error', errUpload);
+      return res.status(500).json({ message: 'Error subiendo a Blob Storage', detail: errUpload.message || String(errUpload) });
+    }
+
+    const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+    const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+    try {
+      const resIns = await db.query(`INSERT INTO dbo.library (nombre,url) OUTPUT INSERTED.id VALUES (@nombre,@url);`, { nombre: String(nombre).trim(), url: blobUrl });
+      const newId = resIns[0] && resIns[0].id;
+      console.log('[POST /api/biblioteca] metadata saved id=', newId);
+    } catch (errDb) {
+      console.error('[POST /api/biblioteca] DB insert error (library)', errDb);
+      // continue to try inserting into banco_imagenes
+    }
+
+    try {
+      console.log('[POST /api/biblioteca] inserting banco_imagenes', { nombre: String(nombre).trim(), url: blobUrl });
+      const resBanco = await db.query(`INSERT INTO dbo.banco_imagenes (nombre_imagen,url_blob) OUTPUT INSERTED.id VALUES (@nombre,@url);`, { nombre: String(nombre).trim(), url: blobUrl });
+      console.log('[POST /api/biblioteca] banco insert result raw=', resBanco);
+      const bancoId = resBanco[0] && resBanco[0].id;
+      console.log('[POST /api/biblioteca] banco_imagenes inserted id=', bancoId);
+      return res.status(201).json({ ok: true, id: bancoId, url: blobUrl });
+    } catch (errBanco) {
+      console.error('[POST /api/biblioteca] DB insert error (banco_imagenes)', errBanco && (errBanco.message || errBanco));
+      return res.status(500).json({ message: 'Error guardando metadata en DB', detail: errBanco && (errBanco.message || String(errBanco)) });
+    }
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error creando elemento de biblioteca' });
+  }
+});
+
+// Debug: listar banco_imagenes
+app.get('/api/banco_imagenes', async (req, res) => {
+  try {
+    const rows = await db.query('SELECT TOP(100) id,nombre_imagen,url_blob,createdAt FROM dbo.banco_imagenes ORDER BY id DESC');
+    res.json(rows);
+  } catch (e) {
+    console.error('GET /api/banco_imagenes error', e && (e.message || e));
+    res.status(500).json({ message: 'error' });
   }
 });
 
@@ -382,8 +501,36 @@ app.delete('/api/biblioteca/:id', requireAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
-    const r = await LibraryImage.deleteOne({ id });
-    if (r.deletedCount === 0) return res.status(404).json({ message: 'No encontrado' });
+    // find URL
+    const rows = await db.query('SELECT url FROM dbo.library WHERE id = @id', { id });
+    const row = rows[0];
+    const url = row && row.url;
+    if (url) {
+      try {
+        // attempt to delete blob
+        if (blobServiceClient) {
+          const u = new URL(url);
+          const path = u.pathname.replace(/^\//, '');
+          const idx = path.indexOf('/');
+          if (idx >= 0) {
+              const cont = path.slice(0, idx);
+              const blobName = path.slice(idx + 1);
+              const decodedBlobName = decodeURIComponent(blobName);
+              const containerClient = blobServiceClient.getContainerClient(cont);
+              const blockClient = containerClient.getBlockBlobClient(decodedBlobName);
+              await blockClient.deleteIfExists();
+          }
+        }
+      } catch (delErr) {
+        console.warn('[DELETE /api/biblioteca] blob delete warning', delErr && delErr.message);
+      }
+    }
+
+    // delete metadata rows
+    await db.query('DELETE FROM dbo.library WHERE id = @id', { id });
+    if (url) {
+      await db.query('DELETE FROM dbo.banco_imagenes WHERE url_blob = @url', { url });
+    }
     res.json({ ok: true });
   } catch (e) {
     console.error(e);
@@ -396,26 +543,13 @@ app.get('/api/products/:id/image', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).send('ID inválido');
-
-    const doc = await Product.findOne({ id }).select('imageData imageType images updatedAt').exec();
-    if (!doc) return res.status(404).send('Sin imagen');
-
-    let buf, ctype;
-    if (doc.imageData) {
-      buf = Buffer.isBuffer(doc.imageData) ? doc.imageData : Buffer.from(doc.imageData);
-      ctype = doc.imageType || detectImageMime(buf) || 'image/jpeg';
-    } else if (doc.images && doc.images.length > 0) {
-      const it = doc.images[0];
-      buf = Buffer.isBuffer(it.data) ? it.data : Buffer.from(it.data);
-      ctype = it.type || detectImageMime(buf) || 'image/jpeg';
-    } else {
-      return res.status(404).send('Sin imagen');
-    }
-
-    res.set('Content-Type', ctype);
-    res.set('Content-Length', String(buf.length));
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
-    return res.end(buf);
+    const rows = await db.query('SELECT images FROM dbo.products WHERE id = @id', { id });
+    const d = rows[0];
+    if (!d) return res.status(404).send('Sin imagen');
+    const imgs = d.images ? JSON.parse(d.images) : [];
+    if (!imgs || imgs.length === 0) return res.status(404).send('Sin imagen');
+    const target = process.env.AZURE_STORAGE_PUBLIC === 'true' ? imgs[0] : generateReadSasForBlob(imgs[0]);
+    return res.redirect(target);
   } catch (e) {
     console.error(e);
     res.status(500).send('Error obteniendo imagen');
@@ -428,18 +562,13 @@ app.get('/api/products/:id/images/:idx', async (req, res) => {
     const id = Number(req.params.id);
     const idx = Number(req.params.idx);
     if (Number.isNaN(id) || Number.isNaN(idx) || idx < 0) return res.status(400).send('Parámetros inválidos');
-
-    const doc = await Product.findOne({ id }).select('images updatedAt').exec();
-    if (!doc || !doc.images || !doc.images[idx]) return res.status(404).send('Imagen no encontrada');
-
-    const it = doc.images[idx];
-    const buf = Buffer.isBuffer(it.data) ? it.data : Buffer.from(it.data);
-    const ctype = it.type || detectImageMime(buf) || 'image/jpeg';
-
-    res.set('Content-Type', ctype);
-    res.set('Content-Length', String(buf.length));
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
-    return res.end(buf);
+    const rows = await db.query('SELECT images FROM dbo.products WHERE id = @id', { id });
+    const d = rows[0];
+    if (!d) return res.status(404).send('Imagen no encontrada');
+    const imgs = d.images ? JSON.parse(d.images) : [];
+    if (!imgs || !imgs[idx]) return res.status(404).send('Imagen no encontrada');
+    const target = process.env.AZURE_STORAGE_PUBLIC === 'true' ? imgs[idx] : generateReadSasForBlob(imgs[idx]);
+    return res.redirect(target);
   } catch (e) {
     console.error(e);
     res.status(500).send('Error obteniendo imagen');
@@ -453,75 +582,88 @@ function asNumber(v) {
   return Number.isFinite(n) ? n : undefined;
 }
 
-// Crear producto (con sanitización de numéricos)
-app.post('/api/products',
-  requireAdmin,
-  upload.array('images', 6),
-  async (req, res) => {
+// Resolve category input (id or textual) to numeric Id in dbo.categories
+async function resolveCategory(input) {
+  if (input == null || input === '') return null;
+  // handle clients that send the literal string 'undefined' or 'null'
+  if (typeof input === 'string') {
+    const t = input.trim().toLowerCase();
+    if (!t || t === 'undefined' || t === 'null') return null;
+  }
+  const asNum = Number(input);
+  if (Number.isFinite(asNum)) {
     try {
-      const b = req.body || {};
-
-      // Campos string
-      const codigo = (b.codigo || b.Codigo || '').toString().trim();
-      const name = (b.name || b.Nombre || '').toString().trim();
-      const linea = (b.linea || b.Linea || '').toString().trim();
-      const category = (b.category || b.Categoria || '').toString().trim();
-      const description = (b.description || b.Descripcion || '').toString().trim();
-
-      // Numéricos con conversión segura
-      const cantidad = asNumber(b.cantidad ?? b.Cantidad);
-      const precioUnit = asNumber(b.precio_unitario ?? b['Precio Unitario']);
-      let price = asNumber(b.price ?? b.Precio);
-
-      if (!name) return res.status(400).json({ message: 'Nombre requerido' });
-
-      if (price === undefined && cantidad !== undefined && precioUnit !== undefined) {
-        const mult = Number(cantidad) * Number(precioUnit);
-        if (Number.isFinite(mult)) price = mult;
-      }
-
-      // ID
-      let idNum = asNumber(b.id);
-      if (!idNum) idNum = await Product.nextId();
-
-      // Imágenes desde archivos
-      const files = req.files || [];
-      const images = files.map(f => ({
-        data: f.buffer,
-        type: f.mimetype,
-        filename: f.originalname
-      }));
-
-      // Construir doc sin campos inválidos
-      const doc = {
-        id: idNum,
-        codigo, Codigo: codigo,
-        name, Nombre: name,
-        linea, Linea: linea,
-        category, Categoria: category,
-        description, Descripcion: description,
-        cantidad, Cantidad: cantidad,
-        precio_unitario: precioUnit, 'Precio Unitario': precioUnit,
-        price, Precio: price,
-        images
-      };
-
-      // Limpia undefined para evitar CastError
-      Object.keys(doc).forEach(k => doc[k] === undefined && delete doc[k]);
-
-      const created = await Product.create(doc);
-      res.status(201).json({ ok: true, id: created.id });
+      const rows = await db.query('SELECT Id FROM dbo.categories WHERE Id = @id', { id: asNum });
+      if (rows && rows.length) return asNum;
+      return null;
     } catch (e) {
-      console.error('POST /api/products error', e);
-      // Si es validación de mongoose, responder 400
-      if (e.name === 'ValidationError' || e.name === 'CastError') {
-        return res.status(400).json({ message: 'Datos inválidos', detail: e.message });
-      }
-      res.status(500).json({ message: 'Error creando producto' });
+      return null;
     }
   }
-);
+  const q = String(input).trim();
+  try {
+    // Check which columns exist to avoid referencing non-existent columns
+    const cols = await db.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'categories' AND COLUMN_NAME IN ('descripcion','nombre')");
+    const colNames = (cols || []).map(c => (c.COLUMN_NAME || c.column_name || '').toString().toLowerCase());
+    if (colNames.includes('descripcion')) {
+      const r = await db.query('SELECT Id FROM dbo.categories WHERE CONVERT(NVARCHAR(MAX), descripcion) = @q', { q });
+      if (r && r.length) return r[0].Id;
+    }
+    if (colNames.includes('nombre')) {
+      const r2 = await db.query('SELECT Id FROM dbo.categories WHERE CONVERT(NVARCHAR(MAX), nombre) = @q', { q });
+      if (r2 && r2.length) return r2[0].Id;
+    }
+    // last resort: try to match any row where any varchar column equals the text (best-effort)
+    return null;
+  } catch (e) {
+    console.warn('resolveCategory warning', e && (e.message || e));
+    return null;
+  }
+}
 
+// Crear producto (con sanitización de numéricos)
+app.post('/api/products', requireAdmin, async (req, res) => {
+    try {
+      // Support JSON body with images array (URLs).
+      const b = req.body || {};
+      const codigo_siesa = (b.codigo_siesa || b.codigo || '').toString().trim();
+      const name = (b.name || b.Nombre || '').toString().trim();
+      // Resolve category (id or textual) to numeric Id
+      const categoryParam = await resolveCategory(b.category);
+      const description = (b.description || b.Descripcion || '').toString().trim();
+      const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
+      if (!name) return res.status(400).json({ message: 'Nombre requerido' });
+
+      // images: can be array or JSON string
+      let images = [];
+      if (b.images) {
+        if (typeof b.images === 'string') {
+          try { images = JSON.parse(b.images); } catch { images = [b.images]; }
+        } else if (Array.isArray(b.images)) images = b.images;
+      }
+      // Enforce max 4 images
+      if (images.length > 4) return res.status(400).json({ message: 'Máximo 4 imágenes permitido' });
+
+      // map to image2..image4 (image1 stored in images[0] inside images JSON)
+      const img2 = images[1] || '';
+      const img3 = images[2] || '';
+      const img4 = images[3] || '';
+
+      // Validate categoryParam resolved and exists (FK)
+      if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
+      console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length });
+      const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,category,description,images,image2,image3,image4) 
+        OUTPUT INSERTED.id
+        VALUES (@codigo_siesa,@name,@price_unit,@category,@description,@images,@image2,@image3,@image4);`, {
+        codigo_siesa, name, price_unit, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4
+      });
+      const newId = resIns[0] && resIns[0].id;
+      res.status(201).json({ ok: true, id: newId });
+    } catch (e) {
+      console.error('POST /api/products error', e);
+      res.status(500).json({ message: 'Error creando producto' });
+    }
+  });
 app.delete('/api/products/:id', async (req, res) => {
   // proteger borrado
   const { adminToken } = getCookies(req);
@@ -531,9 +673,9 @@ app.delete('/api/products/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
 
-    const r = await Product.deleteOne({ id });
-    if (r.deletedCount === 0) return res.status(404).json({ message: 'Producto no encontrado' });
-
+    const r = await db.query('DELETE FROM dbo.products WHERE id = @id; SELECT @@ROWCOUNT AS affected;', { id });
+    const affected = r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Producto no encontrado' });
     res.json({ ok: true });
   } catch (e) {
     console.error(e);
@@ -561,13 +703,16 @@ app.get('/api/precio', async (req, res) => {
     const cantidadReal = mult * 1000; // Regla fija
 
     // Obtener escalones desde colección Cantidad o derivarlos de productos si no hay
-    let escalonesDocs = await EscalonCantidad.find().lean().exec();
-    let escalones = escalonesDocs.map(e => e.cantidad).filter(c => Number.isFinite(c));
+    let escalones = [];
+    try {
+      const rows = await db.query('SELECT cantidad FROM dbo.cantidad ORDER BY cantidad');
+      escalones = rows.map(r => r.cantidad).filter(c => Number.isFinite(c));
+    } catch (err) { escalones = []; }
     if (!escalones.length) {
       // Derivar escalones de los productos con este código
       const codigoStr = String(codigo);
-      const prodDocs = await Product.find({ $or: [ { codigo: codigoStr }, { Codigo: codigoStr } ] }).lean().exec();
-      escalones = prodDocs.map(p => p.cantidad ?? p.Cantidad).filter(c => Number.isFinite(Number(c))).map(Number);
+      const prodDocs = await db.query('SELECT cantidad FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
+      escalones = prodDocs.map(p => p.cantidad).filter(Number.isFinite).map(Number);
     }
     escalones = escalones.filter(c => Number.isFinite(c)).sort((a,b) => a-b);
     if (!escalones.length) return res.status(404).json({ message: 'No hay escalones disponibles para el código', codigo });
@@ -595,16 +740,17 @@ app.get('/api/precio', async (req, res) => {
         ] }
       ]
     };
-    const prod = await Product.findOne(query).lean().exec();
+    // try direct match in SQL
+    const prodRows = await db.query(`SELECT * FROM dbo.products WHERE codigo = @codigo AND cantidad = @escalon`, { codigo: codigoStr, escalon: escalonNum });
+    let prod = prodRows[0];
     if (debugPrecio === 'true') {
-      console.log('[DEBUG /api/precio]', { codigo, cantidadReal, escalon, query, found: !!prod });
+      console.log('[DEBUG /api/precio]', { codigo, cantidadReal, escalon, found: !!prod });
     }
-
     let chosen = prod;
     if (!chosen) {
       // Fallback: buscar el producto con mayor Cantidad <= escalon (ya debería ser escalon) o el máximo disponible para el código
-      const allCode = await Product.find({ $or: [ { codigo: codigoStr }, { Codigo: codigoStr } ] }).lean().exec();
-      const withQty = allCode.map(p => ({ doc: p, qty: Number(p.cantidad ?? p.Cantidad) })).filter(x => Number.isFinite(x.qty));
+      const allCode = await db.query('SELECT * FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
+      const withQty = allCode.map(p => ({ doc: p, qty: Number(p.cantidad) })).filter(x => Number.isFinite(x.qty));
       const floorCandidates = withQty.filter(x => x.qty <= escalonNum).sort((a,b) => b.qty - a.qty);
       if (floorCandidates.length) chosen = floorCandidates[0].doc; else if (withQty.length) {
         // usar el menor o mayor según regla? usamos mayor (último escalón) consistente con política previa
@@ -617,9 +763,9 @@ app.get('/api/precio', async (req, res) => {
     }
 
     // Precio total almacenado para ese escalón (preferimos el guardado, NO escalamos a cantidadReal)
-    const precioEscalon = (chosen.price != null ? chosen.price : chosen.Precio);
-    const qtyChosen = chosen.cantidad ?? chosen.Cantidad;
-    const precioUnitario = chosen.precio_unitario ?? chosen['Precio Unitario'] ?? ((precioEscalon && qtyChosen) ? (precioEscalon / qtyChosen) : null);
+    const precioEscalon = (chosen.price != null ? chosen.price : null);
+    const qtyChosen = chosen.cantidad;
+    const precioUnitario = chosen.precio_unitario ?? ((precioEscalon && qtyChosen) ? (precioEscalon / qtyChosen) : null);
     if (precioEscalon == null) {
       return res.status(500).json({ message: 'Producto sin Precio total en el escalón', productoId: chosen.id, escalon });
     }
@@ -643,63 +789,73 @@ app.get('/api/precio', async (req, res) => {
 
 app.listen(PORT, () => console.log(`API server listening on ${PORT}`));
 
-app.put('/api/products/:id',
-  requireAdmin,
-  upload.array('images', 6),
-  async (req, res) => {
-    try {
-      const key = (req.params.id || '').trim();
-
-      // Buscar por _id (ObjectId) o por id numérico
-      let product = null;
-      if (mongoose.Types.ObjectId.isValid(key)) {
-        product = await Product.findById(key);
-      }
-      if (!product && !Number.isNaN(Number(key))) {
-        product = await Product.findOne({ id: Number(key) });
-      }
-      if (!product) return res.status(404).json({ message: 'No encontrado' });
-
-      const b = req.body || {};
-      const asNumber = v => (v === '' || v == null ? undefined : (Number.isFinite(Number(v)) ? Number(v) : undefined));
-
-      // Strings
-      product.codigo = product.Codigo = (b.codigo || b.Codigo || '').toString().trim();
-      product.name = product.Nombre = (b.name || b.Nombre || '').toString().trim();
-      product.linea = product.Linea = (b.linea || b.Linea || '').toString().trim();
-      product.category = product.Categoria = (b.category || b.Categoria || '').toString().trim();
-      product.description = product.Descripcion = (b.description || b.Descripcion || '').toString().trim();
-
-      // Números
-      const cantidad = asNumber(b.cantidad ?? b.Cantidad);
-      const pu = asNumber(b.precio_unitario ?? b['Precio Unitario']);
-      let price = asNumber(b.price ?? b.Precio);
-      if (price === undefined && cantidad !== undefined && pu !== undefined) {
-        const mult = Number(cantidad) * Number(pu);
-        if (Number.isFinite(mult)) price = mult;
-      }
-      if (cantidad !== undefined) product.cantidad = product.Cantidad = cantidad;
-      if (pu !== undefined) product.precio_unitario = product['Precio Unitario'] = pu;
-      if (price !== undefined) product.price = product.Precio = price;
-
-      // Adjuntar nuevas imágenes (binario en memoria)
-      const files = req.files || [];
-      for (const f of files) {
-        product.images.push({ data: f.buffer, type: f.mimetype, filename: f.originalname });
-      }
-      if (files.length > 0) {
-        product.imageData = undefined;
-        product.imageType = undefined;
-      }
-
-      await product.save();
-      res.json({ ok: true, id: product.id, _id: product._id });
-    } catch (e) {
-      console.error('PUT /api/products/:id error', e);
-      if (e.name === 'ValidationError' || e.name === 'CastError') {
-        return res.status(400).json({ message: 'Datos inválidos', detail: e.message });
-      }
-      res.status(500).json({ message: 'Error actualizando producto' });
+app.put('/api/products/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const b = req.body || {};
+    const codigo_siesa = (b.codigo_siesa || b.codigo || '').toString().trim();
+    const name = (b.name || '').toString().trim();
+    // resolve category if provided (id or textual)
+    const categoryResolved = await resolveCategory(b.category);
+    const description = (b.description || '').toString().trim();
+    const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
+    let images = [];
+    if (b.images) {
+      if (typeof b.images === 'string') {
+        try { images = JSON.parse(b.images); } catch { images = [b.images]; }
+      } else if (Array.isArray(b.images)) images = b.images;
     }
+    // Enforce max 4 images
+    if (images.length > 4) return res.status(400).json({ message: 'Máximo 4 imágenes permitido' });
+
+    // Build update set dynamically
+    const sets = [];
+    const params = { id };
+    if (codigo_siesa !== '') { sets.push('codigo_siesa = @codigo_siesa'); params.codigo_siesa = codigo_siesa; }
+    if (name !== '') { sets.push('name = @name'); params.name = name; }
+    if (price_unit != null) { sets.push('price_unit = @price_unit'); params.price_unit = price_unit; }
+    if (categoryResolved != null) { sets.push('category = @category'); params.category = categoryResolved; }
+    if (description !== '') { sets.push('description = @description'); params.description = description; }
+    if (images && images.length >= 0) {
+      sets.push('images = @images'); params.images = JSON.stringify(images);
+      params.image2 = images[1] || '';
+      params.image3 = images[2] || '';
+      params.image4 = images[3] || '';
+      sets.push('image2 = @image2'); sets.push('image3 = @image3'); sets.push('image4 = @image4');
+    }
+
+    if (sets.length === 0) return res.status(400).json({ message: 'Nada para actualizar' });
+
+    const sql = `UPDATE dbo.products SET ${sets.join(', ')} WHERE id = @id; SELECT @@ROWCOUNT as affected;`;
+    const r = await db.query(sql, params);
+    const affected = r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Producto no encontrado' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PUT /api/products/:id error', e);
+    res.status(500).json({ message: 'Error actualizando producto' });
   }
-);
+});
+
+// Upload file via server (avoids CORS issues when uploading directly from browser)
+const directUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+app.post('/api/upload-file', requireAdmin, directUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'missing_file' });
+    if (!blobServiceClient) return res.status(500).json({ error: 'storage_not_configured' });
+
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${req.file.originalname}`;
+    const blobName = rootPath ? `${rootPath}/${filename}` : filename;
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
+    const blockClient = containerClient.getBlockBlobClient(blobName);
+    await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+    const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+    const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+    return res.json({ ok: true, blobUrl });
+  } catch (e) {
+    console.error('/api/upload-file error', e);
+    res.status(500).json({ error: 'upload_failed' });
+  }
+});

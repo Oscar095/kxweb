@@ -58,7 +58,13 @@
       </form>
     </section>
     <section id="admin-section" style="display:none;">
-      <h2>Crear o Actualizar producto</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+        <h2 style="margin:0">Crear o Actualizar producto</h2>
+        <div>
+          <button id="show-products-tab" type="button" style="margin-right:8px;">Productos</button>
+          <button id="show-categories-tab" type="button">Categorías</button>
+        </div>
+      </div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
         <button id="logout-btn" style="background:#eee;border:1px solid #ddd;border-radius:6px;padding:8px 12px;cursor:pointer">Cerrar sesión</button>
       </div>
@@ -68,8 +74,8 @@
           <legend style="color:black; font-size:18px; font-weight:500;">Datos del producto</legend>
 
           <div class="field">
-            <label for="p-codigo" style="color:black;">Código : </label>
-            <input id="p-codigo" type="text" name="codigo" placeholder="Código externo (SKU)" />
+            <label for="p-codigo" style="color:black;">Código SIESA : </label>
+            <input id="p-codigo" type="text" name="codigo_siesa" placeholder="Código SIESA / SKU" />
           </div>
 
           <div class="field">
@@ -84,28 +90,8 @@
 
 
           <div class="field">
-            <label for="p-linea" style="color:black;">Línea : </label>
-            <input id="p-linea" type="text" name="linea" placeholder="Ej: Empaques, Desechables, etc." />
-          </div>
-
-          <div class="field">
-            <label for="p-cantidad" style="color:black;">Cantidad : </label>
-            <input id="p-cantidad" type="number" name="cantidad" min="0" step="1" placeholder="Ej: 8000" />
-          </div>
-
-          <div class="field">
-            <label for="p-precio-u" style="color:black;">Precio Unitario : </label>
-            <input id="p-precio-u" type="number" name="precio_unitario" min="0" step="0.01" placeholder="Ej: 220" />
-          </div>
-
-          <div class="field">
-            <label for="p-precio-unitario" style="color:black;">Precio Unitario : </label>
-            <input id="p-precio-unitario" type="number" name="precio_unitario" min="0" step="0.01" placeholder="Ej: 1200.50" />
-          </div>
-
-          <div class="field">
-            <label for="p-price" style="color:black;">Precio : </label>
-            <input id="p-price" type="number" name="price" min="0" step="1" required />
+            <label for="p-price-unit" style="color:black;">Precio Unitario : </label>
+            <input id="p-price-unit" type="number" name="price_unit" min="0" step="0.01" placeholder="Ej: 1200.50" required />
           </div>
 
           <div class="field">
@@ -144,6 +130,22 @@
           <div id="lib-selected" class="img-preview-grid"></div>
         </div>
       </form>
+      <!-- Categories section (hidden by default) -->
+      <section id="category-section" style="display:none; margin-top:18px; border-top:1px dashed #eee; padding-top:12px;">
+        <h3>Categorías</h3>
+        <form id="category-form" style="max-width:640px;">
+          <input id="cat-id" type="hidden" />
+          <div class="field">
+            <label for="cat-desc">Descripción</label>
+            <input id="cat-desc" name="descripcion" required placeholder="Nombre/Descripción visible para la categoría" />
+          </div>
+          <div style="margin-top:8px;"><button type="submit" class="btn-primary">Guardar categoría</button> <button id="cat-cancel" type="button">Cancelar</button></div>
+        </form>
+        <div style="margin-top:12px;">
+          <h4>Lista de categorías</h4>
+          <div id="categories-list"></div>
+        </div>
+      </section>
     </section>
 
     <hr />

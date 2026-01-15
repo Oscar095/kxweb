@@ -14,7 +14,9 @@
   "author": "Oscar Orozco",
   "license": "MIT",
   "dependencies": {
+    "@azure/storage-blob": "^12.29.1",
     "dotenv": "^17.2.2",
+    "mssql": "^9.1.1",
     "express": "^4.19.2",
     "mongoose": "^8.18.1",
     "multer": "^2.0.2",
