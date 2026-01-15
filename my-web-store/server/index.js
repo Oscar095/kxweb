@@ -632,6 +632,7 @@ app.post('/api/products', requireAdmin, async (req, res) => {
       const categoryParam = await resolveCategory(b.category);
       const description = (b.description || b.Descripcion || '').toString().trim();
       const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
+      const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
       if (!name) return res.status(400).json({ message: 'Nombre requerido' });
 
       // images: can be array or JSON string
@@ -651,11 +652,11 @@ app.post('/api/products', requireAdmin, async (req, res) => {
 
       // Validate categoryParam resolved and exists (FK)
       if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
-      console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length });
-      const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,category,description,images,image2,image3,image4) 
+      console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad });
+      const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4) 
         OUTPUT INSERTED.id
-        VALUES (@codigo_siesa,@name,@price_unit,@category,@description,@images,@image2,@image3,@image4);`, {
-        codigo_siesa, name, price_unit, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4
+        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4);`, {
+        codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4
       });
       const newId = resIns[0] && resIns[0].id;
       res.status(201).json({ ok: true, id: newId });
@@ -800,6 +801,7 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     const categoryResolved = await resolveCategory(b.category);
     const description = (b.description || '').toString().trim();
     const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
+    const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
     let images = [];
     if (b.images) {
       if (typeof b.images === 'string') {
@@ -815,6 +817,7 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     if (codigo_siesa !== '') { sets.push('codigo_siesa = @codigo_siesa'); params.codigo_siesa = codigo_siesa; }
     if (name !== '') { sets.push('name = @name'); params.name = name; }
     if (price_unit != null) { sets.push('price_unit = @price_unit'); params.price_unit = price_unit; }
+    if (cantidad != null) { sets.push('cantidad = @cantidad'); params.cantidad = cantidad; }
     if (categoryResolved != null) { sets.push('category = @category'); params.category = categoryResolved; }
     if (description !== '') { sets.push('description = @description'); params.description = description; }
     if (images && images.length >= 0) {

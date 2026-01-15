@@ -70,6 +70,7 @@ async function loadProducts() {
     form.id.value = prod.id;
     form.name.value = prod.name || '';
     if (form['price_unit']) form['price_unit'].value = prod.price_unit != null ? prod.price_unit : '';
+    if (form['cantidad']) form['cantidad'].value = prod.cantidad != null ? prod.cantidad : (prod.Cantidad != null ? prod.Cantidad : '');
         // Ensure category select has the current value
         const sel = form.category;
         const val = prod.category || '';
@@ -92,6 +93,11 @@ async function loadProducts() {
           cur.appendChild(im);
         });
 
+        // compute total if both values available
+        const pu = Number(form.querySelector('#p-price-unit')?.value);
+        const cq = Number(form.querySelector('#p-cantidad')?.value);
+        const totalEl = document.getElementById('p-price');
+        if (totalEl && Number.isFinite(pu) && Number.isFinite(cq)) totalEl.value = (pu * cq).toFixed(0);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     });
@@ -130,6 +136,7 @@ async function submitForm(ev) {
     payload.codigo_siesa = formEl.querySelector('#p-codigo')?.value || '';
     payload.name = formEl.querySelector('#p-name')?.value || '';
     payload.price_unit = formEl.querySelector('#p-price-unit')?.value || '';
+    payload.cantidad = formEl.querySelector('#p-cantidad')?.value || '';
     payload.category = formEl.querySelector('#p-category')?.value || '';
     payload.description = formEl.querySelector('#p-desc')?.value || '';
 
@@ -167,6 +174,9 @@ async function submitForm(ev) {
       status.innerHTML = '<strong style="color:green">Creado correctamente.</strong>';
     }
     formEl.reset();
+    // clear cantidad and total UI
+    const priceEl = document.getElementById('p-price'); if (priceEl) priceEl.value = '';
+    const qtyEl = document.getElementById('p-cantidad'); if (qtyEl) qtyEl.value = '';
     $('#new-previews').innerHTML = '';
     $('#current-images').innerHTML = '';
     window.__libSelected = [];
@@ -232,7 +242,7 @@ async function initAdmin() {
 
   // Auto cálculo de precio total
   const cantidadInput = document.getElementById('p-cantidad');
-  const puInput = document.getElementById('p-precio-u');
+  const puInput = document.getElementById('p-price-unit');
   const totalInput = document.getElementById('p-price');
   function recalc() {
     if (!cantidadInput || !puInput || !totalInput) return;
