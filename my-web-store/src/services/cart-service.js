@@ -1,5 +1,28 @@
+// helper para calcular precio por caja desde un producto
+function computePricePerBox(prod) {
+  if (!prod) return 0;
+  const fromField = prod.precioCaja ?? prod.precio_caja ?? prod.price ?? prod.precio ?? null;
+  if (fromField != null && fromField !== '') {
+    const n = typeof fromField === 'string' ? Number(fromField.replace(/[^\d.-]/g, '')) : Number(fromField);
+    if (Number.isFinite(n)) return n;
+  }
+  const unit = prod.price_unit ?? prod.precio_unitario ?? null;
+  const cantidad = prod.cantidad ?? prod.Cantidad ?? null;
+  const u = unit != null ? (typeof unit === 'string' ? Number(unit.replace(/[^\d.-]/g, '')) : Number(unit)) : null;
+  const c = cantidad != null ? (typeof cantidad === 'string' ? Number(cantidad.replace(/[^\d.-]/g, '')) : Number(cantidad)) : null;
+  if (Number.isFinite(u) && Number.isFinite(c)) return u * c;
+  // fallback: if prod.price looks like total per box
+  const fallback = prod.price ?? prod.precio ?? 0;
+  return Number.isFinite(Number(fallback)) ? Number(fallback) : 0;
+}
+
+const _stored = JSON.parse(localStorage.getItem('cart') || '[]');
+const normalizedStored = Array.isArray(_stored) ? _stored.map(it => ({ ...it, precioCaja: computePricePerBox(it), price: computePricePerBox(it) })) : [];
+// Persist normalized stored cart so other pages reading localStorage get prices
+try { localStorage.setItem('cart', JSON.stringify(normalizedStored)); } catch (e) { /* ignore */ }
+
 export const cartService = {
-  items: JSON.parse(localStorage.getItem('cart') || '[]'),
+  items: normalizedStored,
   _listeners: [],
   add(product, quantity = 1) {
     const qty = Math.max(1, Number(quantity) || 1);
@@ -11,8 +34,9 @@ export const cartService = {
       const curQty = Number(cur._qty) || 1;
       this.items[idx] = { ...cur, _qty: curQty + qty };
     } else {
-      // Guarda una sola línea con la cantidad
-      this.items.push({ ...product, _qty: qty });
+      // Guarda una sola línea con la cantidad, incluyendo precio por caja
+      const precioCaja = computePricePerBox(product);
+      this.items.push({ ...product, _qty: qty, precioCaja, price: precioCaja });
     }
     this._save();
     this._notify();
@@ -30,7 +54,8 @@ export const cartService = {
     } else {
       // Mantener una sola línea consolidada con la nueva cantidad
       const base = same[0] || { id };
-      this.items = [...others, { ...base, _qty: nextTotal }];
+      const precioCaja = computePricePerBox(base);
+      this.items = [...others, { ...base, _qty: nextTotal, precioCaja, price: precioCaja }];
     }
     this._save();
     this._notify();
@@ -43,7 +68,8 @@ export const cartService = {
     const same = this.items.filter(it => it.id === id);
     const others = this.items.filter(it => it.id !== id);
     const base = same[0] || { id };
-    this.items = [...others, { ...base, _qty: q }];
+    const precioCaja = computePricePerBox(base);
+    this.items = [...others, { ...base, _qty: q, precioCaja, price: precioCaja }];
     this._save();
     this._notify();
   },

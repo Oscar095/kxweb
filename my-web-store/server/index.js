@@ -251,26 +251,23 @@ app.get('/api/upload-sas', async (req, res) => {
 // GET listado: incluye array images y mantiene 'image' como la primera
 app.get('/api/products', async (req, res) => {
   try {
-    const sqlQuery = `SELECT * FROM dbo.products ORDER BY id`;
+    // JOIN para obtener el nombre de la categoría
+    const sqlQuery = `SELECT p.*, c.descripcion AS category_name FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id ORDER BY p.id`;
     const rows = await db.query(sqlQuery);
     const out = rows.map(d => {
       const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
-      // include image2..image4 if present and not already in imgs
-      if (d.image2) {
-        const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v);
-      }
-      if (d.image3) {
-        const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v);
-      }
-      if (d.image4) {
-        const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v);
-      }
+      if (d.image2) { const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+      if (d.image3) { const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+      if (d.image4) { const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
       return {
         id: d.id,
         codigo_siesa: d.codigo_siesa || '',
         name: d.name || '',
         price_unit: d.price_unit != null ? d.price_unit : null,
+        cantidad: d.cantidad != null ? d.cantidad : null,
         category: d.category != null ? d.category : null,
+        category_name: d.category_name || '',
+        category_desc: d.category_desc || '',
         description: d.description || '',
         images: imgs,
         image: imgs[0] || '/images/placeholder.svg',
@@ -291,7 +288,8 @@ app.get('/api/products/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
-    const rows = await db.query('SELECT * FROM dbo.products WHERE id = @id', { id });
+    // JOIN para obtener el nombre de la categoría
+    const rows = await db.query('SELECT p.*, c.descripcion AS category_name FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id WHERE p.id = @id', { id });
     const d = rows[0];
     if (!d) return res.status(404).json({ message: 'Producto no encontrado' });
     const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
@@ -303,7 +301,9 @@ app.get('/api/products/:id', async (req, res) => {
       codigo_siesa: d.codigo_siesa || '',
       name: d.name || '',
       price_unit: d.price_unit != null ? d.price_unit : null,
+      cantidad: d.cantidad != null ? d.cantidad : null,
       category: d.category != null ? d.category : null,
+      category_name: d.category_name || '',
       description: d.description || '',
       image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
       images: imgs,
@@ -597,27 +597,9 @@ async function resolveCategory(input) {
       if (rows && rows.length) return asNum;
       return null;
     } catch (e) {
+      console.warn('resolveCategory warning', e && (e.message || e));
       return null;
     }
-  }
-  const q = String(input).trim();
-  try {
-    // Check which columns exist to avoid referencing non-existent columns
-    const cols = await db.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'categories' AND COLUMN_NAME IN ('descripcion','nombre')");
-    const colNames = (cols || []).map(c => (c.COLUMN_NAME || c.column_name || '').toString().toLowerCase());
-    if (colNames.includes('descripcion')) {
-      const r = await db.query('SELECT Id FROM dbo.categories WHERE CONVERT(NVARCHAR(MAX), descripcion) = @q', { q });
-      if (r && r.length) return r[0].Id;
-    }
-    if (colNames.includes('nombre')) {
-      const r2 = await db.query('SELECT Id FROM dbo.categories WHERE CONVERT(NVARCHAR(MAX), nombre) = @q', { q });
-      if (r2 && r2.length) return r2[0].Id;
-    }
-    // last resort: try to match any row where any varchar column equals the text (best-effort)
-    return null;
-  } catch (e) {
-    console.warn('resolveCategory warning', e && (e.message || e));
-    return null;
   }
 }
 

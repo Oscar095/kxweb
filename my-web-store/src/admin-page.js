@@ -41,10 +41,11 @@ async function loadProducts() {
       const details = document.createElement('div');
       details.className = 'admin-product-details';
       const safe = (v) => (v == null ? '' : v);
+      const categoryLabel = safe(p.category_name || p.category_nombre || p.category_desc || p.category);
       details.innerHTML = `
         <div class="product-name">${safe(p.name)}</div>
         <div class="product-sku" style="color:#555">Código SIESA: ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
-        <div class="product-category">Categoría: ${safe(p.category)}</div>
+        <div class="product-category">Categoría: ${categoryLabel}</div>
         <div style="color:#444">Descripción: ${safe(p.description)}</div>
         <div style="color:#444">Precio Unitario: ${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</div>
         <div style="color:#444">Cantidad: ${safe(p.cantidad ?? p.Cantidad)}</div>

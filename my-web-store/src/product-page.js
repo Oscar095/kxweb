@@ -36,8 +36,20 @@ function renderProduct(p){
   const desc = document.getElementById('pd-desc');
 
   name.textContent = p.name || '';
-  cat.textContent = p.category ? `Categoría: ${p.category}` : '';
-  price.textContent = `$${formatMoney(Number(p.price||0))} / caja`;
+  // Mostrar el nombre de la categoría si está disponible
+  let categoriaNombre = '';
+  if (typeof p.category === 'object' && p.category !== null) {
+    categoriaNombre = p.category.name || p.category.nombre || p.category.id || '';
+  } else {
+    categoriaNombre = p.category_name || p.category_nombre || p.category || '';
+  }
+  cat.textContent = categoriaNombre ? `Categoría: ${categoriaNombre}` : '';
+  // Mostrar precio por caja = precio unitario * cantidad (si está disponible)
+  const cantidadNum = (p.cantidad ?? p.Cantidad) ? Number(p.cantidad ?? p.Cantidad) : null;
+  const unitarioRaw = p.price_unit ?? p.precio_unitario ?? null;
+  const unitario = unitarioRaw != null ? Number(unitarioRaw) : (cantidadNum && p.price ? Number(p.price) / cantidadNum : null);
+  const precioCajaInicial = (Number.isFinite(unitario) && cantidadNum) ? (unitario * cantidadNum) : Number(p.price || 0);
+  price.textContent = '$' + formatMoney(precioCajaInicial) + ' / caja';
   price.dataset.codigo = p.codigo || '';
   desc.textContent = p.description || '';
 

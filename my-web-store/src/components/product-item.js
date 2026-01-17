@@ -1,13 +1,28 @@
 import { formatMoney } from '../utils/format.js';
 export function productItemTemplate(p) {
-  // Normaliza precio desde price o precio
+  // Normaliza precio desde price o precio (precio total del escalón o fallback)
   const priceNum = (() => {
     const raw = p.price ?? p.precio ?? 0;
     const num = typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw);
     return Number.isFinite(num) ? num : 0;
   })();
-  // Use placeholder.svg by default and fallback on image load error
-  const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || 'images/placeholder.svg';
+  // cantidad asociada al producto (escalón)
+  const cantidadNum = (() => {
+    const raw = p.cantidad ?? p.Cantidad ?? p.cant ?? null;
+    const n = raw == null ? null : (typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw));
+    return Number.isFinite(n) ? n : null;
+  })();
+  // precio unitario preferente: price_unit / precio_unitario, fallback a priceNum/cantidad
+  const unitPrice = (() => {
+    const uRaw = p.price_unit ?? p.precio_unitario ?? null;
+    const u = uRaw == null ? null : (typeof uRaw === 'string' ? Number(uRaw.replace(/[^\d.-]/g, '')) : Number(uRaw));
+    if (Number.isFinite(u)) return u;
+    if (cantidadNum && priceNum) return priceNum / cantidadNum;
+    return 0;
+  })();
+  const totalPerBox = cantidadNum ? (unitPrice * cantidadNum) : unitPrice;
+  // Use placeholder.svg by default and fallback on image load error (use absolute path)
+  const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
   const qtyInputId = `qty-${p.id}`;
   return /* html */`
     <article class="product" data-id="${p.id}">
@@ -25,7 +40,7 @@ export function productItemTemplate(p) {
       </div>
       <div>
         <a href="/product.html?id=${p.id}" class="product-link" style="color:inherit;text-decoration:none"><h3>${p.name}</h3></a>
-  <p class="price" data-base-price="${priceNum}" data-codigo="${p.codigo || ''}">$${formatMoney(priceNum)} <span style="font-size:0.7rem;color:#666;">/ caja</span></p>
+  <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">$${formatMoney(totalPerBox)} <span style="font-size:0.7rem;color:#666;">/ caja</span></p>
         <p class="desc">${p.description || ''}</p>
       </div>
       <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
