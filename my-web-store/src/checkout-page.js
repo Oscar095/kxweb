@@ -141,13 +141,17 @@ async function ensureWompiWidgetLoaded() {
 async function openWompi(form, amountInCents) {
   const msgEl = document.getElementById('checkout-message');
   const reference = `KOSX-${Date.now()}`;
-  const redirectUrl = `${location.origin}/checkout.html`;
+  // Nota: algunos gateways/CDNs bloquean redirect-url apuntando a localhost/http.
+  // En local, omitimos redirectUrl para que el backend use PUBLIC_BASE_URL (si está configurado)
+  // o su fallback.
+  const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  const redirectUrl = isLocalhost ? null : `${location.origin}/checkout.html`;
 
   // 1) Obtener firma desde el backend
   const resp = await fetch('/api/wompi/signature', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reference, amountInCents, currency: 'COP', redirectUrl })
+    body: JSON.stringify({ reference, amountInCents, currency: 'COP', ...(redirectUrl ? { redirectUrl } : {}) })
   });
   if (!resp.ok) {
     const txt = await resp.text();
@@ -201,6 +205,7 @@ async function openWompi(form, amountInCents) {
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('checkout-form');
   const payBtn = document.getElementById('pay-btn');
+  const nitInput = document.getElementById('nitId');
 
   renderOrderSummary();
   showReturnMessageFromWompi();
@@ -209,6 +214,11 @@ document.addEventListener('DOMContentLoaded', () => {
   cartService.subscribe(() => renderOrderSummary());
   window.addEventListener('storage', (e) => {
     if (e.key === 'cart') renderOrderSummary();
+  });
+
+  // Mantener NIT/ID solo numérico
+  nitInput?.addEventListener('input', () => {
+    nitInput.value = String(nitInput.value || '').replace(/\D+/g, '');
   });
 
   form.addEventListener('submit', async (e) => {
@@ -221,8 +231,49 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const nitId = String(form?.nitId?.value || '').replace(/\D+/g, '').trim();
+    if (!nitId) {
+      msg.textContent = 'NIT/ID es obligatorio y debe ser numérico.';
+      return;
+    }
+
     payBtn.disabled = true;
     try {
+      // Registrar pedido en base de datos (solo campos del formulario)
+      const payload = {
+        nitId,
+        name: String(form.name.value || '').trim(),
+        email: String(form.email.value || '').trim(),
+        phone: String(form.phone.value || '').trim(),
+        address: String(form.address.value || '').trim(),
+        city: String(form.city.value || '').trim(),
+        notes: String(form.notes?.value || '').trim(),
+        paymentMethod: String(form.paymentMethod?.value || '').trim()
+      };
+
+      const saveResp = await fetch('/api/pedidos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!saveResp.ok) {
+        const ct = (saveResp.headers.get('content-type') || '').toLowerCase();
+        let errMsg = '';
+        if (ct.includes('application/json')) {
+          try {
+            const j = await saveResp.json();
+            errMsg = j?.detail ? `${j.message || 'Error'} (${j.detail})` : (j?.message || 'Error');
+          } catch {
+            errMsg = '';
+          }
+        }
+        if (!errMsg) {
+          const errTxt = await saveResp.text().catch(() => '');
+          errMsg = errTxt || String(saveResp.status);
+        }
+        throw new Error(`No se pudo registrar el pedido: ${errMsg}`);
+      }
+
       await openWompi(form, amountInCents);
     } catch (err) {
       console.error(err);

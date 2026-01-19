@@ -1,6 +1,11 @@
 const express = require('express');
 const path = require('path');
-require('dotenv').config();
+const fetch = require('node-fetch');
+const dotenv = require('dotenv');
+
+// Cargar variables desde la raíz del proyecto (independiente del cwd)
+dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 // switching to SQL Server + Azure Blob storage
 const db = require('./db');
@@ -106,7 +111,12 @@ app.post('/api/wompi/signature', (req, res) => {
     const textToSign = `${reference}${cents}${cur}`;
     const integrity = crypto.createHmac('sha256', WOMPI_INTEGRITY_SECRET).update(textToSign).digest('hex');
 
-    const finalRedirect = redirectUrl || `${req.protocol}://${req.get('host')}/checkout.html`;
+    const publicBaseUrl = (process.env.PUBLIC_BASE_URL || process.env.APP_BASE_URL || '').toString().trim().replace(/\/$/, '');
+    const fallbackBase = `${req.protocol}://${req.get('host')}`;
+    const base = publicBaseUrl || fallbackBase;
+    const finalRedirect = (redirectUrl && typeof redirectUrl === 'string' && redirectUrl.trim())
+      ? redirectUrl
+      : `${base}/checkout.html`;
 
     return res.json({
       publicKey: WOMPI_PUBLIC_KEY,
@@ -120,6 +130,111 @@ app.post('/api/wompi/signature', (req, res) => {
   }
 });
 // --- fin firma ---
+
+// --- Pedidos (checkout) ---
+app.post('/api/pedidos', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const nitId = String(b.nitId || b.nit_id || '').replace(/\D+/g, '').trim();
+    const name = String(b.name || '').trim();
+    const email = String(b.email || '').trim();
+    const phone = String(b.phone || '').trim();
+    const address = String(b.address || '').trim();
+    const city = String(b.city || '').trim();
+    const notes = (b.notes == null ? '' : String(b.notes)).trim();
+    const paymentMethod = (b.paymentMethod == null ? '' : String(b.paymentMethod)).trim();
+
+    if (!nitId) return res.status(400).json({ message: 'nitId requerido (numérico)' });
+    if (!name || !email || !phone || !address || !city) {
+      return res.status(400).json({ message: 'name, email, phone, address y city son requeridos' });
+    }
+
+    // Detectar tabla/columnas reales (por si la tabla fue creada manualmente con otros nombres)
+    const tables = await db.query(
+      `SELECT TABLE_SCHEMA AS [schema], TABLE_NAME AS [name]
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_TYPE = 'BASE TABLE' AND (TABLE_NAME = 'pedidos' OR TABLE_NAME = 'pedido');`
+    );
+    const found = (tables || []).find(t => String(t.name || '').toLowerCase() === 'pedidos') || (tables || [])[0];
+    if (!found || !found.name || !found.schema) {
+      return res.status(500).json({ message: 'Error guardando pedido', detail: 'Tabla pedidos/pedido no encontrada' });
+    }
+    const tableSchema = String(found.schema);
+    const tableName = String(found.name);
+
+    const cols = await db.query(
+      `SELECT COLUMN_NAME AS [name]
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table
+       ORDER BY ORDINAL_POSITION;`,
+      { schema: tableSchema, table: tableName }
+    );
+    const colSet = new Set((cols || []).map(c => String(c.name || '').toLowerCase()));
+
+    const pick = (candidates) => {
+      for (const c of candidates) {
+        const key = String(c).toLowerCase();
+        if (colSet.has(key)) return c;
+      }
+      return null;
+    };
+
+    const mapping = {
+      nit: pick(['nit_id', 'nitid', 'nitId', 'nit', 'documento', 'document', 'id']),
+      name: pick(['name', 'nombre']),
+      email: pick(['email', 'correo']),
+      phone: pick(['phone', 'telefono', 'celular']),
+      address: pick(['address', 'direccion']),
+      city: pick(['city', 'ciudad']),
+      notes: pick(['notes', 'nota', 'notas', 'observaciones', 'observacion']),
+      pay: pick(['payment_method', 'paymentmethod', 'paymentMethod', 'metodo_pago', 'metodopago'])
+    };
+
+    const missing = ['nit', 'name', 'email', 'phone', 'address', 'city']
+      .filter(k => !mapping[k]);
+    if (missing.length) {
+      return res.status(500).json({
+        message: 'Error guardando pedido',
+        detail: `Faltan columnas requeridas en ${tableSchema}.${tableName}: ${missing.join(', ')}`
+      });
+    }
+
+    const insertCols = [];
+    const insertVals = [];
+    const params = {};
+
+    const add = (col, param, value) => {
+      if (!col) return;
+      insertCols.push(`[${col}]`);
+      insertVals.push(`@${param}`);
+      params[param] = value;
+    };
+
+    add(mapping.nit, 'nit', nitId);
+    add(mapping.name, 'name', name);
+    add(mapping.email, 'email', email);
+    add(mapping.phone, 'phone', phone);
+    add(mapping.address, 'address', address);
+    add(mapping.city, 'city', city);
+    add(mapping.notes, 'notes', notes);
+    add(mapping.pay, 'pay', paymentMethod);
+
+    // Intentar devolver id si existe columna id
+    const idCol = pick(['id', 'Id', 'ID']);
+    const output = idCol ? ` OUTPUT INSERTED.[${idCol}] AS id` : '';
+
+    const sql = `INSERT INTO [${tableSchema}].[${tableName}] (${insertCols.join(', ')})${output} VALUES (${insertVals.join(', ')});`;
+    const r = await db.query(sql, params);
+    const id = r && r[0] && (r[0].id || r[0].Id);
+    res.status(201).json({ ok: true, id: id ?? null });
+  } catch (e) {
+    console.error('POST /api/pedidos error', e);
+    res.status(500).json({
+      message: 'Error guardando pedido',
+      detail: (e && e.message) ? String(e.message).slice(0, 300) : undefined
+    });
+  }
+});
 
 // --- Contactos API ---
 const contactUpload = multer({
@@ -767,6 +882,97 @@ app.get('/api/precio', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error calculando precio' });
+  }
+});
+
+// --- Inventario por SKU (proxy hacia Azure Webservice) ---
+// GET /api/inventario/:sku
+// Lógica:
+//  - consulta https://kx-endpoints.azurewebsites.net/inventario/{sku}
+//  - si inventario > 1000 => "En Existencia"
+//  - si inventario <= 1000 => "Agotado"
+app.get('/api/inventario/:sku', async (req, res) => {
+  try {
+    const skuRaw = (req.params.sku || '').toString().trim();
+    if (!skuRaw) return res.status(400).json({ message: 'sku requerido' });
+
+    const baseUrl = 'https://kx-endpoints.azurewebsites.net';
+    const url = `${baseUrl}/inventario/${encodeURIComponent(skuRaw)}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const r = await fetch(url, {
+      method: 'GET',
+      headers: { 'accept': 'application/json,text/plain;q=0.9,*/*;q=0.8' },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      return res.status(502).json({ message: 'inventario_upstream_error', sku: skuRaw, status: r.status, body: text.slice(0, 500) });
+    }
+
+    const contentType = (r.headers.get('content-type') || '').toLowerCase();
+    const bodyText = await r.text();
+
+    const tryExtractNumber = (val) => {
+      if (val == null) return null;
+      if (typeof val === 'number') return Number.isFinite(val) ? val : null;
+      if (typeof val === 'string') {
+        const n = Number(val.replace(/[^\d.-]/g, ''));
+        return Number.isFinite(n) ? n : null;
+      }
+      if (Array.isArray(val)) {
+        for (const item of val) {
+          const n = tryExtractNumber(item);
+          if (Number.isFinite(n)) return n;
+        }
+        return null;
+      }
+      if (typeof val === 'object') {
+        // intentar claves típicas primero
+        for (const k of ['inventario', 'inventory', 'stock', 'cantidad', 'qty', 'existencia', 'available']) {
+          if (k in val) {
+            const n = tryExtractNumber(val[k]);
+            if (Number.isFinite(n)) return n;
+          }
+        }
+        // fallback: primer número encontrable
+        for (const k of Object.keys(val)) {
+          const n = tryExtractNumber(val[k]);
+          if (Number.isFinite(n)) return n;
+        }
+      }
+      return null;
+    };
+
+    let inventario = null;
+    if (contentType.includes('application/json')) {
+      try {
+        const parsed = JSON.parse(bodyText);
+        inventario = tryExtractNumber(parsed);
+      } catch {
+        inventario = tryExtractNumber(bodyText);
+      }
+    } else {
+      // texto plano (ej: "1234")
+      inventario = tryExtractNumber(bodyText);
+    }
+
+    if (!Number.isFinite(inventario)) {
+      return res.status(502).json({ message: 'inventario_parse_error', sku: skuRaw, raw: bodyText.slice(0, 500) });
+    }
+
+    const statusText = inventario > 1000 ? 'En Existencia' : 'Agotado';
+    res.json({ sku: skuRaw, inventario, estado: statusText });
+  } catch (e) {
+    if (e && e.name === 'AbortError') {
+      return res.status(504).json({ message: 'inventario_timeout' });
+    }
+    console.error(e);
+    res.status(500).json({ message: 'Error consultando inventario' });
   }
 });
 

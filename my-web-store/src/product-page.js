@@ -33,7 +33,67 @@ function renderProduct(p){
   const name = document.getElementById('pd-name');
   const cat = document.getElementById('pd-category');
   const price = document.getElementById('pd-price');
+  const stock = document.getElementById('pd-stock');
   const desc = document.getElementById('pd-desc');
+  const addBtn = document.getElementById('pd-add');
+  const qtyInput = document.getElementById('pd-qty');
+
+  let upstreamEstado = null; // 'En Existencia' | 'Agotado' | null
+  let inventarioExistencia = null; // number (unidades)
+
+  const setCartEnabled = (enabled, reason) => {
+    if (addBtn) {
+      addBtn.disabled = !enabled;
+      addBtn.title = enabled ? '' : (reason || 'No disponible');
+    }
+  };
+
+  const getUnitsPerBox = () => {
+    const raw = p.cantidad ?? p.Cantidad ?? 1000;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 1000;
+  };
+
+  const getRequestedBoxes = () => {
+    const n = Number(qtyInput?.value);
+    if (!Number.isFinite(n) || n <= 0) return 1;
+    return Math.floor(n);
+  };
+
+  const exceedsInventory = () => {
+    if (!Number.isFinite(inventarioExistencia)) return false;
+    const boxes = getRequestedBoxes();
+    const unitsPerBox = getUnitsPerBox();
+    const requestedUnits = boxes * unitsPerBox;
+    return requestedUnits > inventarioExistencia;
+  };
+
+  const renderStockAndCartState = () => {
+    if (!stock) return;
+
+    // Sin inventario consultado aún
+    if (upstreamEstado == null) return;
+
+    // Upstream dice agotado
+    if (upstreamEstado !== 'En Existencia') {
+      stock.textContent = 'Agotado';
+      stock.className = 'pd-stock pd-stock--out';
+      setCartEnabled(false, 'Agotado');
+      return;
+    }
+
+    // Hay inventario: validar cantidad solicitada
+    if (exceedsInventory()) {
+      stock.textContent = 'Agotado';
+      stock.className = 'pd-stock pd-stock--out';
+      setCartEnabled(false, 'Agotado');
+      return;
+    }
+
+    stock.textContent = 'En Existencia';
+    stock.className = 'pd-stock pd-stock--ok';
+    setCartEnabled(true);
+  };
 
   name.textContent = p.name || '';
   // Mostrar el nombre de la categoría si está disponible
@@ -52,6 +112,48 @@ function renderProduct(p){
   price.textContent = '$' + formatMoney(precioCajaInicial) + ' / caja';
   price.dataset.codigo = p.codigo || '';
   desc.textContent = p.description || '';
+
+  // Inventario por SKU (codigo_siesa)
+  if (stock) {
+    const sku = (p.codigo_siesa || p.sku || p.SKU || p.item_ext || '').toString().trim();
+    if (!sku) {
+      stock.textContent = '';
+      stock.className = 'pd-stock';
+      upstreamEstado = null;
+      inventarioExistencia = null;
+      setCartEnabled(true);
+    } else {
+      stock.textContent = 'Consultando inventario...';
+      stock.className = 'pd-stock pd-stock--loading';
+      upstreamEstado = null;
+      inventarioExistencia = null;
+      setCartEnabled(false, 'Consultando inventario...');
+      fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' })
+        .then(async (r) => {
+          if (!r.ok) throw new Error('inventario_error');
+          return r.json();
+        })
+        .then((data) => {
+          const estado = (data && (data.estado || data.status || '')).toString();
+          if (estado === 'En Existencia') {
+            upstreamEstado = 'En Existencia';
+            inventarioExistencia = Number(data?.inventario);
+            renderStockAndCartState();
+          } else {
+            upstreamEstado = 'Agotado';
+            inventarioExistencia = Number(data?.inventario);
+            renderStockAndCartState();
+          }
+        })
+        .catch(() => {
+          stock.textContent = 'Agotado';
+          stock.className = 'pd-stock pd-stock--out';
+          upstreamEstado = 'Agotado';
+          inventarioExistencia = null;
+          setCartEnabled(false, 'Agotado');
+        });
+    }
+  }
 
   const imgs = Array.isArray(p.images) && p.images.length ? p.images : [p.image || '/images/placeholder.svg'];
   let idx = 0;
@@ -84,7 +186,6 @@ function renderProduct(p){
     updateMain();
   });
 
-  const qtyInput = document.getElementById('pd-qty');
   async function recalcDetail() {
     const codigo = price.dataset.codigo;
     if (!codigo) return; // sin código no recalcula
@@ -118,9 +219,20 @@ function renderProduct(p){
     } catch { price.classList.remove('loading'); }
   }
   qtyInput?.addEventListener('input', () => { clearTimeout(qtyInput._t); qtyInput._t = setTimeout(recalcDetail, 180); });
+  qtyInput?.addEventListener('input', () => {
+    // Revalidar disponibilidad en base a inventario
+    // (si el usuario pide más cajas que la existencia en unidades)
+    renderStockAndCartState();
+  });
   recalcDetail();
 
-  document.getElementById('pd-add').addEventListener('click', () => {
+  addBtn?.addEventListener('click', () => {
+    // Chequeo final antes de agregar
+    if (upstreamEstado !== 'En Existencia') return;
+    if (exceedsInventory()) {
+      renderStockAndCartState();
+      return;
+    }
     const qty = Math.max(1, Number(document.getElementById('pd-qty').value) || 1);
     cartService.add(p, qty);
     window.dispatchEvent(new Event('toggle-cart'));
