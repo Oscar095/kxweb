@@ -63,6 +63,8 @@
         <div>
           <button id="show-products-tab" type="button" style="margin-right:8px;">Productos</button>
           <button id="show-categories-tab" type="button">Categorías</button>
+          <button id="show-banners-tab" type="button" style="margin-left:8px;">Banner</button>
+          <button id="show-logos-tab" type="button" style="margin-left:8px;">Logo</button>
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
@@ -155,6 +157,54 @@
           <h4>Lista de categorías</h4>
           <div id="categories-list"></div>
         </div>
+      </section>
+
+      <!-- Banner section (hidden by default) -->
+      <section id="banner-section" style="display:none; margin-top:18px; border-top:1px dashed #eee; padding-top:12px;">
+        <h3>Banner (Home)</h3>
+        <p style="margin:6px 0 12px;color:#444;">
+          Sube imágenes de banner. Puedes marcar máximo <strong>3</strong> como activos.
+        </p>
+
+        <form id="banner-form" enctype="multipart/form-data" style="max-width:640px;">
+          <div class="field">
+            <label for="banner-nombre">Nombre</label>
+            <input id="banner-nombre" name="nombre" type="text" placeholder="Ej: Banner Promoción" />
+          </div>
+          <div class="field">
+            <label for="banner-imagen">Imagen</label>
+            <input id="banner-imagen" name="imagen" type="file" accept="image/*" required />
+          </div>
+          <button type="submit" class="btn-primary">Subir banner</button>
+          <span id="banner-status" style="margin-left:8px;"></span>
+        </form>
+
+        <div style="margin-top:14px; font-weight:600;">Banners guardados</div>
+        <div id="banners-grid" class="img-preview-grid"></div>
+      </section>
+
+      <!-- Logo section (hidden by default) -->
+      <section id="logo-section" style="display:none; margin-top:18px; border-top:1px dashed #eee; padding-top:12px;">
+        <h3>Logo (Header/Footer)</h3>
+        <p style="margin:6px 0 12px;color:#444;">
+          Sube logos y selecciona <strong>uno</strong> como principal.
+        </p>
+
+        <form id="logo-form" enctype="multipart/form-data" style="max-width:640px;">
+          <div class="field">
+            <label for="logo-nombre">Nombre</label>
+            <input id="logo-nombre" name="nombre" type="text" placeholder="Ej: Logo principal" />
+          </div>
+          <div class="field">
+            <label for="logo-imagen">Logo</label>
+            <input id="logo-imagen" name="imagen" type="file" accept="image/*" required />
+          </div>
+          <button type="submit" class="btn-primary">Subir logo</button>
+          <span id="logo-status" style="margin-left:8px;"></span>
+        </form>
+
+        <div style="margin-top:14px; font-weight:600;">Logos guardados</div>
+        <div id="logos-grid" class="img-preview-grid"></div>
       </section>
     </section>
 

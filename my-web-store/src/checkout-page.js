@@ -138,20 +138,27 @@ async function ensureWompiWidgetLoaded() {
   throw lastErr || new Error('No se pudo cargar el Widget de Wompi.');
 }
 
-async function openWompi(form, amountInCents) {
+async function openWompi(form, amountInCents, pedidoId) {
   const msgEl = document.getElementById('checkout-message');
-  const reference = `KOSX-${Date.now()}`;
+  const reference = pedidoId ? `PED-${pedidoId}` : `KOSX-${Date.now()}`;
   // Nota: algunos gateways/CDNs bloquean redirect-url apuntando a localhost/http.
   // En local, omitimos redirectUrl para que el backend use PUBLIC_BASE_URL (si está configurado)
   // o su fallback.
   const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  const redirectUrl = isLocalhost ? null : `${location.origin}/checkout.html`;
+  const redirectPath = pedidoId ? `/confirmacion.html?pedidoId=${encodeURIComponent(pedidoId)}` : '/checkout.html';
+  const redirectUrl = isLocalhost ? null : `${location.origin}${redirectPath}`;
 
   // 1) Obtener firma desde el backend
   const resp = await fetch('/api/wompi/signature', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reference, amountInCents, currency: 'COP', ...(redirectUrl ? { redirectUrl } : {}) })
+    body: JSON.stringify({
+      reference,
+      amountInCents,
+      currency: 'COP',
+      redirectPath,
+      ...(redirectUrl ? { redirectUrl } : {})
+    })
   });
   if (!resp.ok) {
     const txt = await resp.text();
@@ -274,7 +281,13 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(`No se pudo registrar el pedido: ${errMsg}`);
       }
 
-      await openWompi(form, amountInCents);
+      const saved = await saveResp.json().catch(() => ({}));
+      const pedidoId = saved?.id;
+      if (!pedidoId) {
+        throw new Error('No se pudo obtener el id del pedido (respuesta inválida).');
+      }
+
+      await openWompi(form, amountInCents, pedidoId);
     } catch (err) {
       console.error(err);
       msg.textContent = err.message || 'Error de pago, intenta de nuevo.';

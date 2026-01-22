@@ -47,8 +47,32 @@ h1,h2,h3,h4,h5,h6{color:#000;font-weight:700}
   background-repeat: no-repeat;
   color: #fff;
 }
+.hero.hero--with-banners{background-image:none}
 .hero-inner{max-width:var(--max-width);margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:12px}
 .hero h1{font-size:38px;margin:0}
+
+/* Full-width hero when using banners */
+.hero.hero--with-banners .hero-inner{max-width:none;padding:0}
+
+/* Banner carousel */
+.banner-carousel{width:100%;max-width:none;margin:0;position:relative;border-radius:0;overflow:hidden;box-shadow:0 10px 32px rgba(0,0,0,0.18);background:#000;height:420px}
+.banner-carousel .banner-slide{position:absolute;inset:0;opacity:0;transition:opacity .55s ease}
+.banner-carousel .banner-slide.is-active{opacity:1}
+.banner-carousel img{width:100%;height:100%;object-fit:cover;display:block}
+.banner-carousel .banner-nav{position:absolute;inset:auto 0 10px 0;display:flex;justify-content:center;gap:8px;z-index:5}
+.banner-carousel .banner-dot{width:10px;height:10px;border-radius:999px;border:1px solid rgba(255,255,255,0.85);background:rgba(255,255,255,0.25);cursor:pointer}
+.banner-carousel .banner-dot.is-active{background:rgba(255,255,255,0.95)}
+.banner-carousel .banner-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:6;background:rgba(0,0,0,0.35);color:#fff;border:1px solid rgba(255,255,255,0.25);width:42px;height:42px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.banner-carousel .banner-arrow:hover{background:rgba(0,0,0,0.55)}
+.banner-carousel .banner-arrow.prev{left:10px}
+.banner-carousel .banner-arrow.next{right:10px}
+
+@media (max-width: 900px){
+	.banner-carousel{height:340px}
+}
+@media (max-width: 560px){
+	.banner-carousel{height:260px}
+}
 
 /* Buttons */
 .btn-primary{background:var(--primary);color:#fff;border:none;padding:14px 32px;font-size:1.15rem;border-radius:10px;cursor:pointer;font-weight:600;box-shadow:0 2px 12px rgba(0,159,227,.15);transition:transform .15s, background .18s}

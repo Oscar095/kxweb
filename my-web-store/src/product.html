@@ -23,7 +23,7 @@
     .pd-stock--loading{color:#666;font-weight:600}
     .pd-stock--ok{color:#0a7a28}
     .pd-stock--out{color:#b00020}
-    .pd-desc{color:#333;line-height:1.5}
+    .pd-desc{color:#333;line-height:1.5;white-space:pre-line;text-align:justify;text-justify:inter-word}
     @media (max-width: 900px){.product-detail{grid-template-columns:1fr}}
   </style>
 </head>
@@ -46,12 +46,14 @@
           <div id="pd-category" class="pd-category"></div>
           <div id="pd-price" class="pd-price"></div>
           <div id="pd-stock" class="pd-stock"></div>
-          <p id="pd-desc" class="pd-desc"></p>
           <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
             <label for="pd-qty">Cantidad</label>
             <input id="pd-qty" type="number" min="1" value="1" style="width:72px;padding:6px;" />
             <button id="pd-add" class="btn-primary">Agregar al carrito</button>
           </div>
+          <div style="margin-top:24px;">
+            <h2>Especificaciones de Producto:</h2>
+          <div id="pd-desc" class="pd-desc"></div>
         </div>
       </div>
     </main>

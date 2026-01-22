@@ -101,7 +101,7 @@ app.post('/api/wompi/signature', (req, res) => {
       return res.status(500).json({ message: 'WOMPI_PUBLIC_KEY o WOMPI_INTEGRITY_SECRET no configurados' });
     }
 
-    const { reference, amountInCents, currency, redirectUrl } = req.body || {};
+    const { reference, amountInCents, currency, redirectUrl, redirectPath } = req.body || {};
     if (!reference || typeof reference !== 'string') return res.status(400).json({ message: 'reference requerida' });
 
     const cents = Number(amountInCents);
@@ -114,9 +114,20 @@ app.post('/api/wompi/signature', (req, res) => {
     const publicBaseUrl = (process.env.PUBLIC_BASE_URL || process.env.APP_BASE_URL || '').toString().trim().replace(/\/$/, '');
     const fallbackBase = `${req.protocol}://${req.get('host')}`;
     const base = publicBaseUrl || fallbackBase;
-    const finalRedirect = (redirectUrl && typeof redirectUrl === 'string' && redirectUrl.trim())
-      ? redirectUrl
-      : `${base}/checkout.html`;
+    const cleanedRedirectUrl = (redirectUrl && typeof redirectUrl === 'string') ? redirectUrl.trim() : '';
+    const cleanedRedirectPath = (redirectPath && typeof redirectPath === 'string') ? redirectPath.trim() : '';
+
+    // Prioridad:
+    //  1) redirectUrl absoluto (https://...)
+    //  2) redirectPath relativo (/confirmacion.html?...)
+    //  3) fallback /checkout.html
+    let finalRedirect = `${base}/checkout.html`;
+    if (cleanedRedirectUrl) {
+      finalRedirect = cleanedRedirectUrl;
+    } else if (cleanedRedirectPath) {
+      const rel = cleanedRedirectPath.startsWith('/') ? cleanedRedirectPath : `/${cleanedRedirectPath}`;
+      finalRedirect = `${base}${rel}`;
+    }
 
     return res.json({
       publicKey: WOMPI_PUBLIC_KEY,
@@ -298,6 +309,9 @@ app.use(express.static(staticDir));
 
 // Inicializar esquema SQL y conexión
 db.ensureSchema().then(() => console.log('SQL Server schema ensured')).catch(err => console.error('Error asegurando esquema SQL', err));
+
+// Exponer pool SQL en app.locals (opcional, útil para debug/operaciones futuras)
+db.getPool().then(pool => { app.locals.sqlPool = pool; }).catch(() => { /* ignore */ });
 
 // Parse storage connection string for account name/key
 function parseConnectionString(conn) {
@@ -608,6 +622,163 @@ app.get('/api/banco_imagenes', async (req, res) => {
   } catch (e) {
     console.error('GET /api/banco_imagenes error', e && (e.message || e));
     res.status(500).json({ message: 'error' });
+  }
+});
+
+// --- Banners (home) ---
+app.get('/api/banners', async (req, res) => {
+  try {
+    const onlyActive = String(req.query.active || '').toLowerCase();
+    const where = (onlyActive === '1' || onlyActive === 'true' || onlyActive === 'yes') ? 'WHERE activo = 1' : '';
+    const rows = await db.query(`SELECT id,nombre,url,activo,orden,createdAt FROM dbo.banners ${where} ORDER BY activo DESC, CASE WHEN orden IS NULL THEN 999 ELSE orden END ASC, createdAt DESC, id DESC`);
+    const out = (rows || []).map(r => ({
+      id: r.id,
+      nombre: r.nombre || '',
+      url: process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url),
+      activo: !!r.activo,
+      orden: (r.orden == null ? null : Number(r.orden)),
+      createdAt: r.createdAt || null
+    }));
+    res.json(out);
+  } catch (e) {
+    console.error('GET /api/banners error', e);
+    res.status(500).json({ message: 'Error listando banners' });
+  }
+});
+
+const bannerUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Solo se permiten imágenes PNG/JPG/GIF/WebP'));
+  }
+});
+
+app.post('/api/banners', requireAdmin, bannerUpload.single('imagen'), async (req, res) => {
+  try {
+    const { nombre } = req.body || {};
+    if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
+    if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
+    const bannerFolder = 'Banners';
+    const basePath = rootPath ? `${rootPath}/${bannerFolder}` : bannerFolder;
+    const blobName = `${basePath}/${filename}`;
+
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
+    const blockClient = containerClient.getBlockBlobClient(blobName);
+    await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+
+    const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+    const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+
+    const r = await db.query(
+      'INSERT INTO dbo.banners (nombre,url,activo,orden) OUTPUT INSERTED.id VALUES (@nombre,@url,0,NULL);',
+      { nombre: (nombre == null ? '' : String(nombre).trim()), url: blobUrl }
+    );
+    const id = r && r[0] && (r[0].id || r[0].Id);
+    res.status(201).json({ ok: true, id: id ?? null, url: blobUrl });
+  } catch (e) {
+    console.error('POST /api/banners error', e);
+    res.status(500).json({ message: 'Error creando banner' });
+  }
+});
+
+app.patch('/api/banners/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const body = req.body || {};
+    const hasActive = (body.activo != null || body.active != null || body.enabled != null);
+    const hasOrden = (body.orden != null || body.order != null);
+
+    const active = hasActive ? !!(body.activo ?? body.active ?? body.enabled) : undefined;
+    const ordenRaw = hasOrden ? (body.orden ?? body.order) : undefined;
+    let orden = undefined;
+    if (hasOrden) {
+      const n = Number(ordenRaw);
+      if (!Number.isFinite(n) || n < 1 || n > 3 || Math.floor(n) !== n) {
+        return res.status(400).json({ message: 'orden inválido (use 1, 2 o 3)' });
+      }
+      orden = n;
+    }
+
+    if (!hasActive && !hasOrden) {
+      return res.status(400).json({ message: 'Nada para actualizar' });
+    }
+
+    // Si se va a activar o si se está seteando orden, validar reglas
+    const current = await db.query('SELECT id,activo,orden FROM dbo.banners WHERE id = @id', { id });
+    const cur = current && current[0];
+    if (!cur) return res.status(404).json({ message: 'Banner no encontrado' });
+    const finalActive = (active === undefined) ? !!cur.activo : !!active;
+    const finalOrden = (orden === undefined) ? (cur.orden == null ? null : Number(cur.orden)) : orden;
+
+    if (finalActive) {
+      const rows = await db.query('SELECT COUNT(1) AS c FROM dbo.banners WHERE activo = 1 AND id <> @id', { id });
+      const c = Number(rows && rows[0] && rows[0].c);
+      if (Number.isFinite(c) && c >= 3 && !cur.activo) {
+        return res.status(400).json({ message: 'Máximo 3 banners activos' });
+      }
+      // Si tiene orden, debe ser único entre activos
+      if (finalOrden != null) {
+        const dup = await db.query('SELECT TOP(1) id FROM dbo.banners WHERE activo = 1 AND orden = @orden AND id <> @id', { id, orden: finalOrden });
+        if (dup && dup.length) {
+          return res.status(400).json({ message: `El orden ${finalOrden} ya está ocupado por otro banner activo` });
+        }
+      }
+    }
+
+    const sets = [];
+    const params = { id };
+    if (active !== undefined) { sets.push('activo = @activo'); params.activo = active ? 1 : 0; }
+    if (orden !== undefined) { sets.push('orden = @orden'); params.orden = orden; }
+
+    const r = await db.query(`UPDATE dbo.banners SET ${sets.join(', ')} WHERE id = @id; SELECT @@ROWCOUNT AS affected;`, params);
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Banner no encontrado' });
+    res.json({ ok: true, activo: (active === undefined ? !!cur.activo : !!active), orden: (orden === undefined ? (cur.orden == null ? null : Number(cur.orden)) : orden) });
+  } catch (e) {
+    console.error('PATCH /api/banners/:id error', e);
+    res.status(500).json({ message: 'Error actualizando banner' });
+  }
+});
+
+app.delete('/api/banners/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const rows = await db.query('SELECT url FROM dbo.banners WHERE id = @id', { id });
+    const row = rows && rows[0];
+    const url = row && row.url;
+    if (!url) return res.status(404).json({ message: 'Banner no encontrado' });
+
+    try {
+      if (blobServiceClient) {
+        const u = new URL(url);
+        const path = u.pathname.replace(/^\//, '');
+        const idx = path.indexOf('/');
+        if (idx >= 0) {
+          const cont = path.slice(0, idx);
+          const blobName = path.slice(idx + 1);
+          const decodedBlobName = decodeURIComponent(blobName);
+          const containerClient = blobServiceClient.getContainerClient(cont);
+          const blockClient = containerClient.getBlockBlobClient(decodedBlobName);
+          await blockClient.deleteIfExists();
+        }
+      }
+    } catch (delErr) {
+      console.warn('DELETE /api/banners blob delete warning', delErr && delErr.message);
+    }
+
+    await db.query('DELETE FROM dbo.banners WHERE id = @id', { id });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE /api/banners/:id error', e);
+    res.status(500).json({ message: 'Error eliminando banner' });
   }
 });
 
@@ -1048,5 +1219,224 @@ app.post('/api/upload-file', requireAdmin, directUpload.single('file'), async (r
   } catch (e) {
     console.error('/api/upload-file error', e);
     res.status(500).json({ error: 'upload_failed' });
+  }
+});
+
+// Confirmar pago: valida con Wompi y actualiza el pedido
+app.post('/api/pedidos/:pedidoId/confirmar-pago', async (req, res) => {
+  try {
+    const pedidoId = Number(req.params.pedidoId);
+    if (!Number.isFinite(pedidoId) || pedidoId <= 0) {
+      return res.status(400).json({ message: 'pedidoId inválido' });
+    }
+
+    const { transactionId } = req.body || {};
+    const txId = String(transactionId || '').trim();
+    if (!txId) return res.status(400).json({ message: 'transactionId requerido' });
+
+    // Consultar Wompi (producción). Si luego usas sandbox, se puede parametrizar.
+    const wompiBase = 'https://production.wompi.co/v1';
+    const wompiResp = await fetch(`${wompiBase}/transactions/${encodeURIComponent(txId)}`, {
+      headers: { 'accept': 'application/json' }
+    });
+    const wompiJson = await wompiResp.json().catch(() => ({}));
+    if (!wompiResp.ok) {
+      return res.status(502).json({ message: 'Error consultando Wompi', detail: wompiJson });
+    }
+
+    const tx = wompiJson?.data || {};
+    const status = tx?.status || null; // APPROVED / DECLINED / PENDING / ERROR
+    const reference = tx?.reference || null;
+    const expectedRef = `PED-${pedidoId}`;
+    if (reference !== expectedRef) {
+      return res.status(400).json({
+        message: 'La transacción no corresponde al pedido',
+        detail: { expectedRef, reference, transactionId: txId }
+      });
+    }
+
+    // Detectar tabla/columnas (igual que el insert)
+    const tables = await db.query(
+      `SELECT TABLE_SCHEMA AS [schema], TABLE_NAME AS [name]
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_TYPE = 'BASE TABLE' AND (TABLE_NAME = 'pedidos' OR TABLE_NAME = 'pedido');`
+    );
+    const found = (tables || []).find(t => String(t.name || '').toLowerCase() === 'pedidos') || (tables || [])[0];
+    if (!found || !found.name || !found.schema) {
+      return res.status(500).json({ message: 'Tabla pedidos/pedido no encontrada' });
+    }
+    const tableSchema = String(found.schema);
+    const tableName = String(found.name);
+
+    const cols = await db.query(
+      `SELECT COLUMN_NAME AS [name]
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table
+       ORDER BY ORDINAL_POSITION;`,
+      { schema: tableSchema, table: tableName }
+    );
+    const colSet = new Set((cols || []).map(c => String(c.name || '').toLowerCase()));
+    const pick = (candidates) => {
+      for (const c of candidates) {
+        const k = String(c).toLowerCase();
+        if (colSet.has(k)) return c;
+      }
+      return null;
+    };
+
+    const idCol = pick(['id', 'Id', 'ID']);
+    if (!idCol) return res.status(500).json({ message: 'La tabla no tiene columna id' });
+
+    const wompiIdCol = pick(['id_wompi', 'idwompi', 'wompi_id', 'wompiid', 'transaction_id', 'transactionid']);
+    const statusCol = pick(['payment_status', 'paymentstatus', 'status_pago', 'estadopago', 'estado_pago']);
+    const updatedAtCol = pick(['updatedAt', 'updated_at', 'fecha_actualizacion', 'updated']);
+
+    const sets = [];
+    const params = { pedidoId, wompiId: txId, status: status || '' };
+    if (wompiIdCol) sets.push(`[${wompiIdCol}] = @wompiId`);
+    if (statusCol) sets.push(`[${statusCol}] = @status`);
+    if (updatedAtCol) sets.push(`[${updatedAtCol}] = SYSUTCDATETIME()`);
+
+    if (sets.length) {
+      const sql = `UPDATE [${tableSchema}].[${tableName}] SET ${sets.join(', ')} WHERE [${idCol}] = @pedidoId; SELECT @@ROWCOUNT AS affected;`;
+      const r = await db.query(sql, params);
+      const affected = r && r[0] && (Number(r[0].affected) || 0);
+      if (!affected) {
+        return res.status(404).json({ message: 'Pedido no encontrado', pedidoId });
+      }
+    }
+
+    return res.json({
+      ok: true,
+      pedidoId,
+      id_wompi: txId,
+      payment_status: status,
+      reference
+    });
+  } catch (e) {
+    console.error('confirmar-pago error', e);
+    res.status(500).json({ message: 'Error confirmando pago', detail: e?.message ? String(e.message).slice(0, 300) : undefined });
+  }
+});
+
+// --- Logos (header/footer) ---
+app.get('/api/logos', async (req, res) => {
+  try {
+    const onlyPrimary = String(req.query.primary || req.query.principal || '').toLowerCase();
+    const where = (onlyPrimary === '1' || onlyPrimary === 'true' || onlyPrimary === 'yes') ? 'WHERE principal = 1' : '';
+    const rows = await db.query(`SELECT id,nombre,url,principal,createdAt FROM dbo.logos ${where} ORDER BY principal DESC, createdAt DESC, id DESC`);
+    const out = (rows || []).map(r => ({
+      id: r.id,
+      nombre: r.nombre || '',
+      url: process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url),
+      principal: !!r.principal,
+      createdAt: r.createdAt || null
+    }));
+    res.json(out);
+  } catch (e) {
+    console.error('GET /api/logos error', e);
+    res.status(500).json({ message: 'Error listando logos' });
+  }
+});
+
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg|gif|webp|svg\+xml)$/.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Solo se permiten imágenes PNG/JPG/GIF/WebP/SVG'));
+  }
+});
+
+app.post('/api/logos', requireAdmin, logoUpload.single('imagen'), async (req, res) => {
+  try {
+    const { nombre } = req.body || {};
+    if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
+    if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
+    const logoFolder = 'Logos';
+    const basePath = rootPath ? `${rootPath}/${logoFolder}` : logoFolder;
+    const blobName = `${basePath}/${filename}`;
+
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
+    const blockClient = containerClient.getBlockBlobClient(blobName);
+    await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+
+    const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+    const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+
+    const r = await db.query(
+      'INSERT INTO dbo.logos (nombre,url,principal) OUTPUT INSERTED.id VALUES (@nombre,@url,0);',
+      { nombre: (nombre == null ? '' : String(nombre).trim()), url: blobUrl }
+    );
+    const id = r && r[0] && (r[0].id || r[0].Id);
+    res.status(201).json({ ok: true, id: id ?? null, url: blobUrl });
+  } catch (e) {
+    console.error('POST /api/logos error', e);
+    res.status(500).json({ message: 'Error creando logo' });
+  }
+});
+
+app.patch('/api/logos/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const makePrimary = !!(req.body && (req.body.principal ?? req.body.primary ?? req.body.enabled));
+    if (!makePrimary) {
+      // Evitar dejar sin principal por UI de checkbox: se maneja como selección única.
+      return res.status(400).json({ message: 'Use principal=true para seleccionar el logo principal' });
+    }
+
+    // Verificar que exista
+    const exists = await db.query('SELECT id FROM dbo.logos WHERE id = @id', { id });
+    if (!exists || !exists.length) return res.status(404).json({ message: 'Logo no encontrado' });
+
+    // Hacer único: desmarcar todos y marcar el seleccionado
+    await db.query('UPDATE dbo.logos SET principal = 0 WHERE principal = 1;');
+    await db.query('UPDATE dbo.logos SET principal = 1 WHERE id = @id;', { id });
+
+    res.json({ ok: true, principal: true });
+  } catch (e) {
+    console.error('PATCH /api/logos/:id error', e);
+    res.status(500).json({ message: 'Error actualizando logo' });
+  }
+});
+
+app.delete('/api/logos/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const rows = await db.query('SELECT url FROM dbo.logos WHERE id = @id', { id });
+    const row = rows && rows[0];
+    const url = row && row.url;
+    if (!url) return res.status(404).json({ message: 'Logo no encontrado' });
+
+    try {
+      if (blobServiceClient) {
+        const u = new URL(url);
+        const path = u.pathname.replace(/^\//, '');
+        const idx = path.indexOf('/');
+        if (idx >= 0) {
+          const cont = path.slice(0, idx);
+          const blobName = path.slice(idx + 1);
+          const decodedBlobName = decodeURIComponent(blobName);
+          const containerClient = blobServiceClient.getContainerClient(cont);
+          const blockClient = containerClient.getBlockBlobClient(decodedBlobName);
+          await blockClient.deleteIfExists();
+        }
+      }
+    } catch (delErr) {
+      console.warn('DELETE /api/logos blob delete warning', delErr && delErr.message);
+    }
+
+    await db.query('DELETE FROM dbo.logos WHERE id = @id', { id });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE /api/logos/:id error', e);
+    res.status(500).json({ message: 'Error eliminando logo' });
   }
 });

@@ -161,6 +161,50 @@ async function ensureSchema() {
       );
     END
   `);
+
+  // banners (home)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[banners]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.banners (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        nombre NVARCHAR(255) NULL,
+        url NVARCHAR(MAX) NOT NULL,
+        activo BIT NOT NULL DEFAULT (0),
+        orden INT NULL,
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
+      );
+    END
+  `);
+
+  // Ensure orden column exists if table pre-existed
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.banners','orden') IS NULL
+    BEGIN
+      ALTER TABLE dbo.banners ADD orden INT NULL;
+    END
+  `);
+
+  // logos (header/footer)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[logos]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.logos (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        nombre NVARCHAR(255) NULL,
+        url NVARCHAR(MAX) NOT NULL,
+        principal BIT NOT NULL DEFAULT (0),
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
+      );
+    END
+  `);
+
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.logos','principal') IS NULL
+    BEGIN
+      ALTER TABLE dbo.logos ADD principal BIT NOT NULL CONSTRAINT DF_logos_principal DEFAULT (0);
+    END
+  `);
 }
 
 module.exports = { query, getPool, ensureSchema, sql };

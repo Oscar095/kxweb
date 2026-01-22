@@ -263,6 +263,24 @@ async function initAdmin() {
   await loadLibrary();
   const libForm = document.getElementById('library-form');
   libForm?.addEventListener('submit', submitLibraryForm);
+
+  // Banners init (sección puede estar oculta por defecto)
+  try {
+    const bannerForm = document.getElementById('banner-form');
+    bannerForm?.addEventListener('submit', submitBannerForm);
+    await loadBanners();
+  } catch (e) {
+    // ignore
+  }
+
+  // Logos init (sección puede estar oculta por defecto)
+  try {
+    const logoForm = document.getElementById('logo-form');
+    logoForm?.addEventListener('submit', submitLogoForm);
+    await loadLogos();
+  } catch (e) {
+    // ignore
+  }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -310,13 +328,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Tab buttons
   document.getElementById('show-categories-tab')?.addEventListener('click', () => {
     document.getElementById('category-section').style.display = '';
+    const bs = document.getElementById('banner-section');
+    if (bs) bs.style.display = 'none';
+    const ls = document.getElementById('logo-section');
+    if (ls) ls.style.display = 'none';
     // optionally hide product form area
     // keep product form visible too but scroll to categories
     document.getElementById('category-section').scrollIntoView({ behavior: 'smooth' });
   });
   document.getElementById('show-products-tab')?.addEventListener('click', () => {
     document.getElementById('category-section').style.display = 'none';
+    const bs = document.getElementById('banner-section');
+    if (bs) bs.style.display = 'none';
+    const ls = document.getElementById('logo-section');
+    if (ls) ls.style.display = 'none';
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  document.getElementById('show-banners-tab')?.addEventListener('click', async () => {
+    const cs = document.getElementById('category-section');
+    if (cs) cs.style.display = 'none';
+    const bs = document.getElementById('banner-section');
+    if (bs) bs.style.display = '';
+    const ls = document.getElementById('logo-section');
+    if (ls) ls.style.display = 'none';
+    await loadBanners();
+    bs?.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  document.getElementById('show-logos-tab')?.addEventListener('click', async () => {
+    const cs = document.getElementById('category-section');
+    if (cs) cs.style.display = 'none';
+    const bs = document.getElementById('banner-section');
+    if (bs) bs.style.display = 'none';
+    const ls = document.getElementById('logo-section');
+    if (ls) ls.style.display = '';
+    await loadLogos();
+    ls?.scrollIntoView({ behavior: 'smooth' });
   });
 
   // Category form handlers
@@ -514,5 +562,389 @@ async function submitLibraryForm(ev) {
   } catch (e) {
     console.error(e);
     status.textContent = 'Error subiendo imagen';
+  }
+}
+
+// ---- Banners ----
+async function loadBanners() {
+  const grid = document.getElementById('banners-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/banners', { cache: 'no-store' });
+    const items = r.ok ? await r.json() : [];
+    renderBanners(items);
+  } catch (e) {
+    console.error('Error cargando banners', e);
+    grid.innerHTML = '<p>Error cargando banners.</p>';
+  }
+}
+
+function renderBanners(items) {
+  const grid = document.getElementById('banners-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const list = Array.isArray(items) ? items : [];
+  const activeCount = list.filter(x => !!x.activo).length;
+
+  for (const it of list) {
+    const wrap = document.createElement('div');
+    wrap.style.position = 'relative';
+    wrap.style.borderRadius = '6px';
+    wrap.style.overflow = 'hidden';
+    wrap.style.border = '1px solid #eee';
+    wrap.style.background = '#fff';
+
+    const img = document.createElement('img');
+    img.src = it.url;
+    img.alt = it.nombre || 'Banner';
+    img.title = `${it.nombre || 'Banner'} (#${it.id})`;
+    img.style.width = '100%';
+    img.style.height = '88px';
+    img.style.objectFit = 'cover';
+
+    const bar = document.createElement('div');
+    bar.style.display = 'flex';
+    bar.style.flexWrap = 'wrap';
+    bar.style.gap = '6px';
+    bar.style.padding = '6px';
+    bar.style.alignItems = 'center';
+
+    const orderWrap = document.createElement('label');
+    orderWrap.style.display = 'inline-flex';
+    orderWrap.style.alignItems = 'center';
+    orderWrap.style.gap = '6px';
+    orderWrap.style.fontSize = '12px';
+    orderWrap.style.color = '#111';
+    orderWrap.textContent = 'Orden:';
+
+    const sel = document.createElement('select');
+    sel.style.padding = '4px 6px';
+    sel.style.borderRadius = '6px';
+    sel.style.border = '1px solid #ccc';
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = '(sin)';
+    sel.appendChild(opt0);
+    for (const n of [1, 2, 3]) {
+      const o = document.createElement('option');
+      o.value = String(n);
+      o.textContent = String(n);
+      sel.appendChild(o);
+    }
+    const currentOrden = (it.orden == null ? '' : String(it.orden));
+    sel.value = currentOrden;
+    sel.addEventListener('change', async () => {
+      const v = sel.value;
+      if (!v) {
+        alert('Para mantener el orden consistente, elige 1, 2 o 3');
+        sel.value = currentOrden;
+        return;
+      }
+      const ok = await setBannerOrden(it.id, Number(v));
+      if (!ok) {
+        sel.value = currentOrden;
+      } else {
+        await loadBanners();
+      }
+    });
+    orderWrap.appendChild(sel);
+
+    const label = document.createElement('label');
+    label.style.display = 'inline-flex';
+    label.style.alignItems = 'center';
+    label.style.gap = '6px';
+    label.style.fontSize = '12px';
+    label.style.color = '#111';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !!it.activo;
+    chk.addEventListener('change', async () => {
+      // Enforce max 3 on UI side too
+      const newActive = chk.checked;
+      if (newActive) {
+        const currentActive = Array.from(grid.querySelectorAll('input[type="checkbox"]')).filter(x => x.checked).length;
+        if (currentActive > 3) {
+          chk.checked = false;
+          alert('Máximo 3 banners activos');
+          return;
+        }
+      }
+      const ok = await setBannerActive(it.id, newActive);
+      if (!ok) {
+        chk.checked = !newActive;
+      } else {
+        await loadBanners();
+      }
+    });
+
+    const t = document.createElement('span');
+    t.textContent = `Activo (${activeCount}/3)`;
+    label.appendChild(chk);
+    label.appendChild(t);
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.textContent = 'Eliminar';
+    delBtn.style.background = '#d9534f';
+    delBtn.style.color = '#fff';
+    delBtn.addEventListener('click', async () => {
+      if (!confirm(`Eliminar banner #${it.id}?`)) return;
+      try {
+        const rr = await fetch(`/api/banners/${encodeURIComponent(it.id)}`, { method: 'DELETE', credentials: 'same-origin' });
+        if (!rr.ok) {
+          const txt = await rr.text().catch(() => '');
+          alert('Error: ' + (txt || 'No se pudo eliminar'));
+          return;
+        }
+        await loadBanners();
+      } catch (e) {
+        console.error(e);
+        alert('Error eliminando banner');
+      }
+    });
+
+    bar.appendChild(orderWrap);
+    bar.appendChild(label);
+    bar.appendChild(delBtn);
+
+    wrap.appendChild(img);
+    wrap.appendChild(bar);
+    grid.appendChild(wrap);
+  }
+}
+
+async function submitBannerForm(ev) {
+  ev.preventDefault();
+  const form = ev.currentTarget;
+  const status = document.getElementById('banner-status');
+  if (status) status.textContent = 'Subiendo...';
+  try {
+    const fd = new FormData(form);
+    const r = await fetch('/api/banners', { method: 'POST', body: fd, credentials: 'same-origin' });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      if (status) status.textContent = 'Error subiendo banner';
+      alert('Error: ' + (txt || 'No se pudo subir'));
+      return;
+    }
+    if (status) status.textContent = 'Subido';
+    form.reset();
+    await loadBanners();
+    setTimeout(() => { if (status) status.textContent = ''; }, 1200);
+  } catch (e) {
+    console.error(e);
+    if (status) status.textContent = 'Error subiendo banner';
+  }
+}
+
+async function setBannerActive(id, activo) {
+  try {
+    const r = await fetch(`/api/banners/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activo: !!activo }),
+      credentials: 'same-origin'
+    });
+    if (!r.ok) {
+      let msg = 'No se pudo actualizar';
+      try {
+        const j = await r.json();
+        msg = j.message || msg;
+      } catch {
+        const t = await r.text().catch(() => '');
+        if (t) msg = t;
+      }
+      alert(msg);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error(e);
+    alert('Error actualizando banner');
+    return false;
+  }
+}
+
+async function setBannerOrden(id, orden) {
+  try {
+    const r = await fetch(`/api/banners/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orden: Number(orden) }),
+      credentials: 'same-origin'
+    });
+    if (!r.ok) {
+      let msg = 'No se pudo actualizar';
+      try {
+        const j = await r.json();
+        msg = j.message || msg;
+      } catch {
+        const t = await r.text().catch(() => '');
+        if (t) msg = t;
+      }
+      alert(msg);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error(e);
+    alert('Error actualizando orden del banner');
+    return false;
+  }
+}
+
+// ---- Logos ----
+async function loadLogos() {
+  const grid = document.getElementById('logos-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/logos', { cache: 'no-store' });
+    const items = r.ok ? await r.json() : [];
+    renderLogos(items);
+  } catch (e) {
+    console.error('Error cargando logos', e);
+    grid.innerHTML = '<p>Error cargando logos.</p>';
+  }
+}
+
+function renderLogos(items) {
+  const grid = document.getElementById('logos-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const list = Array.isArray(items) ? items : [];
+
+  for (const it of list) {
+    const wrap = document.createElement('div');
+    wrap.style.position = 'relative';
+    wrap.style.borderRadius = '6px';
+    wrap.style.overflow = 'hidden';
+    wrap.style.border = '1px solid #eee';
+    wrap.style.background = '#fff';
+
+    const img = document.createElement('img');
+    img.src = it.url;
+    img.alt = it.nombre || 'Logo';
+    img.title = `${it.nombre || 'Logo'} (#${it.id})`;
+    img.style.width = '100%';
+    img.style.height = '88px';
+    img.style.objectFit = 'contain';
+    img.style.background = '#fff';
+
+    const bar = document.createElement('div');
+    bar.style.display = 'flex';
+    bar.style.flexWrap = 'wrap';
+    bar.style.gap = '6px';
+    bar.style.padding = '6px';
+    bar.style.alignItems = 'center';
+
+    const label = document.createElement('label');
+    label.style.display = 'inline-flex';
+    label.style.alignItems = 'center';
+    label.style.gap = '6px';
+    label.style.fontSize = '12px';
+    label.style.color = '#111';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = !!it.principal;
+    chk.addEventListener('change', async () => {
+      // checkbox funciona como selección única
+      if (!chk.checked) {
+        chk.checked = true;
+        alert('Siempre debe haber un logo principal. Selecciona otro si quieres cambiarlo.');
+        return;
+      }
+      const ok = await setLogoPrincipal(it.id);
+      if (ok) await loadLogos();
+      else chk.checked = false;
+    });
+
+    const t = document.createElement('span');
+    t.textContent = 'Principal';
+    label.appendChild(chk);
+    label.appendChild(t);
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.textContent = 'Eliminar';
+    delBtn.style.background = '#d9534f';
+    delBtn.style.color = '#fff';
+    delBtn.addEventListener('click', async () => {
+      if (!confirm(`Eliminar logo #${it.id}?`)) return;
+      try {
+        const rr = await fetch(`/api/logos/${encodeURIComponent(it.id)}`, { method: 'DELETE', credentials: 'same-origin' });
+        if (!rr.ok) {
+          const txt = await rr.text().catch(() => '');
+          alert('Error: ' + (txt || 'No se pudo eliminar'));
+          return;
+        }
+        await loadLogos();
+      } catch (e) {
+        console.error(e);
+        alert('Error eliminando logo');
+      }
+    });
+
+    bar.appendChild(label);
+    bar.appendChild(delBtn);
+
+    wrap.appendChild(img);
+    wrap.appendChild(bar);
+    grid.appendChild(wrap);
+  }
+}
+
+async function submitLogoForm(ev) {
+  ev.preventDefault();
+  const form = ev.currentTarget;
+  const status = document.getElementById('logo-status');
+  if (status) status.textContent = 'Subiendo...';
+  try {
+    const fd = new FormData(form);
+    const r = await fetch('/api/logos', { method: 'POST', body: fd, credentials: 'same-origin' });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      if (status) status.textContent = 'Error subiendo logo';
+      alert('Error: ' + (txt || 'No se pudo subir'));
+      return;
+    }
+    if (status) status.textContent = 'Subido';
+    form.reset();
+    await loadLogos();
+    setTimeout(() => { if (status) status.textContent = ''; }, 1200);
+  } catch (e) {
+    console.error(e);
+    if (status) status.textContent = 'Error subiendo logo';
+  }
+}
+
+async function setLogoPrincipal(id) {
+  try {
+    const r = await fetch(`/api/logos/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ principal: true }),
+      credentials: 'same-origin'
+    });
+    if (!r.ok) {
+      let msg = 'No se pudo actualizar';
+      try {
+        const j = await r.json();
+        msg = j.message || msg;
+      } catch {
+        const t = await r.text().catch(() => '');
+        if (t) msg = t;
+      }
+      alert(msg);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error(e);
+    alert('Error actualizando logo');
+    return false;
   }
 }

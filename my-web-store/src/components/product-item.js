@@ -41,7 +41,6 @@ export function productItemTemplate(p) {
       <div>
         <a href="/product.html?id=${p.id}" class="product-link" style="color:inherit;text-decoration:none"><h3>${p.name}</h3></a>
   <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">$${formatMoney(totalPerBox)} <span style="font-size:0.7rem;color:#666;">/ caja</span></p>
-        <p class="desc">${p.description || ''}</p>
       </div>
       <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
         <label for="${qtyInputId}" class="qty-label" style="font-size:0.9rem;">Cantidad</label>

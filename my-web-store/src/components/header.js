@@ -28,7 +28,7 @@ export function renderHeader(container) {
   }, 100);
   container.innerHTML = `
     <div class="header-inner container">
-  <div class="logo"><a href="index.html"><img src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/></a></div>
+  <div class="logo"><a href="index.html"><img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/></a></div>
       <nav class="nav nav-animated">
         <a href="index.html" class="nav-link" data-nav="inicio">Inicio</a>
         <a href="contact.html" class="nav-link" data-nav="contacto">Contacto</a>
@@ -69,6 +69,23 @@ export function renderHeader(container) {
 
   const input = document.getElementById('search-input');
   if (input) input.addEventListener('input', () => window.dispatchEvent(new CustomEvent('search', { detail: input.value })));
+
+  // Logo principal (si existe)
+  (async () => {
+    try {
+      const img = document.getElementById('site-logo-img');
+      if (!img) return;
+      const r = await fetch('/api/logos?primary=true', { cache: 'no-store' });
+      if (!r.ok) return;
+      const list = await r.json();
+      const first = Array.isArray(list) ? list[0] : null;
+      if (!first || !first.url) return;
+      const sep = first.url.includes('?') ? '&' : '?';
+      img.src = first.url + sep + 'v=' + Date.now();
+    } catch {
+      // ignore
+    }
+  })();
 
   // badge: subscribe to cartService to update count
   import('../services/cart-service.js').then(mod => {

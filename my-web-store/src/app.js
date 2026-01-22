@@ -5,6 +5,94 @@ import { cartService } from './services/cart-service.js';
 
 console.log('app.js (módulo) cargado');
 
+async function initBannerCarousel() {
+  const hero = document.getElementById('hero');
+  const mount = document.getElementById('banner-carousel');
+  if (!mount) return;
+
+  try {
+    const r = await fetch('/api/banners?active=true', { cache: 'no-store' });
+    if (!r.ok) return;
+    const banners = await r.json();
+    const items = Array.isArray(banners) ? banners.slice(0, 3) : [];
+    if (items.length === 0) return;
+
+    hero?.classList.add('hero--with-banners');
+    mount.innerHTML = '';
+
+    const slides = items.map((b, i) => {
+      const slide = document.createElement('div');
+      slide.className = 'banner-slide' + (i === 0 ? ' is-active' : '');
+      slide.dataset.index = String(i);
+      const img = document.createElement('img');
+      img.src = b.url;
+      img.alt = b.nombre || `Banner ${i + 1}`;
+      img.loading = i === 0 ? 'eager' : 'lazy';
+      slide.appendChild(img);
+      mount.appendChild(slide);
+      return slide;
+    });
+
+    // Arrows
+    const prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
+    prevBtn.className = 'banner-arrow prev';
+    prevBtn.setAttribute('aria-label', 'Banner anterior');
+    prevBtn.textContent = '‹';
+    const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
+    nextBtn.className = 'banner-arrow next';
+    nextBtn.setAttribute('aria-label', 'Siguiente banner');
+    nextBtn.textContent = '›';
+    mount.appendChild(prevBtn);
+    mount.appendChild(nextBtn);
+
+    // Dots
+    const nav = document.createElement('div');
+    nav.className = 'banner-nav';
+    const dots = items.map((_, i) => {
+      const d = document.createElement('button');
+      d.type = 'button';
+      d.className = 'banner-dot' + (i === 0 ? ' is-active' : '');
+      d.setAttribute('aria-label', `Ir al banner ${i + 1}`);
+      d.addEventListener('click', () => setIndex(i, true));
+      nav.appendChild(d);
+      return d;
+    });
+    mount.appendChild(nav);
+
+    let idx = 0;
+    let timer = null;
+
+    const render = () => {
+      slides.forEach((s, i) => s.classList.toggle('is-active', i === idx));
+      dots.forEach((d, i) => d.classList.toggle('is-active', i === idx));
+    };
+
+    const setIndex = (next, resetTimer) => {
+      idx = (next + slides.length) % slides.length;
+      render();
+      if (resetTimer) restart();
+    };
+
+    const restart = () => {
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => setIndex(idx + 1, false), 4000);
+    };
+
+    prevBtn.addEventListener('click', () => setIndex(idx - 1, true));
+    nextBtn.addEventListener('click', () => setIndex(idx + 1, true));
+
+    // pause on hover (desktop)
+    mount.addEventListener('mouseenter', () => { if (timer) clearInterval(timer); timer = null; });
+    mount.addEventListener('mouseleave', () => restart());
+
+    restart();
+  } catch (e) {
+    console.warn('initBannerCarousel error', e);
+  }
+}
+
 async function init() {
   try {
     const headerMount = document.getElementById('site-header');
@@ -12,6 +100,9 @@ async function init() {
 
     const drawerMount = document.getElementById('cart-drawer');
     if (drawerMount) renderCartDrawer(drawerMount);
+
+    // Banners (home)
+    await initBannerCarousel();
 
     console.log('Fetch: cargando ./data/products.json ... desde', location.href);
     const res = await fetch('/api/products', { cache: 'no-store' });

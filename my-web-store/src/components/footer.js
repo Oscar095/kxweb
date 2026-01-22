@@ -43,7 +43,7 @@ export function renderFooter(mount) {
             </svg>
           </a>
         </div>
-        <img class="footer-logo" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" loading="lazy" decoding="async"/>
+        <img id="footer-logo-img" class="footer-logo" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" loading="lazy" decoding="async"/>
       </div>
       <div class="footer-right">
         <div class="footer-map-wrapper">
@@ -53,4 +53,21 @@ export function renderFooter(mount) {
       </div>
     </div>
   `;
+
+  // Logo principal (si existe)
+  (async () => {
+    try {
+      const img = mount.querySelector('#footer-logo-img');
+      if (!img) return;
+      const r = await fetch('/api/logos?primary=true', { cache: 'no-store' });
+      if (!r.ok) return;
+      const list = await r.json();
+      const first = Array.isArray(list) ? list[0] : null;
+      if (!first || !first.url) return;
+      const sep = first.url.includes('?') ? '&' : '?';
+      img.src = first.url + sep + 'v=' + Date.now();
+    } catch {
+      // ignore
+    }
+  })();
 }
