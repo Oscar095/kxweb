@@ -14,7 +14,35 @@ async function init() {
     const drawerMount = document.getElementById('cart-drawer');
     if (drawerMount) renderCartDrawer(drawerMount);
 
+    // Hero Product Rotator Carousel (Delivery Slide Animation)
+    const rotatorItems = document.querySelectorAll('.rotator-item');
+    if (rotatorItems.length > 0) {
+      let currentIdx = 0;
 
+      setInterval(() => {
+        const currentItem = rotatorItems[currentIdx];
+
+        // Old item moves out to the left
+        currentItem.classList.remove('active');
+        currentItem.classList.add('exiting');
+
+        // Remove exiting class after transition completes so it can reset to the right side
+        setTimeout(() => {
+          currentItem.classList.remove('exiting');
+        }, 800);
+
+        currentIdx = (currentIdx + 1) % rotatorItems.length;
+        const nextItem = rotatorItems[currentIdx];
+
+        // New item slides in from the right
+        nextItem.classList.remove('exiting'); // Just in case
+        // Small delay to allow previous item to clear the center slightly, creating a "bump" collision feel
+        setTimeout(() => {
+          nextItem.classList.add('active');
+        }, 100);
+
+      }, 4000); // 4 seconds interval
+    }
 
     console.log('Fetch: cargando ./data/products.json ... desde', location.href);
     const [resProd, resCat] = await Promise.all([
@@ -37,14 +65,133 @@ async function init() {
       if (productsMount) productsMount.style.display = 'none';
       if (catalogNav) catalogNav.style.display = 'none';
       if (categoryHub) {
-        // Render Categories
-        categoryHub.innerHTML = categories.map(c => `
-          <div class="category-card" data-cat="${c.nombre || c.id}">
-            <h3>${c.nombre}</h3>
-            <p>${c.descripcion || 'Explorar productos'}</p>
+
+        // Categorías solicitadas por el cliente mapeadas a imágenes y rutas id
+        // Categorías solicitadas por el cliente mapeadas a imágenes
+        const userCategories = [
+          { id: "Vasos para bebidas calientes", nombre: "Vasos para bebidas calientes", img: "images/7oz.png" },
+          { id: "Vasos para bebidas frías", nombre: "Vasos para bebidas frías", img: "images/9onza.png" },
+          { id: "tapas para vasos", nombre: "Tapas para vasos", img: "images/4oz.png" },
+          { id: "contenedores", nombre: "Contenedores", img: "images/portahamburguesa.png" },
+          { id: "tapas de contenedores", nombre: "Tapas de contenedores", img: "images/PortaPAPA.png" },
+          { id: "empaques", nombre: "Empaques", img: "images/portaperro.png" },
+          { id: "platos", nombre: "Platos", img: "images/Productos.png" },
+          { id: "porta_vasos", nombre: "Porta Vasos", img: "images/LogoKos2.png" },
+          { id: "tapas_para_vasos_2", nombre: "Tapas para Vasos", img: "images/4oz.png" }
+        ];
+
+        // Cambiamos wrapper base
+        categoryHub.className = "category-hub-container container";
+        categoryHub.style.display = 'block';
+
+        categoryHub.innerHTML = `
+          <button class="cat-nav-btn cat-nav-prev" aria-label="Anterior">&#10094;</button>
+          <div class="category-track" id="cat-track">
+            ${userCategories.map(c => `
+              <div class="category-card" data-cat="${c.id}">
+                <img src="${c.img}" alt="${c.nombre}" loading="lazy" draggable="false">
+                <div class="category-content">
+                  <h3>${c.nombre}</h3>
+                  <p>Explorar opciones</p>
+                </div>
+              </div>
+            `).join('')}
           </div>
-        `).join('');
-        categoryHub.style.display = 'grid';
+          <button class="cat-nav-btn cat-nav-next" aria-label="Siguiente">&#10095;</button>
+        `;
+
+        // Obtener elementos recién creados buscando DENTRO de categoryHub
+        const track = categoryHub.querySelector('#cat-track');
+        const btnPrev = categoryHub.querySelector('.cat-nav-prev');
+        const btnNext = categoryHub.querySelector('.cat-nav-next');
+
+        let exactScroll = 0;
+        let isDown = false;
+        let startX;
+        let scrollLeftPos = 0;
+        let isDragging = false;
+        let isHovered = false;
+
+        // Auto desplazamiento suave continuo (Ticker)
+        const autoScroll = () => {
+          if (!isDown && !isHovered && track) {
+            track.style.scrollSnapType = 'none'; // Sin snap para movimiento fluido
+            exactScroll += 0.5; // Muy lento
+            if (exactScroll >= track.scrollWidth - track.clientWidth - 1) {
+              exactScroll = 0; // Reinicia al llegar al final
+            }
+            track.scrollLeft = exactScroll;
+          } else if (track) {
+            exactScroll = track.scrollLeft;
+          }
+          requestAnimationFrame(autoScroll);
+        };
+        requestAnimationFrame(autoScroll);
+
+        // Pausar auto-scroll si el mouse esta encima del contenedor completo
+        categoryHub.addEventListener('mouseenter', () => isHovered = true);
+        categoryHub.addEventListener('mouseleave', () => {
+          isDown = false;
+          isHovered = false;
+          if (track) track.style.cursor = 'grab';
+        });
+
+        // Navegacion con flechas
+        if (btnPrev && btnNext && track) {
+          btnPrev.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita clicks propagados
+            track.scrollBy({ left: -328, behavior: 'smooth' });
+          });
+          btnNext.addEventListener('click', (e) => {
+            e.stopPropagation();
+            track.scrollBy({ left: 328, behavior: 'smooth' });
+          });
+        }
+
+        // --- Integrar Lógica de Arrastre ---
+        if (track) {
+          track.addEventListener('mousedown', (e) => {
+            isDown = true;
+            isDragging = false;
+            track.style.cursor = 'grabbing';
+            track.style.scrollSnapType = 'none';
+            startX = e.pageX - track.offsetLeft;
+            scrollLeftPos = track.scrollLeft;
+          });
+
+          track.addEventListener('mouseup', () => {
+            isDown = false;
+            track.style.cursor = 'grab';
+            track.style.scrollSnapType = 'x mandatory';
+          });
+
+          track.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - track.offsetLeft;
+            const walk = (x - startX) * 2;
+            if (Math.abs(walk) > 5) isDragging = true;
+            track.scrollLeft = scrollLeftPos - walk;
+          });
+
+          // Prevenir navegacion si estabamos arrastrando
+          track.addEventListener('click', (e) => {
+            if (isDragging) {
+              e.preventDefault();
+              e.stopPropagation();
+              isDragging = false;
+              return;
+            }
+
+            // Si es un click normal en una tarjeta:
+            const card = e.target.closest('.category-card');
+            if (card) {
+              const cat = card.dataset.cat;
+              showProducts(cat);
+              catalogNav.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, { capture: true });
+        }
       }
     };
 
