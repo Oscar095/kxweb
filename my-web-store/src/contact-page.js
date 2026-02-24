@@ -25,7 +25,7 @@ mount.innerHTML = `
     </div>
     <div style="margin-bottom: 16px;">
       <label for="attachments">Adjuntos (imágenes o PDF)</label>
-      <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple style="background: rgba(255,255,255,0.4);" />
+      <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple />
     </div>
     <div class="actions">
       <button type="submit" class="btn-primary" style="width: 100%; border-radius: 12px; font-size: 1.25rem;">Enviar Mensaje</button>

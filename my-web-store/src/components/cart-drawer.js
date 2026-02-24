@@ -5,16 +5,19 @@ export function renderCartDrawer(mount) {
   mount.className = 'cart-drawer';
   mount.innerHTML = `
     <div class="cart-header">
-      <strong style="font-size: 1.25rem;color: #fff">Carrito de Compras</strong>
+      <h2>Carrito</h2>
       <div style="display:flex; align-items:center; gap:8px;">
-        <button id="clear-cart" class="btn-primary" title="Vaciar carrito" style="font-size: 1.2rem; padding: 6px 10px; border-radius: 6px; scale: 0.75;">Vaciar Carrito</button>
-        <button id="close-cart" class="btn-primary" title="Cerrar" style="padding: 6px 10px; border-radius: 6px; scale: 0.75; font-size: 1.2rem;">X</button>
+        <button id="clear-cart" title="Vaciar carrito" style="background:transparent; border:none; color:var(--muted); text-decoration:underline; cursor:pointer; font-weight:600; font-size: 0.9rem;">Vaciar</button>
+        <button id="close-cart" title="Cerrar" style="background:var(--primary); color:#fff; border:none; width: 32px; height: 32px; border-radius: 50%; font-weight: bold; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 12px rgba(0,159,227,0.3);">✕</button>
       </div>
     </div>
     <div class="cart-body" id="cart-body"></div>
-    <div class="cart-footer" style="display: flex; align-items: center; justify-content: space-between;">
-  <a id="cart-total" style="margin-right: auto;">Total: $0,00</a>
-      <button id="checkout" class="btn-primary" style="flex-shrink: 0; scale: 0.75;;">Ir a Pagar</button>
+    <div class="cart-footer">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span style="font-size:1.1rem; color:var(--muted); font-weight:600;">Total a Pagar:</span>
+        <strong id="cart-total" style="font-size:1.6rem; color:var(--text-main);">$0,00</strong>
+      </div>
+      <button id="checkout" class="btn-primary" style="width: 100%; font-size: 1.15rem; padding: 14px; border-radius: 12px; box-sizing: border-box; text-align:center;">Procesar Pago</button>
     </div>
   `;
 
@@ -46,20 +49,24 @@ export function renderCartDrawer(mount) {
     const grouped = groupItems(items);
     const body = document.getElementById('cart-body');
     body.innerHTML = grouped.length ? grouped.map(i => `
-      <div class="cart-item" data-id="${i.id}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <img src="${i.image || '/images/placeholder.svg'}" alt="${i.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'" style="width:56px;height:56px;object-fit:contain;background:#fff;border:1px solid #eee;border-radius:6px;flex-shrink:0;" />
+      <div class="cart-item" data-id="${i.id}" style="display:flex;align-items:center;justify-content:space-between;gap:12px; padding: 12px; margin-bottom: 12px; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05); border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+        <img src="${i.image || '/images/placeholder.svg'}" alt="${i.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'" style="width:64px;height:64px;object-fit:contain;background:#fff;border-radius:12px;flex-shrink:0; padding:4px;" />
         <div class="meta" style="flex:1;min-width:0;">
-          <div style="font-weight:600;white-space:normal;overflow:visible;">${i.name}</div>
-          <div style="color:var(--muted);font-size:13px">$${formatMoney(i.price)} / caja · Subtotal $${formatMoney(i.subtotal)}</div>
+          <div style="font-weight:700;white-space:normal;overflow:visible; font-size: 1rem; color:var(--text-main); line-height: 1.2;">${i.name}</div>
+          <div style="color:var(--primary);font-size:13px; font-weight: 600; margin-top:4px;">$${formatMoney(i.price)}</div>
+          <div style="color:var(--text-main);font-size:13px; margin-top:2px;">Subtotal: <strong>$${formatMoney(i.subtotal)}</strong></div>
         </div>
-        <div class="qty-controls" style="display:flex;align-items:center;gap:6px;">
-          <button class="dec" aria-label="Disminuir" style="width:28px;height:28px;border-radius:6px;">-</button>
-          <input type="number" class="qty" min="1" value="${i.quantity}" style="width:56px;text-align:center;"/>
-          <button class="inc" aria-label="Aumentar" style="width:28px;height:28px;border-radius:6px;">+</button>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+          <button data-id="${i.id}" class="remove" style="color:#ff4d4f;background:transparent; border:none; font-weight:600; font-size:12px;cursor:pointer; padding:0; text-decoration:underline;">Quitar</button>
+          
+          <div class="qty-controls" style="display:flex;align-items:center;gap:4px; background: rgba(0,0,0,0.04); border-radius:8px; padding:4px;">
+            <button class="dec" aria-label="Disminuir" style="width:24px;height:24px;border-radius:6px;color:var(--text-main);background:#fff;border:1px solid rgba(0,0,0,0.05);cursor:pointer;font-weight:bold;">-</button>
+            <input type="number" class="qty" min="1" value="${i.quantity}" style="width:32px;text-align:center;background:transparent;border:none;font-weight:700;color:var(--text-main);font-size:0.9rem;"/>
+            <button class="inc" aria-label="Aumentar" style="width:24px;height:24px;border-radius:6px;color:#fff;background:var(--primary);border:none;cursor:pointer;font-weight:bold;">+</button>
+          </div>
         </div>
-        <button data-id="${i.id}" class="remove" style="color:black;font-size:10px;padding:3px 5px;border-radius:6px;">Eliminar</button>
       </div>
-    `).join('') : '<div>Tu carrito está vacío</div>';
+    `).join('') : '<div style="text-align:center; padding:40px 0; color:var(--muted); font-weight:600;">Ouch, tu carrito está vacío 🛒</div>';
 
     const total = grouped.reduce((s, it) => s + it.subtotal, 0);
     document.getElementById('cart-total').textContent = `Total: $${formatMoney(total)}`;

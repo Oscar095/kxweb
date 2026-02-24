@@ -105,27 +105,74 @@ async function init() {
     await initBannerCarousel();
 
     console.log('Fetch: cargando ./data/products.json ... desde', location.href);
-    const res = await fetch('/api/products', { cache: 'no-store' });
-    console.log('Fetch status:', res.status, 'ok:', res.ok);
-    if (!res.ok) {
-      throw new Error(`Error al cargar products.json: ${res.status}`);
-    }
+    const [resProd, resCat] = await Promise.all([
+      fetch('/api/products', { cache: 'no-store' }),
+      fetch('/api/categories', { cache: 'no-store' })
+    ]);
 
-    const products = await res.json();
-    console.log('Productos cargados:', products);
+    if (!resProd.ok) throw new Error(`Error al cargar productos: ${resProd.status}`);
+    const products = await resProd.json();
+    const categories = resCat.ok ? await resCat.json() : [];
 
     const productsMount = document.getElementById('products');
-    if (!productsMount) {
-      console.error('No se encontró el elemento #products en el DOM');
-      return;
-    }
+    const categoryHub = document.getElementById('category-grid');
+    const catalogNav = document.getElementById('catalog-nav');
+    const btnBack = document.getElementById('btn-back-categories');
+    const catalogTitle = document.getElementById('current-category-title');
 
-    if (!Array.isArray(products) || products.length === 0) {
-      productsMount.innerHTML = '<p>No hay productos disponibles.</p>';
-      return;
-    }
+    // Funciones de navegación (SPA mode)
+    const showCategories = () => {
+      if (productsMount) productsMount.style.display = 'none';
+      if (catalogNav) catalogNav.style.display = 'none';
+      if (categoryHub) {
+        // Render Categories
+        categoryHub.innerHTML = categories.map(c => `
+          <div class="category-card" data-cat="${c.nombre || c.id}">
+            <h3>${c.nombre}</h3>
+            <p>${c.descripcion || 'Explorar productos'}</p>
+          </div>
+        `).join('');
+        categoryHub.style.display = 'grid';
+      }
+    };
 
-    renderProducts(products, productsMount);
+    const showProducts = (catVal) => {
+      if (categoryHub) categoryHub.style.display = 'none';
+      if (catalogNav) {
+        catalogNav.style.display = 'flex';
+        // Attempt to find the full category name if catVal is an id
+        const foundCat = categories.find(c => String(c.id) === String(catVal) || String(c.nombre) === String(catVal));
+        catalogTitle.textContent = (foundCat && foundCat.nombre) ? foundCat.nombre : (catVal || 'Resultados de Búsqueda');
+      }
+      if (productsMount) {
+        const filtered = catVal ? products.filter(p => String(p.category) === String(catVal) || String(p.category_name) === String(catVal) || String(p.categoria) === String(catVal)) : products;
+        renderProducts(filtered, productsMount);
+        productsMount.style.display = 'grid';
+      }
+    };
+
+    // Inicializar con categorías si existen, si no con todos los productos
+    if (categories.length > 0 && categoryHub) {
+      showCategories();
+
+      // Manejo click de categoría
+      categoryHub.addEventListener('click', (e) => {
+        const card = e.target.closest('.category-card');
+        if (!card) return;
+        const cat = card.dataset.cat;
+        showProducts(cat);
+        // Scroll suave a esa sección
+        catalogNav.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      // Manejo botón volver
+      btnBack?.addEventListener('click', () => {
+        showCategories();
+        document.getElementById('catalog').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    } else if (productsMount) {
+      renderProducts(products, productsMount);
+    }
 
     // Delegado: manejar clicks "Agregar" y leer cantidad del input
     productsMount.addEventListener('click', (e) => {
@@ -166,7 +213,18 @@ async function init() {
     // search filter (global event dispatched from header)
     window.addEventListener('search', (e) => {
       const q = (e.detail || '').toLowerCase();
+      if (!q) {
+        if (categories.length > 0) showCategories();
+        else renderProducts(products, productsMount);
+        return;
+      }
       const filtered = products.filter(p => (p.name || '').toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q));
+      if (categoryHub) categoryHub.style.display = 'none';
+      if (catalogNav) {
+        catalogNav.style.display = 'flex';
+        catalogTitle.textContent = 'Resultados de Búsqueda';
+      }
+      productsMount.style.display = 'grid';
       renderProducts(filtered, productsMount);
     });
 

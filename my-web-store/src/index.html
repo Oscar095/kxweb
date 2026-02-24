@@ -11,7 +11,11 @@
 <body>
   <div id="app">
     <header id="site-header"></header>
-    <main>
+    <main style="position: relative; overflow: hidden;">
+      <!-- Futuristic Orbs -->
+      <div class="bg-orb orb-blue"></div>
+      <div class="bg-orb orb-orange"></div>
+
       <section id="hero" class="hero">
         <div class="hero-inner">
           <div id="banner-carousel" class="banner-carousel" aria-label="Banners"></div>
@@ -20,12 +24,19 @@
 
       <section id="catalog" style="padding-top: 60px;">
         <div class="container" style="text-align:center;">
-          <h2 style="font-size: 2.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Catálogos de
-            Productos</h2>
-          <p style="font-size: 1.1rem; color: var(--muted); margin-bottom: 32px;">Descubre nuestra selección con la
-            mejor calidad y diseño.</p>
+          <h2 style="font-size: 2.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Descubre
+            Nuestros Productos</h2>
+          <p style="font-size: 1.1rem; color: var(--muted); margin-bottom: 32px;">Explora la tienda por categorías para
+            encontrar la mejor calidad y diseño.</p>
         </div>
-        <section id="products" class="product-grid animated-products"></section>
+
+        <div class="catalog-header container" style="display: none;" id="catalog-nav">
+          <button id="btn-back-categories" class="btn-back"><span>←</span> Volver a Categorías</button>
+          <h3 id="current-category-title" style="margin:0; font-size:1.5rem; color: var(--primary);"></h3>
+        </div>
+
+        <section id="category-grid" class="category-hub container" style="display: none;"></section>
+        <section id="products" class="product-grid animated-products container" style="display: none;"></section>
       </section>
     </main>
 
