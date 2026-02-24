@@ -161,19 +161,7 @@ async function init() {
       if (next) idx = (idx + 1) % imgs.length;
       if (wrap) wrap.dataset.index = String(idx);
       if (imgEl) imgEl.src = imgs[idx] || '/images/placeholder.svg';
-      const lens = wrap?.querySelector('.img-lens');
-      if (lens && imgEl) {
-        lens.style.backgroundImage = `url("${imgEl.src}")`;
-      }
     });
-
-    // Evita que clicks en la lupa (lens) interfieran con navegación
-    productsMount.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.img-lens')) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, true);
 
     // search filter (global event dispatched from header)
     window.addEventListener('search', (e) => {

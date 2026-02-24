@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tienda KosXpress</title>
   <link rel="stylesheet" href="styles/main.css">
 </head>
+
 <body>
   <div id="app">
     <header id="site-header"></header>
@@ -16,16 +18,22 @@
         </div>
       </section>
 
-      <section id="catalog">
-        <center><h2 style="font-size: 3rem; font-weight: 600;">Catalogos de Productos</h2></center>
-      <section id="products" class="product-grid animated-products"></section>
+      <section id="catalog" style="padding-top: 60px;">
+        <div class="container" style="text-align:center;">
+          <h2 style="font-size: 2.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Catálogos de
+            Productos</h2>
+          <p style="font-size: 1.1rem; color: var(--muted); margin-bottom: 32px;">Descubre nuestra selección con la
+            mejor calidad y diseño.</p>
+        </div>
+        <section id="products" class="product-grid animated-products"></section>
       </section>
     </main>
 
-  <div id="cart-drawer"></div>
-  <footer class="site-footer"></footer>
+    <div id="cart-drawer"></div>
+    <footer class="site-footer"></footer>
   </div>
 
   <script type="module" src="./app.js"></script>
 </body>
+
 </html>

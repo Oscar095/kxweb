@@ -1,3 +1,5 @@
+import { initChatbot } from './chatbot.js';
+
 export function renderHeader(container) {
   // Animación de rectángulo en nav
   setTimeout(() => {
@@ -28,11 +30,11 @@ export function renderHeader(container) {
   }, 100);
   container.innerHTML = `
     <div class="header-inner container">
-  <div class="logo"><a href="index.html"><img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/></a></div>
+  <div class="logo"><a href="/"><img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/></a></div>
       <nav class="nav nav-animated">
-        <a href="index.html" class="nav-link" data-nav="inicio">Inicio</a>
-        <a href="contact.html" class="nav-link" data-nav="contacto">Contacto</a>
-        <a href="admin.html" class="nav-link" data-nav="admin">Admin</a>
+        <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
+        <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
+        <a href="/admin" class="nav-link" data-nav="admin">Admin</a>
         <span class="nav-rect"></span>
       </nav>
       <div class="search">
@@ -126,16 +128,20 @@ export function renderHeader(container) {
     if (window.innerWidth > 900) closeNav();
   });
 
-  // Mark active link (applies orange background in mobile)
+  // Inicializar Chatbot Global
+  initChatbot();
+
+  // Mark active link
   try {
-    const current = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    let current = (location.pathname.split('/').pop() || '').toLowerCase();
+    if (current.endsWith('.html')) current = current.replace('.html', '');
+    if (current === '' || current === 'index') current = 'index';
+
     nav?.querySelectorAll('a').forEach(a => {
-      const href = (a.getAttribute('href') || '').toLowerCase();
+      let href = (a.getAttribute('href') || '').toLowerCase();
+      if (href.endsWith('.html')) href = href.replace('.html', '');
+      if (href === '/' || href === '') href = 'index';
       if (href.endsWith(current)) a.classList.add('is-active');
-      // Also treat root as index
-      if ((current === '' || current === '/') && (href.endsWith('index.html') || href === '/')) {
-        a.classList.add('is-active');
-      }
     });
-  } catch {}
+  } catch { }
 }

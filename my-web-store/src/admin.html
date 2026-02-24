@@ -2,239 +2,295 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Admin - Productos</title>
+  <title>Admin - KOS Colombia</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/styles/main.css" />
-  <style>
-    .admin-product-card { border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px; display: flex; gap: 12px; align-items: flex-start; background: #fafafa; }
-    .admin-product-details { flex: 1; }
-    .img-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px,1fr)); gap: 8px; margin-top: 8px; }
-    .img-preview-grid img { width: 100%; height: 88px; object-fit: cover; border: 1px solid #eee; background: #fff; border-radius: 6px; }
-
-    /* --- Admin form: black text + aligned inputs --- */
-    #product-form { color: #111; }
-    #product-form legend { color: #111; font-weight: 600; }
-    #product-form .field { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: center; gap: 8px 12px; margin-bottom: 12px; }
-    #product-form .field > label { margin: 0; color: #111; font-weight: 500; }
-    #product-form .field > input[type="text"],
-    #product-form .field > input[type="number"],
-    #product-form .field > input[type="file"],
-    #product-form .field > textarea {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 10px 12px;
-      border: 1px solid #cfcfcf;
-      border-radius: 6px;
-      background: #fff;
-      color: #111;
-    }
-    #product-form .field > input[type="file"] { padding: 8px; }
-    #product-form ::placeholder { color: #666; }
-
-    /* Button uses global styles from main.css; no override here */
-
-    /* Responsive: stack label above input on small screens */
-    @media (max-width: 640px) {
-      #product-form .field { grid-template-columns: 1fr; align-items: start; }
-    }
-  </style>
+  <link rel="stylesheet" href="/styles/admin.css" />
+  <!-- Include Google Fonts for modern typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-  <header class="site-header">
-    <div class="container">
-      <h1>Panel de Administración</h1>
-      <nav><a href="/index.html">Inicio</a></nav>
-    </div>
-  </header>
+<body class="admin-body">
 
-  <main class="container" style="padding: 1rem;">
-    <section id="login-section" style="display:none;max-width:480px;margin:0 auto;">
-      <h2>Iniciar sesión</h2>
+  <!-- LOGIN VIEW -->
+  <div id="login-section" class="admin-login-wrapper" style="display: none;">
+    <div class="admin-login-card">
+      <img src="/images/logo.png" alt="KOS Logo" class="admin-login-logo" onerror="this.src='/images/placeholder.svg'" />
+      <h2>Panel de Administración</h2>
       <form id="login-form">
-        <div class="field"><label for="u">Usuario</label><input id="u" name="username" required /></div>
-        <div class="field"><label for="p">Contraseña</label><input id="p" name="password" type="password" required /></div>
-        <button class="btn-primary" type="submit">Entrar</button>
-        <p id="login-msg" style="color:#b00"></p>
-      </form>
-    </section>
-    <section id="admin-section" style="display:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-        <h2 style="margin:0">Crear o Actualizar producto</h2>
-        <div>
-          <button id="show-products-tab" type="button" style="margin-right:8px;">Productos</button>
-          <button id="show-categories-tab" type="button">Categorías</button>
-          <button id="show-banners-tab" type="button" style="margin-left:8px;">Banner</button>
-          <button id="show-logos-tab" type="button" style="margin-left:8px;">Logo</button>
+        <div class="field-group">
+          <label for="u">Usuario</label>
+          <input id="u" name="username" type="text" required placeholder="Ingresa tu usuario" />
         </div>
+        <div class="field-group">
+          <label for="p">Contraseña</label>
+          <input id="p" name="password" type="password" required placeholder="Ingresa tu contraseña" />
+        </div>
+        <button class="admin-login-btn" type="submit">Ingresar</button>
+        <p id="login-msg" style="color:var(--admin-danger); margin-top:16px; font-weight:500;"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="admin-section" class="admin-dashboard" style="display: none;">
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h1>
+          <!-- KOS Icon SVG -->
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z"/></svg>
+          <span>KOS Admin</span>
+        </h1>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-        <button id="logout-btn" style="background:#eee;border:1px solid #ddd;border-radius:6px;padding:8px 12px;cursor:pointer">Cerrar sesión</button>
+      
+      <nav class="admin-sidebar-nav">
+        <button id="nav-products" class="admin-nav-item active">
+          <svg viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/></svg>
+          <span>Productos</span>
+        </button>
+        <button id="nav-categories" class="admin-nav-item">
+          <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+          <span>Categorías</span>
+        </button>
+        <button id="nav-banners" class="admin-nav-item">
+          <svg viewBox="0 0 24 24"><path d="M21 3H3C2 3 1 4 1 5v14c0 1.1.9 2 2 2h18c1 0 2-1 2-2V5c0-1-1-2-2-2zm0 15.9l-5.3-5.3c-.4-.4-1-.4-1.4 0l-5.6 5.6-3.3-3.3c-.4-.4-1-.4-1.4 0L3 18.9V5h18v13.9z"/></svg>
+          <span>Banners</span>
+        </button>
+        <button id="nav-logos" class="admin-nav-item">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          <span>Logos</span>
+        </button>
+        <button id="nav-library" class="admin-nav-item">
+          <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM10.9 12.9l-1.4-1.4-2.5 3.5h10l-3.5-4.5z"/></svg>
+          <span>Biblioteca</span>
+        </button>
+        <a href="/index.html" class="admin-nav-item" style="margin-top:auto" target="_blank">
+          <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+          <span>Sitio Web</span>
+        </a>
+      </nav>
+
+      <div class="admin-sidebar-footer">
+        <button id="logout-btn" class="admin-btn-logout">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+          <span>Cerrar Sesión</span>
+        </button>
       </div>
+    </aside>
 
-      <form id="product-form" method="post" enctype="multipart/form-data">
-        <fieldset>
-          <legend style="color:black; font-size:18px; font-weight:500;">Datos del producto</legend>
+    <!-- CONTENT -->
+    <main class="admin-content">
 
-          <div class="field">
-            <label for="p-codigo" style="color:black;">Código SIESA : </label>
-            <input id="p-codigo" type="text" name="codigo_siesa" placeholder="Código SIESA / SKU" />
-          </div>
-
-          <div class="field">
-            <label for="p-id" style="color:black;">ID (opcional) : </label>
-            <input id="p-id" type="number" name="id" placeholder="Deja vacío para autoincremento" />
-          </div>
-
-          <div class="field">
-            <label for="p-name" style="color:black;">Nombre : </label>
-            <input id="p-name" type="text" name="name" required />
-          </div>
-
-
-          <div class="field">
-            <label for="p-price-unit" style="color:black;">Precio Unitario : </label>
-            <input id="p-price-unit" type="number" name="price_unit" min="0" step="0.01" placeholder="Ej: 1200.50" required />
-          </div>
-
-          <div class="field">
-            <label for="p-cantidad" style="color:black;">Cantidad : </label>
-            <input id="p-cantidad" type="number" name="cantidad" min="0" step="1" placeholder="Ej: 1000" />
-          </div>
-
-          <div class="field">
-            <label for="p-price" style="color:black;">Precio Total : </label>
-            <input id="p-price" type="number" name="price_total" min="0" step="1" placeholder="Precio total" readonly />
-          </div>
-
-          <div class="field">
-            <label for="p-category" style="color:black;">Categoría : </label>
-            <select id="p-category" name="category"></select>
-          </div>
-
-          <div class="field">
-            <label for="p-desc" style="color:black;">Descripción : </label>
-            <textarea id="p-desc" name="description" rows="3"></textarea>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend style="color:black; font-size:18px; font-weight:500;">Imágenes del producto</legend>
-          <div class="field">
-            <label for="p-images" style="color:black;">Selecciona imágenes (puedes elegir varias) : </label>
-            <input id="p-images" type="file" name="images" accept="image/*" multiple />
-          </div>
-          <div id="new-previews" class="img-preview-grid" aria-live="polite"></div>
-          <div style="margin-top:6px; color:#666; font-size:12px;">Las imágenes nuevas reemplazarán a las existentes al guardar.</div>
-
-          <div style="margin-top:10px;">
-            <div style="font-weight:600; margin-bottom:6px;">Imágenes actuales</div>
-            <div id="current-images" class="img-preview-grid"></div>
-          </div>
-        </fieldset>
-
-        <div style="margin-top:12px">
-          <button type="submit" class="btn-primary">Guardar</button>
+      <!-- ================= PRODUCTOS VIEW ================= -->
+      <section id="view-products" class="admin-view active">
+        <div class="admin-header-row">
+          <h2>Gestión de Productos</h2>
         </div>
-        <p id="form-status" style="margin-top:.5rem;"></p>
 
-        <div style="margin-top:16px">
-          <div style="font-weight:600; margin-bottom:6px;">Imágenes seleccionadas desde Biblioteca (se adjuntarán al guardar)</div>
-          <div id="lib-selected" class="img-preview-grid"></div>
+        <div id="product-form-container" class="glass-card" style="display:block;">
+          <form id="product-form" class="admin-form" method="post" enctype="multipart/form-data">
+            <fieldset>
+              <legend>Información General</legend>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label for="p-codigo">Código SIESA / SKU</label>
+                  <input id="p-codigo" type="text" name="codigo_siesa" placeholder="Ej: PROD-123" />
+                </div>
+                <div class="field-group">
+                  <label for="p-id">ID Producto (Dejar vacío para autoincremento)</label>
+                  <input id="p-id" type="number" name="id" placeholder="ID automático" />
+                </div>
+                <div class="field-group">
+                  <label for="p-name">Nombre del Producto</label>
+                  <input id="p-name" type="text" name="name" required />
+                </div>
+                <div class="field-group">
+                  <label for="p-category">Categoría</label>
+                  <select id="p-category" name="category"></select>
+                </div>
+              </div>
+              <div class="form-grid" style="margin-top:20px;">
+                <div class="field-group">
+                  <label for="p-price-unit">Precio Unitario ($)</label>
+                  <input id="p-price-unit" type="number" name="price_unit" min="0" step="0.01" placeholder="Ej: 15000" required />
+                </div>
+                <div class="field-group">
+                  <label for="p-cantidad">Cantidad / Stock</label>
+                  <input id="p-cantidad" type="number" name="cantidad" min="0" step="1" placeholder="Ej: 100" />
+                </div>
+                <div class="field-group">
+                  <label for="p-price">Precio Total (Calculado)</label>
+                  <input id="p-price" type="number" name="price_total" min="0" step="1" readonly />
+                </div>
+              </div>
+              <div class="field-group" style="margin-top:20px;">
+                <label for="p-desc">Descripción (Opcional)</label>
+                <textarea id="p-desc" name="description" rows="3" placeholder="Detalles del producto..."></textarea>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Imágenes Múltiples</legend>
+              <div class="field-group">
+                <label for="p-images">Subir desde PC (Máx. 4 total)</label>
+                <input id="p-images" type="file" name="images" accept="image/*" multiple />
+              </div>
+              <div id="new-previews" class="admin-img-preview-grid" aria-live="polite"></div>
+              
+              <div style="margin-top:20px;">
+                <label style="font-weight:500; display:block; margin-bottom:10px;">Imágenes Actuales Guardadas:</label>
+                <div id="current-images" class="admin-img-preview-grid"></div>
+              </div>
+              
+              <div style="margin-top:20px; padding-top:16px; border-top:1px dashed rgba(0,0,0,0.1);">
+                <label style="font-weight:500; display:block; margin-bottom:10px;">Seleccionadas desde la Biblioteca <small>(se añadirán al guardar)</small>:</label>
+                <div id="lib-selected" class="admin-img-preview-grid"></div>
+              </div>
+            </fieldset>
+
+            <div style="display:flex; gap:16px; align-items:center; margin-top:30px;">
+              <button type="submit" class="admin-btn-primary">Guardar Producto</button>
+              <button type="button" id="btn-cancel-product" class="admin-btn-secondary" style="display:none;">Cancelar</button>
+              <p id="form-status" style="margin:0; font-weight:500;"></p>
+            </div>
+          </form>
         </div>
-      </form>
-      <!-- Categories section (hidden by default) -->
-      <section id="category-section" style="display:none; margin-top:18px; border-top:1px dashed #eee; padding-top:12px;">
-        <h3>Categorías</h3>
-        <form id="category-form" style="max-width:640px;">
-          <input id="cat-id" type="hidden" />
-          <div class="field">
-            <label for="cat-desc">Descripción</label>
-            <input id="cat-desc" name="descripcion" required placeholder="Nombre/Descripción visible para la categoría" />
-          </div>
-          <div style="margin-top:8px;"><button type="submit" class="btn-primary">Guardar categoría</button> <button id="cat-cancel" type="button">Cancelar</button></div>
-        </form>
-        <div style="margin-top:12px;">
-          <h4>Lista de categorías</h4>
-          <div id="categories-list"></div>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <h3 style="margin-top:0;">Listado de Productos</h3>
+          <div id="products-grid" class="admin-grid-products"></div>
         </div>
       </section>
 
-      <!-- Banner section (hidden by default) -->
-      <section id="banner-section" style="display:none; margin-top:18px; border-top:1px dashed #eee; padding-top:12px;">
-        <h3>Banner (Home)</h3>
-        <p style="margin:6px 0 12px;color:#444;">
-          Sube imágenes de banner. Puedes marcar máximo <strong>3</strong> como activos.
-        </p>
+      <!-- ================= CATEGORÍAS VIEW ================= -->
+      <section id="view-categories" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Categorías</h2>
+        </div>
+        
+        <div class="glass-card">
+          <form id="category-form" class="admin-form">
+            <fieldset>
+              <legend>Crear/Editar Categoría</legend>
+              <input id="cat-id" type="hidden" />
+              <div class="form-grid">
+                <div class="field-group">
+                  <label for="cat-desc">Nombre de la Categoría</label>
+                  <input id="cat-desc" name="descripcion" required placeholder="Ej: Lácteos" />
+                </div>
+              </div>
+              <div style="margin-top: 24px; display:flex; gap:12px;">
+                <button type="submit" class="admin-btn-primary">Guardar Categoría</button>
+                <button id="cat-cancel" type="button" class="admin-btn-secondary">Cancelar</button>
+              </div>
+            </fieldset>
+          </form>
+        </div>
 
-        <form id="banner-form" enctype="multipart/form-data" style="max-width:640px;">
-          <div class="field">
-            <label for="banner-nombre">Nombre</label>
-            <input id="banner-nombre" name="nombre" type="text" placeholder="Ej: Banner Promoción" />
-          </div>
-          <div class="field">
-            <label for="banner-imagen">Imagen</label>
-            <input id="banner-imagen" name="imagen" type="file" accept="image/*" required />
-          </div>
-          <button type="submit" class="btn-primary">Subir banner</button>
-          <span id="banner-status" style="margin-left:8px;"></span>
-        </form>
-
-        <div style="margin-top:14px; font-weight:600;">Banners guardados</div>
-        <div id="banners-grid" class="img-preview-grid"></div>
+        <div class="glass-card">
+          <h3 style="margin-top:0;">Lista de Categorías</h3>
+          <div id="categories-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
       </section>
 
-      <!-- Logo section (hidden by default) -->
-      <section id="logo-section" style="display:none; margin-top:18px; border-top:1px dashed #eee; padding-top:12px;">
-        <h3>Logo (Header/Footer)</h3>
-        <p style="margin:6px 0 12px;color:#444;">
-          Sube logos y selecciona <strong>uno</strong> como principal.
-        </p>
+      <!-- ================= BANNERS VIEW ================= -->
+      <section id="view-banners" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Gestión de Banners</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Sube imágenes panorámicas para el carrusel de inicio. Puedes tener hasta <strong>3 banners activos</strong>.</p>
+        
+        <div class="glass-card">
+          <form id="banner-form" class="admin-form" enctype="multipart/form-data">
+            <div class="form-grid">
+              <div class="field-group">
+                <label for="banner-nombre">Nombre de Referencia</label>
+                <input id="banner-nombre" name="nombre" type="text" placeholder="Ej: Oferta Navidad" />
+              </div>
+              <div class="field-group">
+                <label for="banner-imagen">Archivo de Imagen (Recomendado: 1920x600px)</label>
+                <input id="banner-imagen" name="imagen" type="file" accept="image/*" required />
+              </div>
+            </div>
+            <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
+              <button type="submit" class="admin-btn-primary">Subir Banner</button>
+              <span id="banner-status" style="font-weight:500;"></span>
+            </div>
+          </form>
+        </div>
 
-        <form id="logo-form" enctype="multipart/form-data" style="max-width:640px;">
-          <div class="field">
-            <label for="logo-nombre">Nombre</label>
-            <input id="logo-nombre" name="nombre" type="text" placeholder="Ej: Logo principal" />
-          </div>
-          <div class="field">
-            <label for="logo-imagen">Logo</label>
-            <input id="logo-imagen" name="imagen" type="file" accept="image/*" required />
-          </div>
-          <button type="submit" class="btn-primary">Subir logo</button>
-          <span id="logo-status" style="margin-left:8px;"></span>
-        </form>
-
-        <div style="margin-top:14px; font-weight:600;">Logos guardados</div>
-        <div id="logos-grid" class="img-preview-grid"></div>
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <h3 style="margin-top:0;">Banners Guardados</h3>
+          <div id="banners-grid" class="admin-grid-products"></div>
+        </div>
       </section>
-    </section>
 
-    <hr />
-
-    <section>
-      <h2>Productos</h2>
-      <div id="products-grid" class="products-grid"></div>
-    </section>
-
-    <hr />
-
-    <section id="library-section" style="display:none; margin-top: 1rem;">
-      <h2>Biblioteca de Imágenes</h2>
-      <form id="library-form" enctype="multipart/form-data" style="max-width:640px;">
-        <div class="field">
-          <label for="lib-nombre">Nombre</label>
-          <input id="lib-nombre" name="nombre" type="text" placeholder="Nombre descriptivo" required />
+      <!-- ================= LOGOS VIEW ================= -->
+      <section id="view-logos" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Logos y Branding</h2>
         </div>
-        <div class="field">
-          <label for="lib-imagen">Imagen</label>
-          <input id="lib-imagen" name="imagen" type="file" accept="image/*" required />
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Sube logos y asegúrate de marcar <strong>uno</strong> como principal.</p>
+        
+        <div class="glass-card">
+          <form id="logo-form" class="admin-form" enctype="multipart/form-data">
+            <div class="form-grid">
+              <div class="field-group">
+                <label for="logo-nombre">Nombre Descriptivo</label>
+                <input id="logo-nombre" name="nombre" type="text" placeholder="Ej: Logo Blanco" />
+              </div>
+              <div class="field-group">
+                <label for="logo-imagen">Archivo de Logo (PNG/SVG recomendado)</label>
+                <input id="logo-imagen" name="imagen" type="file" accept="image/*" required />
+              </div>
+            </div>
+            <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
+              <button type="submit" class="admin-btn-primary">Subir Logo</button>
+              <span id="logo-status" style="font-weight:500;"></span>
+            </div>
+          </form>
         </div>
-        <button type="submit" class="btn-primary">Subir a Biblioteca</button>
-        <span id="library-status" style="margin-left:8px;"></span>
-      </form>
-      <div style="margin:1rem 0; font-weight:600;">Imágenes guardadas</div>
-      <div id="library-grid" class="img-preview-grid"></div>
-    </section>
-  </main>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <h3 style="margin-top:0;">Logos Guardados</h3>
+          <div id="logos-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+      <!-- ================= BIBLIOTECA VIEW ================= -->
+      <section id="view-library" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Biblioteca de Imágenes</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Almacena imágenes reutilizables. Podrás seleccionarlas al momento de crear un producto.</p>
+        
+        <div class="glass-card">
+          <form id="library-form" class="admin-form" enctype="multipart/form-data">
+            <div class="form-grid">
+              <div class="field-group">
+                <label for="lib-nombre">Nombre de la Imagen</label>
+                <input id="lib-nombre" name="nombre" type="text" placeholder="Ej: Empaque 500g" required />
+              </div>
+              <div class="field-group">
+                <label for="lib-imagen">Archivo de Imagen</label>
+                <input id="lib-imagen" name="imagen" type="file" accept="image/*" required />
+              </div>
+            </div>
+            <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
+              <button type="submit" class="admin-btn-primary">Subir a Biblioteca</button>
+              <span id="library-status" style="font-weight:500;"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <h3 style="margin-top:0;">Todas las Imágenes</h3>
+          <div id="library-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
 
   <script src="/admin-page.js" type="module"></script>
 </body>

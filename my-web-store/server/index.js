@@ -33,7 +33,7 @@ function detectImageMime(buf) {
   if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return 'image/jpeg';
   if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return 'image/gif';
   if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
-      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'image/webp';
+    buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'image/webp';
   return null;
 }
 
@@ -119,9 +119,9 @@ app.post('/api/wompi/signature', (req, res) => {
 
     // Prioridad:
     //  1) redirectUrl absoluto (https://...)
-    //  2) redirectPath relativo (/confirmacion.html?...)
-    //  3) fallback /checkout.html
-    let finalRedirect = `${base}/checkout.html`;
+    //  2) redirectPath relativo (/confirmacion?...)
+    //  3) fallback /checkout
+    let finalRedirect = `${base}/checkout`;
     if (cleanedRedirectUrl) {
       finalRedirect = cleanedRedirectUrl;
     } else if (cleanedRedirectPath) {
@@ -303,9 +303,32 @@ app.get('/api/admin/me', (req, res) => {
   res.json({ ok: true, user: data.user });
 });
 
+// --- Chatbot Proxy API ---
+app.post('/api/chatbot', async (req, res) => {
+  try {
+    const n8nUrl = "https://kosworkflows.app.n8n.cloud/webhook/80c056d6-4d10-403f-baf1-543573696dff";
+    const response = await fetch(n8nUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { output: text };
+    }
+    res.status(response.status).json(data);
+  } catch (error) {
+    console.error('Error Proxy Chatbot:', error);
+    res.status(500).json({ error: 'Fallo al conectar con n8n' });
+  }
+});
+
 // Servir frontend estático
 const staticDir = path.resolve(__dirname, '..', 'src');
-app.use(express.static(staticDir));
+app.use(express.static(staticDir, { extensions: ['html'] }));
 
 // Inicializar esquema SQL y conexión
 db.ensureSchema().then(() => console.log('SQL Server schema ensured')).catch(err => console.error('Error asegurando esquema SQL', err));
@@ -358,7 +381,7 @@ app.get('/api/upload-sas', async (req, res) => {
     if (!accountName || !accountKey) return res.status(500).json({ error: 'missing_storage_credentials' });
     const originalName = req.query.name || `upload-${Date.now()}`;
     const contentType = req.query.contentType || 'application/octet-stream';
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${originalName}`;
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${originalName}`;
     const blobName = rootPath ? `${rootPath}/${filename}` : filename;
 
     const credential = new StorageSharedKeyCredential(accountName, accountKey);
@@ -558,7 +581,7 @@ app.post('/api/biblioteca', requireAdmin, libUpload.single('imagen'), async (req
     if (!nombre || !req.file) return res.status(400).json({ message: 'nombre e imagen son requeridos' });
     if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
 
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${req.file.originalname}`;
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
     const blobName = rootPath ? `${rootPath}/${filename}` : filename;
     const containerClient = blobServiceClient.getContainerClient(containerName);
     try {
@@ -799,12 +822,12 @@ app.delete('/api/biblioteca/:id', requireAdmin, async (req, res) => {
           const path = u.pathname.replace(/^\//, '');
           const idx = path.indexOf('/');
           if (idx >= 0) {
-              const cont = path.slice(0, idx);
-              const blobName = path.slice(idx + 1);
-              const decodedBlobName = decodeURIComponent(blobName);
-              const containerClient = blobServiceClient.getContainerClient(cont);
-              const blockClient = containerClient.getBlockBlobClient(decodedBlobName);
-              await blockClient.deleteIfExists();
+            const cont = path.slice(0, idx);
+            const blobName = path.slice(idx + 1);
+            const decodedBlobName = decodeURIComponent(blobName);
+            const containerClient = blobServiceClient.getContainerClient(cont);
+            const blockClient = containerClient.getBlockBlobClient(decodedBlobName);
+            await blockClient.deleteIfExists();
           }
         }
       } catch (delErr) {
@@ -891,48 +914,48 @@ async function resolveCategory(input) {
 
 // Crear producto (con sanitización de numéricos)
 app.post('/api/products', requireAdmin, async (req, res) => {
-    try {
-      // Support JSON body with images array (URLs).
-      const b = req.body || {};
-      const codigo_siesa = (b.codigo_siesa || b.codigo || '').toString().trim();
-      const name = (b.name || b.Nombre || '').toString().trim();
-      // Resolve category (id or textual) to numeric Id
-      const categoryParam = await resolveCategory(b.category);
-      const description = (b.description || b.Descripcion || '').toString().trim();
-      const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
-      const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
-      if (!name) return res.status(400).json({ message: 'Nombre requerido' });
+  try {
+    // Support JSON body with images array (URLs).
+    const b = req.body || {};
+    const codigo_siesa = (b.codigo_siesa || b.codigo || '').toString().trim();
+    const name = (b.name || b.Nombre || '').toString().trim();
+    // Resolve category (id or textual) to numeric Id
+    const categoryParam = await resolveCategory(b.category);
+    const description = (b.description || b.Descripcion || '').toString().trim();
+    const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
+    const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
+    if (!name) return res.status(400).json({ message: 'Nombre requerido' });
 
-      // images: can be array or JSON string
-      let images = [];
-      if (b.images) {
-        if (typeof b.images === 'string') {
-          try { images = JSON.parse(b.images); } catch { images = [b.images]; }
-        } else if (Array.isArray(b.images)) images = b.images;
-      }
-      // Enforce max 4 images
-      if (images.length > 4) return res.status(400).json({ message: 'Máximo 4 imágenes permitido' });
+    // images: can be array or JSON string
+    let images = [];
+    if (b.images) {
+      if (typeof b.images === 'string') {
+        try { images = JSON.parse(b.images); } catch { images = [b.images]; }
+      } else if (Array.isArray(b.images)) images = b.images;
+    }
+    // Enforce max 4 images
+    if (images.length > 4) return res.status(400).json({ message: 'Máximo 4 imágenes permitido' });
 
-      // map to image2..image4 (image1 stored in images[0] inside images JSON)
-      const img2 = images[1] || '';
-      const img3 = images[2] || '';
-      const img4 = images[3] || '';
+    // map to image2..image4 (image1 stored in images[0] inside images JSON)
+    const img2 = images[1] || '';
+    const img3 = images[2] || '';
+    const img4 = images[3] || '';
 
-      // Validate categoryParam resolved and exists (FK)
-      if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
-      console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad });
-      const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4) 
+    // Validate categoryParam resolved and exists (FK)
+    if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
+    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad });
+    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4) 
         OUTPUT INSERTED.id
         VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4);`, {
-        codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4
-      });
-      const newId = resIns[0] && resIns[0].id;
-      res.status(201).json({ ok: true, id: newId });
-    } catch (e) {
-      console.error('POST /api/products error', e);
-      res.status(500).json({ message: 'Error creando producto' });
-    }
-  });
+      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4
+    });
+    const newId = resIns[0] && resIns[0].id;
+    res.status(201).json({ ok: true, id: newId });
+  } catch (e) {
+    console.error('POST /api/products error', e);
+    res.status(500).json({ message: 'Error creando producto' });
+  }
+});
 app.delete('/api/products/:id', async (req, res) => {
   // proteger borrado
   const { adminToken } = getCookies(req);
@@ -983,7 +1006,7 @@ app.get('/api/precio', async (req, res) => {
       const prodDocs = await db.query('SELECT cantidad FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
       escalones = prodDocs.map(p => p.cantidad).filter(Number.isFinite).map(Number);
     }
-    escalones = escalones.filter(c => Number.isFinite(c)).sort((a,b) => a-b);
+    escalones = escalones.filter(c => Number.isFinite(c)).sort((a, b) => a - b);
     if (!escalones.length) return res.status(404).json({ message: 'No hay escalones disponibles para el código', codigo });
 
     // Selección floor
@@ -999,14 +1022,18 @@ app.get('/api/precio', async (req, res) => {
     const escalonNum = Number(escalon);
     const query = {
       $and: [
-        { $or: [
-          { codigo: codigoStr }, { Codigo: codigoStr },
-          ...(Number.isFinite(codigoNum) ? [ { codigo: codigoNum }, { Codigo: codigoNum } ] : [])
-        ] },
-        { $or: [
-          { cantidad: escalonNum }, { Cantidad: escalonNum },
-          { cantidad: String(escalonNum) }, { Cantidad: String(escalonNum) }
-        ] }
+        {
+          $or: [
+            { codigo: codigoStr }, { Codigo: codigoStr },
+            ...(Number.isFinite(codigoNum) ? [{ codigo: codigoNum }, { Codigo: codigoNum }] : [])
+          ]
+        },
+        {
+          $or: [
+            { cantidad: escalonNum }, { Cantidad: escalonNum },
+            { cantidad: String(escalonNum) }, { Cantidad: String(escalonNum) }
+          ]
+        }
       ]
     };
     // try direct match in SQL
@@ -1020,10 +1047,10 @@ app.get('/api/precio', async (req, res) => {
       // Fallback: buscar el producto con mayor Cantidad <= escalon (ya debería ser escalon) o el máximo disponible para el código
       const allCode = await db.query('SELECT * FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
       const withQty = allCode.map(p => ({ doc: p, qty: Number(p.cantidad) })).filter(x => Number.isFinite(x.qty));
-      const floorCandidates = withQty.filter(x => x.qty <= escalonNum).sort((a,b) => b.qty - a.qty);
+      const floorCandidates = withQty.filter(x => x.qty <= escalonNum).sort((a, b) => b.qty - a.qty);
       if (floorCandidates.length) chosen = floorCandidates[0].doc; else if (withQty.length) {
         // usar el menor o mayor según regla? usamos mayor (último escalón) consistente con política previa
-        chosen = withQty.sort((a,b) => b.qty - a.qty)[0].doc;
+        chosen = withQty.sort((a, b) => b.qty - a.qty)[0].doc;
       }
       if (!chosen) {
         return res.status(404).json({ message: 'Sin productos asociados al código', codigo: codigoStr });
@@ -1207,7 +1234,7 @@ app.post('/api/upload-file', requireAdmin, directUpload.single('file'), async (r
     if (!req.file) return res.status(400).json({ error: 'missing_file' });
     if (!blobServiceClient) return res.status(500).json({ error: 'storage_not_configured' });
 
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}-${req.file.originalname}`;
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
     const blobName = rootPath ? `${rootPath}/${filename}` : filename;
     const containerClient = blobServiceClient.getContainerClient(containerName);
     try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }

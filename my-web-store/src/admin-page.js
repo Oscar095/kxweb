@@ -68,11 +68,11 @@ async function loadProducts() {
         if (!prod) return;
 
         const form = $('#product-form');
-    form.codigo_siesa ? form.codigo_siesa.value = prod.codigo_siesa || '' : (form.querySelector('#p-codigo').value = prod.codigo_siesa || '');
-    form.id.value = prod.id;
-    form.name.value = prod.name || '';
-    if (form['price_unit']) form['price_unit'].value = prod.price_unit != null ? prod.price_unit : '';
-    if (form['cantidad']) form['cantidad'].value = prod.cantidad != null ? prod.cantidad : (prod.Cantidad != null ? prod.Cantidad : '');
+        form.codigo_siesa ? form.codigo_siesa.value = prod.codigo_siesa || '' : (form.querySelector('#p-codigo').value = prod.codigo_siesa || '');
+        form.id.value = prod.id;
+        form.name.value = prod.name || '';
+        if (form['price_unit']) form['price_unit'].value = prod.price_unit != null ? prod.price_unit : '';
+        if (form['cantidad']) form['cantidad'].value = prod.cantidad != null ? prod.cantidad : (prod.Cantidad != null ? prod.Cantidad : '');
         // Ensure category select has the current value
         const sel = form.category;
         const val = prod.category || '';
@@ -100,7 +100,7 @@ async function loadProducts() {
         const cq = Number(form.querySelector('#p-cantidad')?.value);
         const totalEl = document.getElementById('p-price');
         if (totalEl && Number.isFinite(pu) && Number.isFinite(cq)) totalEl.value = (pu * cq).toFixed(0);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
       });
     });
 
@@ -133,7 +133,7 @@ async function submitForm(ev) {
 
   try {
     // Build payload (send JSON). Upload selected files to Azure Blob using SAS signed by backend.
-    const idParam = (formEl.id && formEl.id.value) ? formEl.id.value : (formEl._id ? formEl._id.value : '' ) || formEl.querySelector('#p-id')?.value || '';
+    const idParam = (formEl.id && formEl.id.value) ? formEl.id.value : (formEl._id ? formEl._id.value : '') || formEl.querySelector('#p-id')?.value || '';
     const payload = {};
     payload.codigo_siesa = formEl.querySelector('#p-codigo')?.value || '';
     payload.name = formEl.querySelector('#p-name')?.value || '';
@@ -143,13 +143,13 @@ async function submitForm(ev) {
     payload.description = formEl.querySelector('#p-desc')?.value || '';
 
     // Files selected
-      const fileInput = document.getElementById('p-images');
-      const files = fileInput ? Array.from(fileInput.files) : [];
-      const libCount = (window.__libSelected || []).length;
-      if (libCount + files.length > 4) {
-        status.textContent = 'No se pueden agregar más de 4 imágenes (incluyendo biblioteca)';
-        return;
-      }
+    const fileInput = document.getElementById('p-images');
+    const files = fileInput ? Array.from(fileInput.files) : [];
+    const libCount = (window.__libSelected || []).length;
+    if (libCount + files.length > 4) {
+      status.textContent = 'No se pueden agregar más de 4 imágenes (incluyendo biblioteca)';
+      return;
+    }
     const uploadedUrls = [];
     for (const f of files) {
       const url = await uploadFileFromBrowser(f);
@@ -165,8 +165,8 @@ async function submitForm(ev) {
 
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), credentials: 'same-origin' });
     if (!res.ok) {
-      const txt = await res.text().catch(()=>'');
-      let msg = txt; try { msg = JSON.parse(txt).message || txt; } catch {}
+      const txt = await res.text().catch(() => '');
+      let msg = txt; try { msg = JSON.parse(txt).message || txt; } catch { }
       status.textContent = 'Error: ' + (msg || 'No se pudo guardar');
       return;
     }
@@ -194,7 +194,7 @@ async function uploadFileFromBrowser(file) {
   fd.append('file', file, file.name);
   const r = await fetch('/api/upload-file', { method: 'POST', body: fd, credentials: 'same-origin' });
   if (!r.ok) {
-    const txt = await r.text().catch(()=>null);
+    const txt = await r.text().catch(() => null);
     throw new Error('upload_failed ' + (txt || r.status));
   }
   const j = await r.json();
@@ -237,7 +237,7 @@ async function initAdmin() {
   // Also populate categories list UI
   try {
     await loadCategoriesList();
-  } catch (e) {}
+  } catch (e) { }
 
   $('#product-form').addEventListener('submit', submitForm);
   $('#p-images').addEventListener('change', (e) => renderNewPreviews(e.target.files));
@@ -325,46 +325,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     await showLogin();
   });
 
-  // Tab buttons
-  document.getElementById('show-categories-tab')?.addEventListener('click', () => {
-    document.getElementById('category-section').style.display = '';
-    const bs = document.getElementById('banner-section');
-    if (bs) bs.style.display = 'none';
-    const ls = document.getElementById('logo-section');
-    if (ls) ls.style.display = 'none';
-    // optionally hide product form area
-    // keep product form visible too but scroll to categories
-    document.getElementById('category-section').scrollIntoView({ behavior: 'smooth' });
-  });
-  document.getElementById('show-products-tab')?.addEventListener('click', () => {
-    document.getElementById('category-section').style.display = 'none';
-    const bs = document.getElementById('banner-section');
-    if (bs) bs.style.display = 'none';
-    const ls = document.getElementById('logo-section');
-    if (ls) ls.style.display = 'none';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
+  // Sidebar Navigation Routing
+  const navs = [
+    { nav: 'nav-products', view: 'view-products' },
+    { nav: 'nav-categories', view: 'view-categories', load: loadCategoriesList },
+    { nav: 'nav-banners', view: 'view-banners', load: loadBanners },
+    { nav: 'nav-logos', view: 'view-logos', load: loadLogos },
+    { nav: 'nav-library', view: 'view-library', load: loadLibrary },
+  ];
 
-  document.getElementById('show-banners-tab')?.addEventListener('click', async () => {
-    const cs = document.getElementById('category-section');
-    if (cs) cs.style.display = 'none';
-    const bs = document.getElementById('banner-section');
-    if (bs) bs.style.display = '';
-    const ls = document.getElementById('logo-section');
-    if (ls) ls.style.display = 'none';
-    await loadBanners();
-    bs?.scrollIntoView({ behavior: 'smooth' });
-  });
+  function switchView(viewId) {
+    navs.forEach(n => {
+      document.getElementById(n.view)?.classList.remove('active');
+      document.getElementById(n.nav)?.classList.remove('active');
+    });
+    const target = navs.find(n => n.view === viewId);
+    if (target) {
+      document.getElementById(target.view)?.classList.add('active');
+      document.getElementById(target.nav)?.classList.add('active');
+      if (target.load) target.load();
+      document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
 
-  document.getElementById('show-logos-tab')?.addEventListener('click', async () => {
-    const cs = document.getElementById('category-section');
-    if (cs) cs.style.display = 'none';
-    const bs = document.getElementById('banner-section');
-    if (bs) bs.style.display = 'none';
-    const ls = document.getElementById('logo-section');
-    if (ls) ls.style.display = '';
-    await loadLogos();
-    ls?.scrollIntoView({ behavior: 'smooth' });
+  navs.forEach(n => {
+    document.getElementById(n.nav)?.addEventListener('click', () => {
+      switchView(n.view);
+    });
   });
 
   // Category form handlers
@@ -380,7 +367,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const url = id ? `/api/categories/${encodeURIComponent(id)}` : '/api/categories';
       const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), credentials: 'same-origin' });
       if (!r.ok) {
-        const txt = await r.text().catch(()=>'');
+        const txt = await r.text().catch(() => '');
         alert('Error: ' + txt);
         return;
       }
@@ -416,14 +403,14 @@ async function loadCategoriesList() {
       edit.addEventListener('click', () => {
         document.getElementById('cat-id').value = c.id;
         document.getElementById('cat-desc').value = c.descripcion || c.nombre || '';
-        document.getElementById('show-categories-tab')?.click();
+        document.getElementById('nav-categories')?.click();
       });
       const del = document.createElement('button'); del.textContent = 'Eliminar'; del.type = 'button'; del.style.background = '#d9534f'; del.style.color = '#fff';
       del.addEventListener('click', async () => {
         if (!confirm(`Eliminar categoría #${c.id}?`)) return;
         try {
           const rr = await fetch(`/api/categories/${encodeURIComponent(c.id)}`, { method: 'DELETE', credentials: 'same-origin' });
-          if (!rr.ok) { const t = await rr.text().catch(()=>''); alert('Error: ' + t); return; }
+          if (!rr.ok) { const t = await rr.text().catch(() => ''); alert('Error: ' + t); return; }
           await loadCategoriesList();
           await initAdmin();
         } catch (err) { console.error(err); alert('Error eliminando'); }
@@ -474,7 +461,7 @@ async function loadLibrary() {
           await navigator.clipboard.writeText(it.url);
           copyBtn.textContent = 'Copiado!';
           setTimeout(() => (copyBtn.textContent = 'Copiar URL'), 1200);
-        } catch {}
+        } catch { }
       });
 
       const delBtn = document.createElement('button');

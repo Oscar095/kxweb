@@ -28,8 +28,7 @@ export function productItemTemplate(p) {
     <article class="product" data-id="${p.id}">
       <div class="product-media">
         <div class="product-img-wrap" data-index="0" style="position:relative;">
-          <div class="img-lens"></div>
-          <a href="/product.html?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
+          <a href="/product?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
             <img class="product-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
           </a>
           ${Array.isArray(p.images) && p.images.length > 1 ? `
@@ -39,13 +38,13 @@ export function productItemTemplate(p) {
         </div>
       </div>
       <div>
-        <a href="/product.html?id=${p.id}" class="product-link" style="color:inherit;text-decoration:none"><h3>${p.name}</h3></a>
+        <a href="/product?id=${p.id}" class="product-link" style="color:inherit;text-decoration:none"><h3>${p.name}</h3></a>
   <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">$${formatMoney(totalPerBox)} <span style="font-size:0.7rem;color:#666;">/ caja</span></p>
       </div>
       <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
         <label for="${qtyInputId}" class="qty-label" style="font-size:0.9rem;">Cantidad</label>
         <input id="${qtyInputId}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" style="width:64px;padding:4px;" data-dynamic-price="1">
-        <button class="add-to-cart" data-id="${p.id}";">Agregar</button>
+        <button class="add-to-cart btn-primary" data-id="${p.id}" style="padding: 8px 16px; font-size: 0.95rem;">Agregar</button>
       </div>
     </article>
   `;
@@ -99,7 +98,7 @@ export function attachDynamicPriceBehavior(rootEl) {
       }
     }
     const precioCaja = unitario * BOX_SIZE;
-  priceEl.textContent = '$' + fmt(precioCaja) + ' / caja';
+    priceEl.textContent = '$' + fmt(precioCaja) + ' / caja';
     priceEl.dataset.precioCaja = String(precioCaja);
     if (data?.escalonUsado) {
       priceEl.dataset.dynamicEscalon = String(data.escalonUsado);
@@ -119,7 +118,7 @@ export function attachDynamicPriceBehavior(rootEl) {
       });
       const base = priceEl.getAttribute('data-base-price') || '0';
       if (!r.ok) {
-        try { await r.json(); } catch {}
+        try { await r.json(); } catch { }
         renderUnitBoxPrice(null, base);
         priceEl.classList.remove('loading');
         return;

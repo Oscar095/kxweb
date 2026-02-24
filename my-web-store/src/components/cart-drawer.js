@@ -42,7 +42,7 @@ export function renderCartDrawer(mount) {
     return Array.from(map.values());
   }
 
-  function update(items){
+  function update(items) {
     const grouped = groupItems(items);
     const body = document.getElementById('cart-body');
     body.innerHTML = grouped.length ? grouped.map(i => `
@@ -61,8 +61,8 @@ export function renderCartDrawer(mount) {
       </div>
     `).join('') : '<div>Tu carrito está vacío</div>';
 
-  const total = grouped.reduce((s, it) => s + it.subtotal, 0);
-  document.getElementById('cart-total').textContent = `Total: $${formatMoney(total)}`;
+    const total = grouped.reduce((s, it) => s + it.subtotal, 0);
+    document.getElementById('cart-total').textContent = `Total: $${formatMoney(total)}`;
   }
 
   cartService.onChange = update;
@@ -72,7 +72,7 @@ export function renderCartDrawer(mount) {
   mount.querySelector('#clear-cart').addEventListener('click', () => {
     if (confirm('¿Vaciar todo el carrito?')) cartService.clear();
   });
-  mount.addEventListener('click', (e)=> {
+  mount.addEventListener('click', (e) => {
     const removeBtn = e.target.closest('.remove');
     if (removeBtn) {
       cartService.remove(Number(removeBtn.dataset.id));
@@ -110,6 +110,6 @@ export function renderCartDrawer(mount) {
 
   // reemplaza el listener del botón checkout por:
   mount.querySelector('#checkout').addEventListener('click', () => {
-    window.location.href = 'checkout.html';
+    window.location.href = '/checkout';
   });
 }
