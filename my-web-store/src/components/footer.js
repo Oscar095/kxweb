@@ -10,7 +10,7 @@ export function renderFooter(mount) {
         gap:32px; /* doble separación */
         flex-wrap:wrap; 
         text-align:left;
-        color: #fff;
+        color: var(--text-main);
       }
       .footer-left { flex:1 1 320px; font-size:16px; text-align:center; }
       .footer-left br { line-height:1; }
@@ -48,7 +48,7 @@ export function renderFooter(mount) {
       </div>
       <div class="footer-right">
         <div class="footer-map-wrapper">
-          <h3 style="margin:0 0 8px;font-size:18px;font-weight:600;color:#fff;">¿Dónde estamos ubicados?</h3>
+          <h3 style="margin:0 0 8px;font-size:18px;font-weight:600;color:var(--text-main);">¿Dónde estamos ubicados?</h3>
           <iframe title="Ubicación Kos Xpress" src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d509699.4414915121!2d-76.4916!3d3.5812979999999994!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e30aa48036190e3%3A0x3bc28d96060bf132!2sCl.%2010%20%23%206-21%2C%20Br.%20Puerto%20Isaac%2C%20Yumbo%2C%20Valle%20del%20Cauca%2C%20Colombia!5e0!3m2!1ses!2sus!4v1759518577768!5m2!1ses!2sus" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
       </div>

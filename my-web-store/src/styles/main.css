@@ -843,13 +843,16 @@ h6 {
 
 /* Footer */
 .site-footer {
-	background: linear-gradient(135deg, #001F33 0%, #004D70 100%);
+	background: var(--glass-bg);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
 	padding: 40px 0 20px;
 	margin-top: 60px;
 	text-align: center;
-	color: #fff;
+	color: var(--text-main);
 	font-size: 15px;
-	border-top: 4px solid var(--secondary)
+	border-top: 1px solid var(--glass-border);
+	box-shadow: 0 -8px 32px var(--glass-shadow);
 }
 
 .footer-inner {
@@ -869,14 +872,14 @@ h6 {
 }
 
 .social-link {
-	color: #fff;
+	color: var(--text-main);
 	text-decoration: none;
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
 	padding: 8px;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.1);
+	background: rgba(0, 0, 0, 0.05);
 	transition: all .3s ease;
 }
 
