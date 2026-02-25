@@ -34,7 +34,7 @@ export function renderHeader(container) {
       <nav class="nav nav-animated">
         <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
         <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
-        <a href="/admin" class="nav-link" data-nav="admin">Admin</a>
+
         <span class="nav-rect"></span>
       </nav>
       <div class="search">

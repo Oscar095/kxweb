@@ -60,7 +60,27 @@ async function init() {
     const btnBack = document.getElementById('btn-back-categories');
     const catalogTitle = document.getElementById('current-category-title');
 
-    // Funciones de navegación (SPA mode)
+    // Funciones de navegación (SPA mode)    
+    window.pMatcher = (p, cQuery) => {
+      const pCat = String(p.category_name || '').toLowerCase();
+      const pName = String(p.name || '').toLowerCase();
+      const pStr = pCat + " " + pName + " " + String(p.description || '').toLowerCase();
+      const catNameLower = String(cQuery || '').toLowerCase();
+
+      if (String(p.category) === catNameLower || pCat === catNameLower) return true;
+      if (catNameLower.includes('vasos')) {
+        if (catNameLower.includes('caliente') && (pCat.includes('generica') || pName.includes('7oz') || pName.includes('vasos'))) return true;
+        if (catNameLower.includes('fría') && (pCat.includes('fria') || pStr.includes('fria') || pName.includes('9oz'))) return true;
+      }
+      if (catNameLower.includes('contenedor') && pStr.includes('contenedor')) return true;
+      if (catNameLower.includes('tapa') && pStr.includes('tapa')) return true;
+      if (catNameLower.includes('empaque') && pStr.includes('empaque')) return true;
+      if (catNameLower.includes('plato') && pStr.includes('plato')) return true;
+      if (catNameLower.includes('porta') && pStr.includes('porta')) return true;
+
+      return false;
+    };
+
     const showCategories = () => {
       if (productsMount) productsMount.style.display = 'none';
       if (catalogNav) catalogNav.style.display = 'none';
@@ -85,113 +105,100 @@ async function init() {
         categoryHub.style.display = 'block';
 
         categoryHub.innerHTML = `
-          <button class="cat-nav-btn cat-nav-prev" aria-label="Anterior">&#10094;</button>
-          <div class="category-track" id="cat-track">
-            ${userCategories.map(c => `
+          <div class="category-grid-vertical" id="cat-track">
+            ${userCategories.map(c => {
+          // 1) Find all products matching this category
+          const catProducts = products.filter(p => window.pMatcher(p, c.nombre));
+
+          // 2) Gather all unique images from these products
+          const allCatImages = new Set();
+          allCatImages.add(c.img); // Always include the default
+          catProducts.forEach(p => {
+            if (p.image) allCatImages.add(p.image);
+            if (Array.isArray(p.images)) p.images.forEach(img => allCatImages.add(img));
+            if (p.image2) allCatImages.add(p.image2);
+            if (p.image3) allCatImages.add(p.image3);
+            if (p.image4) allCatImages.add(p.image4);
+          });
+          const imgArray = Array.from(allCatImages).filter(img => img && img !== '/images/placeholder.svg');
+          const imagesJson = JSON.stringify(imgArray).replace(/"/g, '&quot;');
+
+          // 3) Build dynamic description string
+          let desc = "Descubre las mejores opciones que brindamos para esta categoría de nuestra tienda.";
+          if (catProducts.length > 0) {
+            // Get up to 4 distinct product names
+            const names = Array.from(new Set(catProducts.map(p => p.name).filter(Boolean))).slice(0, 4);
+            if (names.length > 0) {
+              const last = names.pop();
+              const listStr = names.length > 0 ? names.join(', ') + ' y ' + last : last;
+              desc = `Explora nuestra variedad de ${c.nombre}, incluyendo: ${listStr} y mucho más.`;
+            }
+          }
+
+          return `
               <div class="category-card" data-cat="${c.id}">
-                <img src="${c.img}" alt="${c.nombre}" loading="lazy" draggable="false">
+                <div class="cat-image-wrapper">
+                  <img src="${c.img}" alt="${c.nombre}" loading="lazy" draggable="false" class="cat-hero-img" data-images="${imagesJson}">
+                </div>
                 <div class="category-content">
-                  <h3>${c.nombre}</h3>
-                  <p>Explorar opciones</p>
+                  <div class="cat-content-inner">
+                    <h3>${c.nombre}</h3>
+                    <p class="cat-desc">${desc}</p>
+                    <span class="btn-explore">Explorar opciones &#8594;</span>
+                  </div>
                 </div>
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
-          <button class="cat-nav-btn cat-nav-next" aria-label="Siguiente">&#10095;</button>
         `;
 
         // Obtener elementos recién creados buscando DENTRO de categoryHub
         const track = categoryHub.querySelector('#cat-track');
-        const btnPrev = categoryHub.querySelector('.cat-nav-prev');
-        const btnNext = categoryHub.querySelector('.cat-nav-next');
 
-        let exactScroll = 0;
-        let isDown = false;
-        let startX;
-        let scrollLeftPos = 0;
-        let isDragging = false;
-        let isHovered = false;
+        // Random Image Rotation Logic
+        const catImages = categoryHub.querySelectorAll('.cat-hero-img');
+        if (catImages.length > 0) {
+          setInterval(() => {
+            catImages.forEach(imgEl => {
+              try {
+                const rawData = imgEl.getAttribute('data-images');
+                if (!rawData) return;
+                const imgList = JSON.parse(rawData);
+                if (Array.isArray(imgList) && imgList.length > 1) {
+                  // Pick a random image different from the current one
+                  let nextImg = imgEl.src;
+                  let attempts = 0;
+                  while (attempts < 5 && (nextImg === imgEl.src || nextImg.includes(imgEl.src))) {
+                    nextImg = imgList[Math.floor(Math.random() * imgList.length)];
+                    attempts++;
+                  }
 
-        // Auto desplazamiento suave continuo (Ticker)
-        const autoScroll = () => {
-          if (!isDown && !isHovered && track) {
-            track.style.scrollSnapType = 'none'; // Sin snap para movimiento fluido
-            exactScroll += 0.5; // Muy lento
-            if (exactScroll >= track.scrollWidth - track.clientWidth - 1) {
-              exactScroll = 0; // Reinicia al llegar al final
-            }
-            track.scrollLeft = exactScroll;
-          } else if (track) {
-            exactScroll = track.scrollLeft;
-          }
-          requestAnimationFrame(autoScroll);
-        };
-        requestAnimationFrame(autoScroll);
-
-        // Pausar auto-scroll si el mouse esta encima del contenedor completo
-        categoryHub.addEventListener('mouseenter', () => isHovered = true);
-        categoryHub.addEventListener('mouseleave', () => {
-          isDown = false;
-          isHovered = false;
-          if (track) track.style.cursor = 'grab';
-        });
-
-        // Navegacion con flechas
-        if (btnPrev && btnNext && track) {
-          btnPrev.addEventListener('click', (e) => {
-            e.stopPropagation(); // Evita clicks propagados
-            track.scrollBy({ left: -328, behavior: 'smooth' });
-          });
-          btnNext.addEventListener('click', (e) => {
-            e.stopPropagation();
-            track.scrollBy({ left: 328, behavior: 'smooth' });
-          });
+                  // Trigger fade transition
+                  imgEl.classList.add('fade-out');
+                  setTimeout(() => {
+                    imgEl.src = nextImg;
+                    imgEl.classList.remove('fade-out');
+                  }, 400); // Wait for fade out to complete before changing src
+                }
+              } catch (e) {
+                // ignore parsing errors
+              }
+            });
+          }, 5000); // Change images every 5 seconds
         }
 
-        // --- Integrar Lógica de Arrastre ---
+        // Integrar lógica de clic en la tarjeta
         if (track) {
-          track.addEventListener('mousedown', (e) => {
-            isDown = true;
-            isDragging = false;
-            track.style.cursor = 'grabbing';
-            track.style.scrollSnapType = 'none';
-            startX = e.pageX - track.offsetLeft;
-            scrollLeftPos = track.scrollLeft;
-          });
-
-          track.addEventListener('mouseup', () => {
-            isDown = false;
-            track.style.cursor = 'grab';
-            track.style.scrollSnapType = 'x mandatory';
-          });
-
-          track.addEventListener('mousemove', (e) => {
-            if (!isDown) return;
-            e.preventDefault();
-            const x = e.pageX - track.offsetLeft;
-            const walk = (x - startX) * 2;
-            if (Math.abs(walk) > 5) isDragging = true;
-            track.scrollLeft = scrollLeftPos - walk;
-          });
-
-          // Prevenir navegacion si estabamos arrastrando
           track.addEventListener('click', (e) => {
-            if (isDragging) {
-              e.preventDefault();
-              e.stopPropagation();
-              isDragging = false;
-              return;
-            }
-
-            // Si es un click normal en una tarjeta:
             const card = e.target.closest('.category-card');
             if (card) {
               const cat = card.dataset.cat;
-              showProducts(cat);
-              catalogNav.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              window.location.href = '/products?cat=' + encodeURIComponent(cat);
             }
-          }, { capture: true });
+          });
         }
+
+
       }
     };
 
@@ -200,11 +207,23 @@ async function init() {
       if (catalogNav) {
         catalogNav.style.display = 'flex';
         // Attempt to find the full category name if catVal is an id
-        const foundCat = categories.find(c => String(c.id) === String(catVal) || String(c.nombre) === String(catVal));
-        catalogTitle.textContent = (foundCat && foundCat.nombre) ? foundCat.nombre : (catVal || 'Resultados de Búsqueda');
+        const staticCat = userCategories && userCategories.find(c => String(c.id) === String(catVal));
+        const foundCat = categories.find(c => String(c.id) === String(catVal) || String(c.nombre) === String(catVal) || (staticCat && String(c.descripcion).toLowerCase() === staticCat.nombre.toLowerCase()));
+
+        catalogTitle.textContent = staticCat ? staticCat.nombre : ((foundCat && foundCat.descripcion) ? foundCat.descripcion : (catVal || 'Resultados de Búsqueda'));
+
+        const descEl = document.getElementById('current-category-desc');
+        if (descEl) {
+          if (foundCat && foundCat.descripcion) {
+            descEl.textContent = foundCat.descripcion;
+            descEl.style.display = 'block';
+          } else {
+            descEl.style.display = 'none';
+          }
+        }
       }
       if (productsMount) {
-        const filtered = catVal ? products.filter(p => String(p.category) === String(catVal) || String(p.category_name) === String(catVal) || String(p.categoria) === String(catVal)) : products;
+        const filtered = catVal ? products.filter(p => window.pMatcher(p, catVal)) : products;
         renderProducts(filtered, productsMount);
         productsMount.style.display = 'grid';
       }
@@ -233,6 +252,26 @@ async function init() {
       renderProducts(products, productsMount);
     }
 
+    // Toast notification system
+    const showToast = (msg) => {
+      let root = document.getElementById('toast-root');
+      if (!root) {
+        root = document.createElement('div');
+        root.id = 'toast-root';
+        document.body.appendChild(root);
+      }
+      const toast = document.createElement('div');
+      toast.className = 'toast-success';
+      toast.textContent = msg;
+      root.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    };
+
     // Delegado: manejar clicks "Agregar" y leer cantidad del input
     productsMount.addEventListener('click', (e) => {
       const btn = e.target.closest('.add-to-cart');
@@ -244,6 +283,7 @@ async function init() {
       const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
       cartService.add(product, qty);
       btn.classList.add('added');
+      showToast('Producto Agregado Exitosamente');
       setTimeout(() => btn.classList.remove('added'), 350);
     });
 
@@ -282,6 +322,8 @@ async function init() {
       if (catalogNav) {
         catalogNav.style.display = 'flex';
         catalogTitle.textContent = 'Resultados de Búsqueda';
+        const descEl = document.getElementById('current-category-desc');
+        if (descEl) descEl.style.display = 'none';
       }
       productsMount.style.display = 'grid';
       renderProducts(filtered, productsMount);

@@ -186,12 +186,12 @@ export function initChatbot() {
       <div class="kos-chatbot-header">
         <div style="display:flex; align-items:center; gap:8px;">
           <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.03 2 11c0 2.82 1.494 5.334 3.824 6.953C5.617 19.344 5.166 21 5.166 21s1.777-.113 3.655-1.121C9.696 20.301 10.82 20.5 12 20.5c5.523 0 10-4.03 10-9s-4.477-9-10-9z"/></svg>
-          <span>Asistente KOS</span>
+          <span>Koski Agent</span>
         </div>
         <button class="kos-chatbot-close">✕</button>
       </div>
       <div class="kos-chatbot-messages" id="chatbot-msg-container">
-        <div class="chatbot-msg bot">¡Hola! Soy tu asistente virtual de Kos Xpress. ¿En qué te puedo ayudar hoy? 😊</div>
+        <div class="chatbot-msg bot">Hola!, Soy Koski, tu Asistente de IA Personal, estoy para ayudarte en lo que necesitas 😊</div>
         <div class="typing-indicator" id="chatbot-typing">
           <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
         </div>

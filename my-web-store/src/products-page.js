@@ -2,8 +2,28 @@ import { renderHeader } from './components/header.js';
 import { renderProducts } from './components/product-list.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
-
 async function init() {
+  // Reusable fuzzy matcher
+  window.pMatcher = (p, cQuery) => {
+    const pCat = String(p.category_name || '').toLowerCase();
+    const pName = String(p.name || '').toLowerCase();
+    const pStr = pCat + " " + pName + " " + String(p.description || '').toLowerCase();
+    const catNameLower = String(cQuery || '').toLowerCase();
+
+    if (String(p.category) === catNameLower || pCat === catNameLower) return true;
+    if (catNameLower.includes('vasos')) {
+      if (catNameLower.includes('caliente') && (pCat.includes('generica') || pName.includes('7oz') || pName.includes('vasos'))) return true;
+      if (catNameLower.includes('fría') && (pCat.includes('fria') || pStr.includes('fria') || pName.includes('9oz'))) return true;
+    }
+    if (catNameLower.includes('contenedor') && pStr.includes('contenedor')) return true;
+    if (catNameLower.includes('tapa') && pStr.includes('tapa')) return true;
+    if (catNameLower.includes('empaque') && pStr.includes('empaque')) return true;
+    if (catNameLower.includes('plato') && pStr.includes('plato')) return true;
+    if (catNameLower.includes('porta') && pStr.includes('porta')) return true;
+
+    return false;
+  };
+
   renderHeader(document.getElementById('site-header'));
   renderCartDrawer(document.getElementById('cart-drawer'));
 
@@ -28,11 +48,80 @@ async function init() {
     for (const c of categories) {
       const btn = document.createElement('button');
       btn.className = 'cat-btn';
-      btn.dataset.cat = c.nombre;
-      btn.textContent = c.nombre;
+      const catName = c.nombre || c.descripcion || 'Sin Nombre';
+      btn.dataset.cat = catName;
+      btn.textContent = catName;
       catWrap.appendChild(btn);
     }
   }
+
+  // Parse URL parameter
+  const params = new URLSearchParams(window.location.search);
+  const initialCat = params.get('cat') || 'all';
+
+  // Create a function to filter and update the UI
+  const applyCategoryFilter = (cat) => {
+    const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
+    const descEl = document.getElementById('current-category-desc');
+
+    // Update active button state
+    document.querySelectorAll('.cat-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.cat === cat);
+    });
+
+    if (cat === 'all') {
+      if (titleEl) titleEl.textContent = 'Catálogo Completo';
+      if (descEl) descEl.style.display = 'none';
+      renderProducts(products, mount);
+    } else {
+      if (titleEl) titleEl.textContent = cat;
+      const foundCat = categories.find(c => String(c.nombre) === String(cat));
+
+      if (descEl) {
+        if (foundCat && foundCat.descripcion) {
+          descEl.textContent = foundCat.descripcion;
+          descEl.style.display = 'block';
+        } else {
+          // Dynamic text generation
+          const catProducts = products.filter(p => window.pMatcher(p, cat));
+          if (catProducts.length > 0) {
+            const names = Array.from(new Set(catProducts.map(p => p.name).filter(Boolean))).slice(0, 4);
+            const last = names.pop();
+            const listStr = names.length > 0 ? names.join(', ') + ' y ' + last : last || '';
+            descEl.textContent = `Explora nuestra variedad de ${cat}, incluyendo: ${listStr} y mucho más.`;
+            descEl.style.display = 'block';
+          } else {
+            descEl.style.display = 'none';
+          }
+        }
+      }
+      const filtered = products.filter(p => window.pMatcher(p, cat));
+      renderProducts(filtered, mount);
+    }
+  };
+
+  // Apply initial filter
+  applyCategoryFilter(initialCat);
+
+  // Toast notification system
+  const showToast = (msg) => {
+    let root = document.getElementById('toast-root');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'toast-root';
+      document.body.appendChild(root);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'toast-success';
+    toast.textContent = msg;
+    root.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(20px)';
+      toast.style.transition = 'all 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 2500);
+  };
 
   // Delegado: manejar clicks "Agregar" y leer cantidad del input
   mount.addEventListener('click', (e) => {
@@ -45,6 +134,7 @@ async function init() {
     const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
     cartService.add(product, qty);
     btn.classList.add('added');
+    showToast('Producto Agregado Exitosamente');
     setTimeout(() => btn.classList.remove('added'), 350);
   });
 
@@ -167,13 +257,17 @@ async function init() {
     catWrap.addEventListener('click', (e) => {
       const btn = e.target.closest('.cat-btn');
       if (!btn || !catWrap.contains(btn)) return;
-      catWrap.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+
+      const cat = btn.dataset.cat;
+      applyCategoryFilter(cat);
+
+      // Add small feedback class
       btn.classList.add('added');
       setTimeout(() => btn.classList.remove('added'), 350);
-      const cat = btn.dataset.cat;
-      if (cat === 'all') renderProducts(products, mount);
-      else renderProducts(products.filter(p => p.category === cat), mount);
+
+      // Update URL without reloading
+      const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + (cat === 'all' ? '' : '?cat=' + encodeURIComponent(cat));
+      window.history.pushState({ path: newurl }, '', newurl);
     });
   }
 }

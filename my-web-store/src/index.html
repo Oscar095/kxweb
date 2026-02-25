@@ -19,7 +19,6 @@
       <section id="hero" class="hero">
         <div class="hero-inner-glass">
           <div class="hero-content">
-            <span class="badge">Conoce Nuestros Productos</span>
             <h1>Soluciones Ideales en Empaques</h1>
             <p>Descubre nuestra línea de envases premium: vasos de distintos tamaños, contenedores genéricos y ediciones
               especiales diseñadas para destacar tu marca y conservar la calidad de tus productos.</p>
@@ -49,7 +48,7 @@
         </div>
       </section>
 
-      <section id="catalog" style="padding-top: 60px;">
+      <section id="catalog" style="padding-top: 20px;">
         <div class="container" style="text-align:center;">
           <h2 style="font-size: 2.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Descubre
             Nuestros Productos</h2>
@@ -59,7 +58,11 @@
 
         <div class="catalog-header container" style="display: none;" id="catalog-nav">
           <button id="btn-back-categories" class="btn-back"><span>←</span> Volver a Categorías</button>
-          <h3 id="current-category-title" style="margin:0; font-size:1.5rem; color: var(--primary);"></h3>
+          <div style="display: flex; flex-direction: column; align-items: flex-end;">
+            <h3 id="current-category-title" style="margin:0; font-size:1.5rem; color: var(--primary);"></h3>
+            <p id="current-category-desc" class="category-description"
+              style="margin: 8px 0 0 0; font-size: 1rem; text-align: right; max-width: 500px; display: none;"></p>
+          </div>
         </div>
 
         <section id="category-grid" class="category-hub container" style="display: none;"></section>
