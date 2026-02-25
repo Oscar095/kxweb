@@ -62,21 +62,41 @@ async function init() {
 
     // Funciones de navegación (SPA mode)    
     window.pMatcher = (p, cQuery) => {
-      const pCat = String(p.category_name || '').toLowerCase();
+      const pCat = String(p.category_name || p.category_nombre || p.category_desc || p.category || '').toLowerCase();
       const pName = String(p.name || '').toLowerCase();
-      const pStr = pCat + " " + pName + " " + String(p.description || '').toLowerCase();
-      const catNameLower = String(cQuery || '').toLowerCase();
+      const pDesc = String(p.description || '').toLowerCase();
+      const pStr = pCat + " " + pName + " " + pDesc;
+      const catNameLower = String(cQuery || '').trim().toLowerCase();
 
-      if (String(p.category) === catNameLower || pCat === catNameLower) return true;
-      if (catNameLower.includes('vasos')) {
-        if (catNameLower.includes('caliente') && (pCat.includes('generica') || pName.includes('7oz') || pName.includes('vasos'))) return true;
-        if (catNameLower.includes('fría') && (pCat.includes('fria') || pStr.includes('fria') || pName.includes('9oz'))) return true;
+      if (String(p.category).toLowerCase() === catNameLower || pCat === catNameLower) return true;
+
+      if (catNameLower.includes('tapas') && catNameLower.includes('contenedor')) {
+        return pStr.includes('tapa') && pStr.includes('contenedor');
       }
-      if (catNameLower.includes('contenedor') && pStr.includes('contenedor')) return true;
-      if (catNameLower.includes('tapa') && pStr.includes('tapa')) return true;
-      if (catNameLower.includes('empaque') && pStr.includes('empaque')) return true;
-      if (catNameLower.includes('plato') && pStr.includes('plato')) return true;
-      if (catNameLower.includes('porta') && pStr.includes('porta')) return true;
+      if (catNameLower.includes('tapas') && catNameLower.includes('vaso')) {
+        return pStr.includes('tapa') && (!pStr.includes('contenedor'));
+      }
+      if (catNameLower.includes('porta') || catNameLower.includes('porta vasos') || catNameLower.includes('porta_vasos')) {
+        return pStr.includes('porta');
+      }
+      if (catNameLower.includes('vasos') && catNameLower.includes('caliente')) {
+        return (pStr.includes('vaso') || pStr.includes('7oz') || pName.includes('vaso')) && !pStr.includes('fria') && !pStr.includes('porta') && !pStr.includes('tapa');
+      }
+      if (catNameLower.includes('vasos') && (catNameLower.includes('fría') || catNameLower.includes('fria'))) {
+        return (pStr.includes('vaso') || pStr.includes('9oz') || pStr.includes('fria')) && !pStr.includes('caliente') && !pStr.includes('porta') && !pStr.includes('tapa');
+      }
+      if (catNameLower.includes('contenedor')) {
+        return pStr.includes('contenedor') && !pStr.includes('tapa');
+      }
+      if (catNameLower.includes('empaque')) {
+        return pStr.includes('empaque');
+      }
+      if (catNameLower.includes('plato')) {
+        return pStr.includes('plato');
+      }
+      if (catNameLower === 'tapas') {
+        return pStr.includes('tapa');
+      }
 
       return false;
     };
@@ -224,8 +244,23 @@ async function init() {
       }
       if (productsMount) {
         const filtered = catVal ? products.filter(p => window.pMatcher(p, catVal)) : products;
-        renderProducts(filtered, productsMount);
-        productsMount.style.display = 'grid';
+        if (filtered.length === 0) {
+          productsMount.style.display = 'block';
+          productsMount.innerHTML = `
+            <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: var(--muted); margin-bottom: 16px; margin: 0 auto; display: block;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin disponibilidad</h3>
+              <p style="color: var(--muted); font-size: 1.1rem;">En este momento no hay disponibilidad de estos productos.</p>
+            </div>
+          `;
+        } else {
+          productsMount.style.display = 'grid';
+          renderProducts(filtered, productsMount);
+        }
       }
     };
 
@@ -317,7 +352,11 @@ async function init() {
         else renderProducts(products, productsMount);
         return;
       }
-      const filtered = products.filter(p => (p.name || '').toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q));
+      const filtered = products.filter(p => {
+        const pName = (p.name || '').toLowerCase();
+        const pCat = String(p.category_name || p.category_nombre || p.category_desc || p.category || '').toLowerCase();
+        return pName.includes(q) || pCat.includes(q);
+      });
       if (categoryHub) categoryHub.style.display = 'none';
       if (catalogNav) {
         catalogNav.style.display = 'flex';
@@ -325,8 +364,23 @@ async function init() {
         const descEl = document.getElementById('current-category-desc');
         if (descEl) descEl.style.display = 'none';
       }
-      productsMount.style.display = 'grid';
-      renderProducts(filtered, productsMount);
+      if (filtered.length === 0) {
+        productsMount.style.display = 'block';
+        productsMount.innerHTML = `
+          <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: var(--muted); margin-bottom: 16px; margin: 0 auto; display: block;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin disponibilidad</h3>
+            <p style="color: var(--muted); font-size: 1.1rem;">En este momento no hay disponibilidad de estos productos.</p>
+          </div>
+        `;
+      } else {
+        productsMount.style.display = 'grid';
+        renderProducts(filtered, productsMount);
+      }
     });
 
   } catch (err) {

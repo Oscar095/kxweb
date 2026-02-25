@@ -23,35 +23,47 @@ async function loadProducts() {
 
     for (const p of products) {
       const card = document.createElement('div');
-      card.className = 'admin-product-card';
+      card.className = 'glass-product-card';
 
       const img = document.createElement('img');
+      img.className = 'gpc-image';
       img.alt = p.name || '';
       img.loading = 'lazy';
-      img.style.width = '160px';
-      img.style.height = '160px';
-      img.style.objectFit = 'contain';
-      img.style.display = 'block';
-      img.style.background = '#fff';
-      img.style.border = '1px solid #eee';
       const first = (p.images && p.images[0]) || p.image || '/images/placeholder.svg';
       img.src = first;
       img.onerror = () => { img.src = '/images/placeholder.svg'; };
 
       const details = document.createElement('div');
-      details.className = 'admin-product-details';
+      details.className = 'gpc-content';
       const safe = (v) => (v == null ? '' : v);
       const categoryLabel = safe(p.category_name || p.category_nombre || p.category_desc || p.category);
+
+      const isDescLong = p.description && p.description.length > 80;
+      let descHtml = `<div class="gpc-desc" title="${safe(p.description)}">${safe(p.description)}</div>`;
+      if (isDescLong) {
+        descHtml = `
+            <div class="gpc-desc clamped" style="-webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;" title="${safe(p.description)}">${safe(p.description)}</div>
+            <button type="button" class="gpc-btn-more" style="background: none; border: none; color: var(--admin-kos-blue); cursor: pointer; padding: 0; font-size: 0.85rem; text-align: left; margin-top: 4px; font-weight: 600;">Ver más...</button>
+        `;
+      }
+
       details.innerHTML = `
-        <div class="product-name">${safe(p.name)}</div>
-        <div class="product-sku" style="color:#555">Código SIESA: ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
-        <div class="product-category">Categoría: ${categoryLabel}</div>
-        <div style="color:#444">Descripción: ${safe(p.description)}</div>
-        <div style="color:#444">Precio Unitario: ${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</div>
-        <div style="color:#444">Cantidad: ${safe(p.cantidad ?? p.Cantidad)}</div>
-        <div class="product-actions" style="display:flex; gap:8px;">
-          <button data-id="${p.id}" class="fill-form">Editar</button>
-          <button data-id="${p.id}" class="delete-prod" style="background:#d9534f;color:#fff;">Eliminar</button>
+        <h3 class="gpc-title">${safe(p.name)}</h3>
+        <div class="gpc-meta">
+            <span class="gpc-tag">${categoryLabel || 'Sin Categoría'}</span>
+            <span style="font-weight: 600; color: var(--admin-text-main);">${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</span>
+        </div>
+        <div style="font-size: 0.85rem; color: #555; margin-top: 4px;"><strong>Stock:</strong> ${safe(p.cantidad ?? p.Cantidad)} | <strong>SKU:</strong> ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
+        ${descHtml}
+        <div class="gpc-actions">
+          <button data-id="${p.id}" class="fill-form gpc-btn-edit">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            Editar
+          </button>
+          <button data-id="${p.id}" class="delete-prod gpc-btn-delete">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Eliminar
+          </button>
         </div>
       `;
 
@@ -59,6 +71,21 @@ async function loadProducts() {
       card.appendChild(details);
       grid.appendChild(card);
     }
+
+    grid.querySelectorAll('.gpc-btn-more').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const desc = e.target.previousElementSibling;
+        if (desc.classList.contains('clamped')) {
+          desc.classList.remove('clamped');
+          desc.style.webkitLineClamp = 'unset';
+          e.target.textContent = 'Ver menos';
+        } else {
+          desc.classList.add('clamped');
+          desc.style.webkitLineClamp = '2';
+          e.target.textContent = 'Ver más...';
+        }
+      });
+    });
 
     // Editar: llena el form y muestra imágenes actuales
     grid.querySelectorAll('.fill-form').forEach(btn => {
