@@ -14,7 +14,7 @@
   <!-- LOGIN VIEW -->
   <div id="login-section" class="admin-login-wrapper" style="display: none;">
     <div class="admin-login-card">
-      <img src="/images/logo.png" alt="KOS Logo" class="admin-login-logo" onerror="this.src='/images/placeholder.svg'" />
+      <img id="admin-login-logo" src="/images/logo.png" alt="KOS Logo" class="admin-login-logo" onerror="this.src='/images/placeholder.svg'" />
       <h2>Panel de Administración</h2>
       <form id="login-form">
         <div class="field-group">
@@ -38,7 +38,8 @@
       <div class="admin-sidebar-header">
         <h1>
           <!-- KOS Icon SVG -->
-          <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z"/></svg>
+          <svg id="admin-sidebar-svg" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z"/></svg>
+          <img id="admin-sidebar-logo" src="/images/logo.png" alt="KOS Logo" style="display:none; max-height:40px; object-fit:contain; margin-right:8px;" onerror="this.src='/images/placeholder.svg'"/>
           <span>KOS Admin</span>
         </h1>
       </div>
@@ -150,7 +151,7 @@
 
             <div style="display:flex; gap:16px; align-items:center; margin-top:30px;">
               <button type="submit" class="admin-btn-primary">Guardar Producto</button>
-              <button type="button" id="btn-cancel-product" class="admin-btn-secondary" style="display:none;">Cancelar</button>
+              <button type="button" id="btn-cancel-product" class="admin-btn-secondary" style="display:none;">Volver</button>
               <p id="form-status" style="margin:0; font-weight:500;"></p>
             </div>
           </form>

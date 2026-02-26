@@ -3,12 +3,12 @@ import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 import { formatMoney } from './utils/format.js';
 
-function getIdFromQuery(){
+function getIdFromQuery() {
   const u = new URL(location.href);
   return Number(u.searchParams.get('id'));
 }
 
-async function loadProduct(id){
+async function loadProduct(id) {
   // Intenta endpoint de detalle
   try {
     const r = await fetch(`/api/products/${id}`, { cache: 'no-store' });
@@ -23,7 +23,7 @@ async function loadProduct(id){
   return p;
 }
 
-function renderProduct(p){
+function renderProduct(p) {
   const main = document.getElementById('pd-main');
   const wrap = main.closest('.product-img-wrap');
   const lens = wrap?.querySelector('.img-lens');
@@ -161,8 +161,8 @@ function renderProduct(p){
   main.onerror = () => { main.src = '/images/placeholder.svg'; };
   if (lens) lens.style.backgroundImage = `url("${main.src}")`;
 
-  thumbs.innerHTML = imgs.map((src, i) => `<img data-index="${i}" src="${src}" alt="${p.name || ''} ${i+1}" />`).join('');
-  thumbs.addEventListener('click', (e)=>{
+  thumbs.innerHTML = imgs.map((src, i) => `<img data-index="${i}" src="${src}" alt="${p.name || ''} ${i + 1}" />`).join('');
+  thumbs.addEventListener('click', (e) => {
     const im = e.target.closest('img');
     if (!im || !thumbs.contains(im)) return;
     idx = Number(im.dataset.index || 0);
@@ -195,7 +195,7 @@ function renderProduct(p){
       price.classList.add('loading');
       const r = await fetch(`/api/precio?codigo=${encodeURIComponent(codigo)}&n=${encodeURIComponent(mult)}`, { cache: 'no-store' });
       if (!r.ok) {
-        try { const e = await r.json(); console.warn('Detalle precio dinámico error', e); } catch {}
+        try { const e = await r.json(); console.warn('Detalle precio dinámico error', e); } catch { }
         price.classList.remove('loading');
         return;
       }
@@ -228,18 +228,50 @@ function renderProduct(p){
 
   addBtn?.addEventListener('click', () => {
     // Chequeo final antes de agregar
-    if (upstreamEstado !== 'En Existencia') return;
+    if (upstreamEstado !== 'En Existencia') {
+      showToast('Producto Agotado', 'error');
+      return;
+    }
     if (exceedsInventory()) {
+      showToast('Producto Agotado', 'error');
       renderStockAndCartState();
       return;
     }
     const qty = Math.max(1, Number(document.getElementById('pd-qty').value) || 1);
     cartService.add(p, qty);
     window.dispatchEvent(new Event('toggle-cart'));
+    showToast('Agregado Exitosamente');
   });
 }
 
-async function init(){
+// Toast notification system
+const showToast = (msg, type = 'success') => {
+  let root = document.getElementById('toast-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'toast-root';
+    document.body.appendChild(root);
+  }
+  const toast = document.createElement('div');
+  toast.className = type === 'error' ? 'toast-error' : 'toast-success';
+  toast.textContent = msg;
+
+  // Basic fallback styles just in case css isn't present
+  if (type === 'error') {
+    toast.style.background = '#e74c3c';
+    toast.style.color = '#fff';
+  }
+
+  root.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(20px)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+};
+
+async function init() {
   renderHeader(document.getElementById('site-header'));
   renderCartDrawer(document.getElementById('cart-drawer'));
   const id = getIdFromQuery();

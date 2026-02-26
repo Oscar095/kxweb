@@ -119,6 +119,9 @@ async function loadProducts() {
           const im = document.createElement('img');
           im.src = url;
           im.alt = prod.name || '';
+          im.style.maxHeight = '120px';
+          im.style.width = '100%';
+          im.style.objectFit = 'contain';
           cur.appendChild(im);
         });
 
@@ -127,6 +130,10 @@ async function loadProducts() {
         const cq = Number(form.querySelector('#p-cantidad')?.value);
         const totalEl = document.getElementById('p-price');
         if (totalEl && Number.isFinite(pu) && Number.isFinite(cq)) totalEl.value = (pu * cq).toFixed(0);
+        
+        const btnCancel = document.getElementById('btn-cancel-product');
+        if (btnCancel) btnCancel.style.display = 'inline-flex';
+
         document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
       });
     });
@@ -208,6 +215,8 @@ async function submitForm(ev) {
     const qtyEl = document.getElementById('p-cantidad'); if (qtyEl) qtyEl.value = '';
     $('#new-previews').innerHTML = '';
     $('#current-images').innerHTML = '';
+    const btnCancel = document.getElementById('btn-cancel-product');
+    if (btnCancel) btnCancel.style.display = 'none';
     window.__libSelected = [];
     await loadProducts();
   } catch (e) {
@@ -285,11 +294,31 @@ async function initAdmin() {
   puInput?.addEventListener('input', recalc);
   await loadProducts();
 
+  // Cancel / Volver action handler
+  const btnCancelProd = document.getElementById('btn-cancel-product');
+  if (btnCancelProd) {
+    btnCancelProd.addEventListener('click', () => {
+      $('#product-form').reset();
+      $('#product-form').id.value = '';
+      $('#new-previews').innerHTML = '';
+      $('#current-images').innerHTML = '';
+      $('#form-status').textContent = '';
+      btnCancelProd.style.display = 'none';
+      if ($('#p-price')) $('#p-price').value = '';
+      window.__libSelected = [];
+      renderLibrarySelection();
+      document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
   // Biblioteca init
-  document.getElementById('library-section').style.display = '';
-  await loadLibrary();
-  const libForm = document.getElementById('library-form');
-  libForm?.addEventListener('submit', submitLibraryForm);
+  try {
+    await loadLibrary();
+    const libForm = document.getElementById('library-form');
+    libForm?.addEventListener('submit', submitLibraryForm);
+  } catch (e) {
+    console.error('Error inicializando biblioteca', e);
+  }
 
   // Banners init (sección puede estar oculta por defecto)
   try {
@@ -311,6 +340,30 @@ async function initAdmin() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Setup dynamic logo
+  try {
+    const r = await fetch('/api/logos?primary=true', { cache: 'no-store' });
+    if (r.ok) {
+      const list = await r.json();
+      const first = Array.isArray(list) ? list[0] : null;
+      if (first && first.url) {
+        const sep = first.url.includes('?') ? '&' : '?';
+        const finalUrl = first.url + sep + 'v=' + Date.now();
+        const loginLogo = document.getElementById('admin-login-logo');
+        if (loginLogo) loginLogo.src = finalUrl;
+        const sidebarLogo = document.getElementById('admin-sidebar-logo');
+        if (sidebarLogo) {
+          sidebarLogo.src = finalUrl;
+          sidebarLogo.style.display = 'inline-block';
+          const svgIcon = document.getElementById('admin-sidebar-svg');
+          if (svgIcon) svgIcon.style.display = 'none';
+        }
+      }
+    }
+  } catch (e) {
+    console.error('No se pudo cargar el logo de admin', e);
+  }
+
   // Auth gate
   const authed = await ensureAuth();
   if (!authed) {

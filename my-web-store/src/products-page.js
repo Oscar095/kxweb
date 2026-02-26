@@ -96,7 +96,21 @@ async function init() {
         }
       }
       const filtered = products.filter(p => window.pMatcher(p, cat));
-      renderProducts(filtered, mount);
+      if (filtered.length === 0) {
+        mount.innerHTML = `
+          <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: var(--muted); margin-bottom: 16px; margin: 0 auto; display: block;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin disponibilidad</h3>
+            <p style="color: var(--muted); font-size: 1.1rem;">No hay productos para la Categoría Seleccionada.</p>
+          </div>
+        `;
+      } else {
+        renderProducts(filtered, mount);
+      }
     }
   };
 
@@ -104,7 +118,7 @@ async function init() {
   applyCategoryFilter(initialCat);
 
   // Toast notification system
-  const showToast = (msg) => {
+  const showToast = (msg, type = 'success') => {
     let root = document.getElementById('toast-root');
     if (!root) {
       root = document.createElement('div');
@@ -112,8 +126,15 @@ async function init() {
       document.body.appendChild(root);
     }
     const toast = document.createElement('div');
-    toast.className = 'toast-success';
+    toast.className = type === 'error' ? 'toast-error' : 'toast-success';
     toast.textContent = msg;
+
+    // Basic fallback styles just in case css isn't present
+    if (type === 'error') {
+      toast.style.background = '#e74c3c';
+      toast.style.color = '#fff';
+    }
+
     root.appendChild(toast);
     setTimeout(() => {
       toast.style.opacity = '0';
@@ -124,7 +145,7 @@ async function init() {
   };
 
   // Delegado: manejar clicks "Agregar" y leer cantidad del input
-  mount.addEventListener('click', (e) => {
+  mount.addEventListener('click', async (e) => {
     const btn = e.target.closest('.add-to-cart');
     if (!btn || !mount.contains(btn)) return;
     const id = Number(btn.dataset.id);
@@ -132,10 +153,58 @@ async function init() {
     if (!product) return;
     const card = btn.closest('.product');
     const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
-    cartService.add(product, qty);
-    btn.classList.add('added');
-    showToast('Producto Agregado Exitosamente');
-    setTimeout(() => btn.classList.remove('added'), 350);
+
+    const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
+
+    const onAddSuccess = () => {
+      cartService.add(product, qty);
+      btn.classList.add('added');
+      showToast('Agregado Exitosamente');
+      setTimeout(() => btn.classList.remove('added'), 350);
+    };
+
+    const setBtnLoading = (loading) => {
+      btn.disabled = loading;
+      btn.textContent = loading ? '...' : 'Agregar';
+    };
+
+    if (!sku) {
+      // No sku means we can't check inventory, just allow it
+      onAddSuccess();
+      return;
+    }
+
+    try {
+      setBtnLoading(true);
+      const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error('inventario_error');
+      const data = await r.json();
+      const estado = (data && (data.estado || data.status || '')).toString();
+      const inventarioExistencia = Number(data?.inventario);
+
+      if (estado !== 'En Existencia') {
+        showToast('Producto Agotado', 'error');
+        return;
+      }
+
+      // Validate units
+      const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
+      const unitsPerBox = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
+      const requestedUnits = qty * unitsPerBox;
+
+      if (Number.isFinite(inventarioExistencia) && requestedUnits > inventarioExistencia) {
+        showToast('Producto Agotado', 'error');
+        return;
+      }
+
+      onAddSuccess();
+    } catch (err) {
+      console.error('Error checando inventario', err);
+      // Fallback if network issue
+      showToast('Producto Agotado', 'error');
+    } finally {
+      setBtnLoading(false);
+    }
   });
 
   // Delegado: navegación de imágenes (prev/next)

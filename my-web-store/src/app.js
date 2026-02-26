@@ -14,35 +14,7 @@ async function init() {
     const drawerMount = document.getElementById('cart-drawer');
     if (drawerMount) renderCartDrawer(drawerMount);
 
-    // Hero Product Rotator Carousel (Delivery Slide Animation)
-    const rotatorItems = document.querySelectorAll('.rotator-item');
-    if (rotatorItems.length > 0) {
-      let currentIdx = 0;
-
-      setInterval(() => {
-        const currentItem = rotatorItems[currentIdx];
-
-        // Old item moves out to the left
-        currentItem.classList.remove('active');
-        currentItem.classList.add('exiting');
-
-        // Remove exiting class after transition completes so it can reset to the right side
-        setTimeout(() => {
-          currentItem.classList.remove('exiting');
-        }, 800);
-
-        currentIdx = (currentIdx + 1) % rotatorItems.length;
-        const nextItem = rotatorItems[currentIdx];
-
-        // New item slides in from the right
-        nextItem.classList.remove('exiting'); // Just in case
-        // Small delay to allow previous item to clear the center slightly, creating a "bump" collision feel
-        setTimeout(() => {
-          nextItem.classList.add('active');
-        }, 100);
-
-      }, 4000); // 4 seconds interval
-    }
+    // Rotator carousel moved after product fetch
 
     console.log('Fetch: cargando ./data/products.json ... desde', location.href);
     const [resProd, resCat] = await Promise.all([
@@ -59,6 +31,67 @@ async function init() {
     const catalogNav = document.getElementById('catalog-nav');
     const btnBack = document.getElementById('btn-back-categories');
     const catalogTitle = document.getElementById('current-category-title');
+
+    // Hero Product Rotator - Dynamic from all products
+    const rotatorContainer = document.querySelector('.product-rotator');
+    if (rotatorContainer && products.length > 0) {
+      // Collect valid images with their product name
+      const allProductItems = [];
+      for (const p of products) {
+        const pImages = new Set();
+        if (p.image) pImages.add(p.image);
+        if (Array.isArray(p.images)) p.images.forEach(img => pImages.add(img));
+        if (p.image2) pImages.add(p.image2);
+        if (p.image3) pImages.add(p.image3);
+        if (p.image4) pImages.add(p.image4);
+
+        const validImgs = Array.from(pImages).filter(img => img && img !== '/images/placeholder.svg');
+        validImgs.forEach(img => {
+          allProductItems.push({ img, name: p.name || 'Producto KOS' });
+        });
+      }
+
+      // Shuffle logic
+      const shuffle = (array) => {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      };
+
+      // Select up to 8 random unique images
+      const randomItems = shuffle(allProductItems).slice(0, 8);
+
+      if (randomItems.length > 0) {
+        rotatorContainer.innerHTML = randomItems.map((it, idx) => `
+          <div class="rotator-item ${idx === 0 ? 'active' : ''}">
+            <img src="${it.img}" alt="${it.name}">
+            <div class="rotator-caption">${it.name}</div>
+          </div>
+        `).join('');
+
+        const newRotatorItems = document.querySelectorAll('.rotator-item');
+        if (newRotatorItems.length > 1) {
+          let currentIdx = 0;
+          setInterval(() => {
+            const currentItem = newRotatorItems[currentIdx];
+            currentItem.classList.remove('active');
+            currentItem.classList.add('exiting');
+            setTimeout(() => {
+              currentItem.classList.remove('exiting');
+            }, 800);
+
+            currentIdx = (currentIdx + 1) % newRotatorItems.length;
+            const nextItem = newRotatorItems[currentIdx];
+            nextItem.classList.remove('exiting');
+            setTimeout(() => {
+              nextItem.classList.add('active');
+            }, 100);
+          }, 4000);
+        }
+      }
+    }
 
     // Funciones de navegación (SPA mode)    
     window.pMatcher = (p, cQuery) => {
@@ -130,16 +163,16 @@ async function init() {
           // 1) Find all products matching this category
           const catProducts = products.filter(p => window.pMatcher(p, c.nombre));
 
-          // 2) Gather all unique images from these products
+          // 2) Gather all unique images from ALL products
           const allCatImages = new Set();
           allCatImages.add(c.img); // Always include the default
-          catProducts.forEach(p => {
+          for (const p of products) {
             if (p.image) allCatImages.add(p.image);
             if (Array.isArray(p.images)) p.images.forEach(img => allCatImages.add(img));
             if (p.image2) allCatImages.add(p.image2);
             if (p.image3) allCatImages.add(p.image3);
             if (p.image4) allCatImages.add(p.image4);
-          });
+          }
           const imgArray = Array.from(allCatImages).filter(img => img && img !== '/images/placeholder.svg');
           const imagesJson = JSON.stringify(imgArray).replace(/"/g, '&quot;');
 
@@ -288,7 +321,7 @@ async function init() {
     }
 
     // Toast notification system
-    const showToast = (msg) => {
+    const showToast = (msg, type = 'success') => {
       let root = document.getElementById('toast-root');
       if (!root) {
         root = document.createElement('div');
@@ -296,8 +329,15 @@ async function init() {
         document.body.appendChild(root);
       }
       const toast = document.createElement('div');
-      toast.className = 'toast-success';
+      toast.className = type === 'error' ? 'toast-error' : 'toast-success';
       toast.textContent = msg;
+
+      // Basic fallback styles just in case css isn't present
+      if (type === 'error') {
+        toast.style.background = '#e74c3c';
+        toast.style.color = '#fff';
+      }
+
       root.appendChild(toast);
       setTimeout(() => {
         toast.style.opacity = '0';
@@ -308,7 +348,7 @@ async function init() {
     };
 
     // Delegado: manejar clicks "Agregar" y leer cantidad del input
-    productsMount.addEventListener('click', (e) => {
+    productsMount.addEventListener('click', async (e) => {
       const btn = e.target.closest('.add-to-cart');
       if (!btn || !productsMount.contains(btn)) return;
       const id = Number(btn.dataset.id);
@@ -316,10 +356,58 @@ async function init() {
       if (!product) return;
       const card = btn.closest('.product');
       const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
-      cartService.add(product, qty);
-      btn.classList.add('added');
-      showToast('Producto Agregado Exitosamente');
-      setTimeout(() => btn.classList.remove('added'), 350);
+
+      const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
+
+      const onAddSuccess = () => {
+        cartService.add(product, qty);
+        btn.classList.add('added');
+        showToast('Agregado Exitosamente');
+        setTimeout(() => btn.classList.remove('added'), 350);
+      };
+
+      const setBtnLoading = (loading) => {
+        btn.disabled = loading;
+        btn.textContent = loading ? '...' : 'Agregar';
+      };
+
+      if (!sku) {
+        // No sku means we can't check inventory, just allow it
+        onAddSuccess();
+        return;
+      }
+
+      try {
+        setBtnLoading(true);
+        const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
+        if (!r.ok) throw new Error('inventario_error');
+        const data = await r.json();
+        const estado = (data && (data.estado || data.status || '')).toString();
+        const inventarioExistencia = Number(data?.inventario);
+
+        if (estado !== 'En Existencia') {
+          showToast('Producto Agotado', 'error');
+          return;
+        }
+
+        // Validate units
+        const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
+        const unitsPerBox = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
+        const requestedUnits = qty * unitsPerBox;
+
+        if (Number.isFinite(inventarioExistencia) && requestedUnits > inventarioExistencia) {
+          showToast('Producto Agotado', 'error');
+          return;
+        }
+
+        onAddSuccess();
+      } catch (err) {
+        console.error('Error checando inventario', err);
+        // Fallback if network issue
+        showToast('Producto Agotado', 'error');
+      } finally {
+        setBtnLoading(false);
+      }
     });
 
     // Delegado: navegación de imágenes (prev/next) por tarjeta
