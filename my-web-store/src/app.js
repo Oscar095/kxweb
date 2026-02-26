@@ -32,6 +32,17 @@ async function init() {
     const btnBack = document.getElementById('btn-back-categories');
     const catalogTitle = document.getElementById('current-category-title');
 
+    // Populate Best Sellers
+    const bestSellersGrid = document.getElementById('best-sellers-grid');
+    if (bestSellersGrid && products.length > 0) {
+      // Tomamos 4 productos
+      let bsProducts = products.filter(p => p.image && !p.image.includes('placeholder')).slice(0, 4);
+      if (bsProducts.length < 4) {
+        bsProducts.push(...products.slice(0, 4 - bsProducts.length));
+      }
+      renderProducts(bsProducts, bestSellersGrid);
+    }
+
     // Hero Product Rotator - Dynamic from all products
     const rotatorContainer = document.querySelector('.product-rotator');
     if (rotatorContainer && products.length > 0) {
@@ -142,23 +153,23 @@ async function init() {
         // Categorías solicitadas por el cliente mapeadas a imágenes y rutas id
         // Categorías solicitadas por el cliente mapeadas a imágenes
         const userCategories = [
-          { id: "Vasos para bebidas calientes", nombre: "Vasos para bebidas calientes", img: "images/7oz.png" },
-          { id: "Vasos para bebidas frías", nombre: "Vasos para bebidas frías", img: "images/9onza.png" },
-          { id: "tapas para vasos", nombre: "Tapas para vasos", img: "images/4oz.png" },
-          { id: "contenedores", nombre: "Contenedores", img: "images/portahamburguesa.png" },
-          { id: "tapas de contenedores", nombre: "Tapas de contenedores", img: "images/PortaPAPA.png" },
-          { id: "empaques", nombre: "Empaques", img: "images/portaperro.png" },
-          { id: "platos", nombre: "Platos", img: "images/Productos.png" },
-          { id: "porta_vasos", nombre: "Porta Vasos", img: "images/LogoKos2.png" },
-          { id: "tapas_para_vasos_2", nombre: "Tapas para Vasos", img: "images/4oz.png" }
+          { id: "Bebidas calientes", nombre: "Bebidas calientes", img: "https://datalakekos.blob.core.windows.net/images/products/1769629696360-biaota-bc.jpg?sv=2025-11-05&se=2026-02-26T21%3A44%3A12Z&sr=b&sp=r&sig=l%2BYk0oxJpXFWJE%2BNZPUBDd4hHLEm1819BYPk3NXW1qk%3D" },
+          { id: "Bebidas Frías", nombre: "Bebidas Frías", img: "https://datalakekos.blob.core.windows.net/images/products/1769629716983-obzb88-bf.jpg?sv=2025-11-05&se=2026-02-26T21%3A44%3A12Z&sr=b&sp=r&sig=aD%2BIZD5DPNm8Ff60j9z14Fb7GhNL3dKXDLyo4gNyUic%3D" },
+          { id: "Contenedores", nombre: "Contenedores", img: "https://datalakekos.blob.core.windows.net/images/products/1769629736581-hmztu7-contenedores.jpg?sv=2025-11-05&se=2026-02-26T21%3A44%3A12Z&sr=b&sp=r&sig=%2B658Eixso%2FdSldlGAA%2FXrRvT3KZclbOKTKFachHcqnY%3D" },
+          { id: "Empaques", nombre: "Empaques", img: "https://datalakekos.blob.core.windows.net/images/products/1769629749077-mg4feg-empaques.jpg?sv=2025-11-05&se=2026-02-26T21%3A44%3A12Z&sr=b&sp=r&sig=mwxRrT2MkeCvxiBC%2BHfeI9pecJXAhmM9ozlVsuPKJ9o%3D" },
+          { id: "Platos", nombre: "Platos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629764583-4y38gx-platos.jpg?sv=2025-11-05&se=2026-02-26T21%3A45%3A00Z&sr=b&sp=r&sig=U33EuOSuR6ttg6GwhvF%2F2RBXESE6ZkwNNtbvnDXvwfc%3D" },
+          { id: "Porta vasos", nombre: "Porta vasos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629787369-kao1o8-porta-vasos.jpg?sv=2025-11-05&se=2026-02-26T21%3A45%3A00Z&sr=b&sp=r&sig=Jd6wF2DgrJAN23QsHReicvV%2BB%2FU3btx7A6bO0bUmhK0%3D" },
+          { id: "Tapas para Contenedores", nombre: "Tapas para Contenedores", img: "https://datalakekos.blob.core.windows.net/images/products/1769629814468-tugjuk-tapascontenedores.jpg?sv=2025-11-05&se=2026-02-26T21%3A45%3A00Z&sr=b&sp=r&sig=30GrQmD7cHxvRE%2Blwy12%2Brp58Mq5hp7txtVe%2F4jVAHI%3D" },
+          { id: "Tapas para Vasos", nombre: "Tapas para Vasos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629834934-5ceoiw-tapasvaso.jpg?sv=2025-11-05&se=2026-02-26T21%3A45%3A00Z&sr=b&sp=r&sig=FHk9gV568TNwB0ZW9JJPfNkhRI7JIPi%2F8dTgcbO%2FpK4%3D" },
+          { id: "Accesorios", nombre: "Accesorios", img: "https://datalakekos.blob.core.windows.net/images/products/1772141806562-oycteh-accesorios.png?sv=2025-11-05&se=2026-02-26T21%3A51%3A49Z&sr=b&sp=r&sig=YMMMpLeMfhEoSvVnVcNa%2BJtNruNUTk4rGusxMS9N36s%3D" }
         ];
 
         // Cambiamos wrapper base
-        categoryHub.className = "category-hub-container container";
+        categoryHub.className = "category-hub-modern container";
         categoryHub.style.display = 'block';
 
         categoryHub.innerHTML = `
-          <div class="category-grid-vertical" id="cat-track">
+          <div class="category-grid-modern" id="cat-grid">
             ${userCategories.map(c => {
           // 1) Find all products matching this category
           const catProducts = products.filter(p => window.pMatcher(p, c.nombre));
@@ -176,29 +187,15 @@ async function init() {
           const imgArray = Array.from(allCatImages).filter(img => img && img !== '/images/placeholder.svg');
           const imagesJson = JSON.stringify(imgArray).replace(/"/g, '&quot;');
 
-          // 3) Build dynamic description string
-          let desc = "Descubre las mejores opciones que brindamos para esta categoría de nuestra tienda.";
-          if (catProducts.length > 0) {
-            // Get up to 4 distinct product names
-            const names = Array.from(new Set(catProducts.map(p => p.name).filter(Boolean))).slice(0, 4);
-            if (names.length > 0) {
-              const last = names.pop();
-              const listStr = names.length > 0 ? names.join(', ') + ' y ' + last : last;
-              desc = `Explora nuestra variedad de ${c.nombre}, incluyendo: ${listStr} y mucho más.`;
-            }
-          }
-
           return `
-              <div class="category-card" data-cat="${c.id}">
-                <div class="cat-image-wrapper">
+              <div class="category-card-modern" data-cat="${c.id}">
+                <div class="cat-card-bg">
                   <img src="${c.img}" alt="${c.nombre}" loading="lazy" draggable="false" class="cat-hero-img" data-images="${imagesJson}">
+                  <div class="cat-card-overlay"></div>
                 </div>
-                <div class="category-content">
-                  <div class="cat-content-inner">
-                    <h3>${c.nombre}</h3>
-                    <p class="cat-desc">${desc}</p>
-                    <span class="btn-explore">Explorar opciones &#8594;</span>
-                  </div>
+                <div class="cat-card-content">
+                  <h3>${c.nombre}</h3>
+                  <span class="btn-explore-pill">Explorar &rarr;</span>
                 </div>
               </div>
             `}).join('')}
@@ -206,52 +203,9 @@ async function init() {
         `;
 
         // Obtener elementos recién creados buscando DENTRO de categoryHub
-        const track = categoryHub.querySelector('#cat-track');
+        const track = categoryHub.querySelector('#cat-grid');
 
-        // Random Image Rotation Logic
-        const catImages = categoryHub.querySelectorAll('.cat-hero-img');
-        if (catImages.length > 0) {
-          setInterval(() => {
-            catImages.forEach(imgEl => {
-              try {
-                const rawData = imgEl.getAttribute('data-images');
-                if (!rawData) return;
-                const imgList = JSON.parse(rawData);
-                if (Array.isArray(imgList) && imgList.length > 1) {
-                  // Pick a random image different from the current one
-                  let nextImg = imgEl.src;
-                  let attempts = 0;
-                  while (attempts < 5 && (nextImg === imgEl.src || nextImg.includes(imgEl.src))) {
-                    nextImg = imgList[Math.floor(Math.random() * imgList.length)];
-                    attempts++;
-                  }
-
-                  // Trigger fade transition
-                  imgEl.classList.add('fade-out');
-                  setTimeout(() => {
-                    imgEl.src = nextImg;
-                    imgEl.classList.remove('fade-out');
-                  }, 400); // Wait for fade out to complete before changing src
-                }
-              } catch (e) {
-                // ignore parsing errors
-              }
-            });
-          }, 5000); // Change images every 5 seconds
-        }
-
-        // Integrar lógica de clic en la tarjeta
-        if (track) {
-          track.addEventListener('click', (e) => {
-            const card = e.target.closest('.category-card');
-            if (card) {
-              const cat = card.dataset.cat;
-              window.location.href = '/products?cat=' + encodeURIComponent(cat);
-            }
-          });
-        }
-
-
+        // Las imágenes de las categorías se mantienen estáticas, no se rotan.
       }
     };
 
@@ -303,12 +257,10 @@ async function init() {
 
       // Manejo click de categoría
       categoryHub.addEventListener('click', (e) => {
-        const card = e.target.closest('.category-card');
+        const card = e.target.closest('.category-card-modern');
         if (!card) return;
         const cat = card.dataset.cat;
-        showProducts(cat);
-        // Scroll suave a esa sección
-        catalogNav.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.location.href = '/products?cat=' + encodeURIComponent(cat);
       });
 
       // Manejo botón volver
@@ -348,9 +300,9 @@ async function init() {
     };
 
     // Delegado: manejar clicks "Agregar" y leer cantidad del input
-    productsMount.addEventListener('click', async (e) => {
+    document.addEventListener('click', async (e) => {
       const btn = e.target.closest('.add-to-cart');
-      if (!btn || !productsMount.contains(btn)) return;
+      if (!btn) return;
       const id = Number(btn.dataset.id);
       const product = products.find(p => p.id === id);
       if (!product) return;
@@ -411,11 +363,11 @@ async function init() {
     });
 
     // Delegado: navegación de imágenes (prev/next) por tarjeta
-    productsMount.addEventListener('click', (e) => {
+    document.addEventListener('click', (e) => {
       const prev = e.target.closest('.img-prev');
       const next = e.target.closest('.img-next');
       const nav = prev || next;
-      if (!nav || !productsMount.contains(nav)) return;
+      if (!nav) return;
       e.preventDefault();
       e.stopPropagation(); // evita navegar al link de la imagen
       const card = nav.closest('.product');

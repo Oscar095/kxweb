@@ -1188,14 +1188,15 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     const description = (b.description || '').toString().trim();
     const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
     const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
-    let images = [];
-    if (b.images) {
+    let images;
+    if (b.images !== undefined) {
+      images = [];
       if (typeof b.images === 'string') {
         try { images = JSON.parse(b.images); } catch { images = [b.images]; }
       } else if (Array.isArray(b.images)) images = b.images;
+      // Enforce max 4 images
+      if (images.length > 4) return res.status(400).json({ message: 'Máximo 4 imágenes permitido' });
     }
-    // Enforce max 4 images
-    if (images.length > 4) return res.status(400).json({ message: 'Máximo 4 imágenes permitido' });
 
     // Build update set dynamically
     const sets = [];
@@ -1206,7 +1207,7 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     if (cantidad != null) { sets.push('cantidad = @cantidad'); params.cantidad = cantidad; }
     if (categoryResolved != null) { sets.push('category = @category'); params.category = categoryResolved; }
     if (description !== '') { sets.push('description = @description'); params.description = description; }
-    if (images && images.length >= 0) {
+    if (images !== undefined) {
       sets.push('images = @images'); params.images = JSON.stringify(images);
       params.image2 = images[1] || '';
       params.image3 = images[2] || '';

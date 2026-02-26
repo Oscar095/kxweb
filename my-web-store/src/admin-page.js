@@ -115,14 +115,35 @@ async function loadProducts() {
 
         const cur = $('#current-images');
         cur.innerHTML = '';
-        (prod.images || (prod.image ? [prod.image] : [])).forEach(url => {
+        window.__currentImages = [...(prod.images || [])];
+        if (window.__currentImages.length === 0 && prod.image) window.__currentImages.push(prod.image);
+
+        window.__currentImages.forEach((url, idx) => {
+          const wrap = document.createElement('div');
+          wrap.style.position = 'relative';
+
           const im = document.createElement('img');
           im.src = url;
           im.alt = prod.name || '';
           im.style.maxHeight = '120px';
           im.style.width = '100%';
           im.style.objectFit = 'contain';
-          cur.appendChild(im);
+          wrap.appendChild(im);
+
+          const rm = document.createElement('button');
+          rm.textContent = 'Quitar';
+          rm.type = 'button';
+          rm.style.marginTop = '4px';
+          rm.style.width = '100%';
+          rm.className = 'admin-btn-secondary';
+          rm.style.padding = '4px';
+          rm.addEventListener('click', () => {
+            window.__currentImages.splice(idx, 1);
+            wrap.remove();
+          });
+          wrap.appendChild(rm);
+
+          cur.appendChild(wrap);
         });
 
         // compute total if both values available
@@ -130,7 +151,7 @@ async function loadProducts() {
         const cq = Number(form.querySelector('#p-cantidad')?.value);
         const totalEl = document.getElementById('p-price');
         if (totalEl && Number.isFinite(pu) && Number.isFinite(cq)) totalEl.value = (pu * cq).toFixed(0);
-        
+
         const btnCancel = document.getElementById('btn-cancel-product');
         if (btnCancel) btnCancel.style.display = 'inline-flex';
 
@@ -180,19 +201,29 @@ async function submitForm(ev) {
     const fileInput = document.getElementById('p-images');
     const files = fileInput ? Array.from(fileInput.files) : [];
     const libCount = (window.__libSelected || []).length;
-    if (libCount + files.length > 4) {
-      status.textContent = 'No se pueden agregar más de 4 imágenes (incluyendo biblioteca)';
-      return;
-    }
-    const uploadedUrls = [];
-    for (const f of files) {
-      const url = await uploadFileFromBrowser(f);
-      uploadedUrls.push(url);
-    }
+    const currentCount = (window.__currentImages || []).length;
 
-    // Include selected library images
-    const libUrls = (window.__libSelected || []).map(x => x.url).filter(Boolean);
-    payload.images = [...libUrls, ...uploadedUrls];
+    // Only upload and include images if they are provided, OR if it's a new product
+    if (files.length > 0 || libCount > 0 || currentCount > 0 || !idParam) {
+      if (libCount + files.length + currentCount > 4) {
+        status.textContent = 'No se pueden agregar más de 4 imágenes (incluyendo biblioteca)';
+        return;
+      }
+      const uploadedUrls = [];
+      for (const f of files) {
+        const url = await uploadFileFromBrowser(f);
+        uploadedUrls.push(url);
+      }
+
+      // Include selected library images
+      const libUrls = (window.__libSelected || []).map(x => x.url).filter(Boolean);
+      payload.images = [...(window.__currentImages || []), ...libUrls, ...uploadedUrls];
+    } else {
+      // If there were genuinely no images selected AND it's an update, let's keep the user's explicit deletion intent if they removed everything
+      if (window.__currentImages && window.__currentImages.length === 0) {
+        payload.images = [];
+      }
+    }
 
     const url = idParam ? `/api/products/${encodeURIComponent(idParam)}` : `/api/products`;
     const method = idParam ? 'PUT' : 'POST';
@@ -218,6 +249,7 @@ async function submitForm(ev) {
     const btnCancel = document.getElementById('btn-cancel-product');
     if (btnCancel) btnCancel.style.display = 'none';
     window.__libSelected = [];
+    window.__currentImages = [];
     await loadProducts();
   } catch (e) {
     console.error(e); status.textContent = 'Error guardando producto.';
@@ -306,6 +338,7 @@ async function initAdmin() {
       btnCancelProd.style.display = 'none';
       if ($('#p-price')) $('#p-price').value = '';
       window.__libSelected = [];
+      window.__currentImages = [];
       renderLibrarySelection();
       document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
     });

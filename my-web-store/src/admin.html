@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <title>Admin - KOS Colombia</title>
@@ -9,12 +10,14 @@
   <!-- Include Google Fonts for modern typography -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body class="admin-body">
 
   <!-- LOGIN VIEW -->
   <div id="login-section" class="admin-login-wrapper" style="display: none;">
     <div class="admin-login-card">
-      <img id="admin-login-logo" src="/images/logo.png" alt="KOS Logo" class="admin-login-logo" onerror="this.src='/images/placeholder.svg'" />
+      <img id="admin-login-logo" src="/images/logo.png" alt="KOS Logo" class="admin-login-logo"
+        onerror="this.src='/images/placeholder.svg'" />
       <h2>Panel de Administración</h2>
       <form id="login-form">
         <div class="field-group">
@@ -38,42 +41,66 @@
       <div class="admin-sidebar-header">
         <h1>
           <!-- KOS Icon SVG -->
-          <svg id="admin-sidebar-svg" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z"/></svg>
-          <img id="admin-sidebar-logo" src="/images/logo.png" alt="KOS Logo" style="display:none; max-height:40px; object-fit:contain; margin-right:8px;" onerror="this.src='/images/placeholder.svg'"/>
+          <svg id="admin-sidebar-svg" viewBox="0 0 24 24">
+            <path d="M12 2L2 22h20L12 2zm0 4.5l6.5 13h-13L12 6.5z" />
+          </svg>
+          <img id="admin-sidebar-logo" src="/images/logo.png" alt="KOS Logo"
+            style="display:none; max-height:40px; object-fit:contain; margin-right:8px;"
+            onerror="this.src='/images/placeholder.svg'" />
           <span>KOS Admin</span>
         </h1>
       </div>
-      
+
       <nav class="admin-sidebar-nav">
         <button id="nav-products" class="admin-nav-item active">
-          <svg viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z" />
+          </svg>
           <span>Productos</span>
         </button>
         <button id="nav-categories" class="admin-nav-item">
-          <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+          </svg>
           <span>Categorías</span>
         </button>
         <button id="nav-banners" class="admin-nav-item">
-          <svg viewBox="0 0 24 24"><path d="M21 3H3C2 3 1 4 1 5v14c0 1.1.9 2 2 2h18c1 0 2-1 2-2V5c0-1-1-2-2-2zm0 15.9l-5.3-5.3c-.4-.4-1-.4-1.4 0l-5.6 5.6-3.3-3.3c-.4-.4-1-.4-1.4 0L3 18.9V5h18v13.9z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M21 3H3C2 3 1 4 1 5v14c0 1.1.9 2 2 2h18c1 0 2-1 2-2V5c0-1-1-2-2-2zm0 15.9l-5.3-5.3c-.4-.4-1-.4-1.4 0l-5.6 5.6-3.3-3.3c-.4-.4-1-.4-1.4 0L3 18.9V5h18v13.9z" />
+          </svg>
           <span>Banners</span>
         </button>
         <button id="nav-logos" class="admin-nav-item">
-          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+          </svg>
           <span>Logos</span>
         </button>
         <button id="nav-library" class="admin-nav-item">
-          <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM10.9 12.9l-1.4-1.4-2.5 3.5h10l-3.5-4.5z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM10.9 12.9l-1.4-1.4-2.5 3.5h10l-3.5-4.5z" />
+          </svg>
           <span>Biblioteca</span>
         </button>
         <a href="/index.html" class="admin-nav-item" style="margin-top:auto" target="_blank">
-          <svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
+          </svg>
           <span>Sitio Web</span>
         </a>
       </nav>
 
       <div class="admin-sidebar-footer">
         <button id="logout-btn" class="admin-btn-logout">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path
+              d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+          </svg>
           <span>Cerrar Sesión</span>
         </button>
       </div>
@@ -113,7 +140,8 @@
               <div class="form-grid" style="margin-top:20px;">
                 <div class="field-group">
                   <label for="p-price-unit">Precio Unitario ($)</label>
-                  <input id="p-price-unit" type="number" name="price_unit" min="0" step="0.01" placeholder="Ej: 15000" required />
+                  <input id="p-price-unit" type="number" name="price_unit" min="0" step="0.01" placeholder="Ej: 15000"
+                    required />
                 </div>
                 <div class="field-group">
                   <label for="p-cantidad">Cantidad / Stock</label>
@@ -137,21 +165,23 @@
                 <input id="p-images" type="file" name="images" accept="image/*" multiple />
               </div>
               <div id="new-previews" class="admin-img-preview-grid" aria-live="polite"></div>
-              
+
               <div style="margin-top:20px;">
                 <label style="font-weight:500; display:block; margin-bottom:10px;">Imágenes Actuales Guardadas:</label>
                 <div id="current-images" class="admin-img-preview-grid"></div>
               </div>
-              
+
               <div style="margin-top:20px; padding-top:16px; border-top:1px dashed rgba(0,0,0,0.1);">
-                <label style="font-weight:500; display:block; margin-bottom:10px;">Seleccionadas desde la Biblioteca <small>(se añadirán al guardar)</small>:</label>
+                <label style="font-weight:500; display:block; margin-bottom:10px;">Seleccionadas desde la Biblioteca
+                  <small>(se añadirán al guardar)</small>:</label>
                 <div id="lib-selected" class="admin-img-preview-grid"></div>
               </div>
             </fieldset>
 
             <div style="display:flex; gap:16px; align-items:center; margin-top:30px;">
               <button type="submit" class="admin-btn-primary">Guardar Producto</button>
-              <button type="button" id="btn-cancel-product" class="admin-btn-secondary" style="display:none;">Volver</button>
+              <button type="button" id="btn-cancel-product" class="admin-btn-secondary"
+                style="display:none;">Volver</button>
               <p id="form-status" style="margin:0; font-weight:500;"></p>
             </div>
           </form>
@@ -168,7 +198,7 @@
         <div class="admin-header-row">
           <h2>Categorías</h2>
         </div>
-        
+
         <div class="glass-card">
           <form id="category-form" class="admin-form">
             <fieldset>
@@ -199,8 +229,9 @@
         <div class="admin-header-row">
           <h2>Gestión de Banners</h2>
         </div>
-        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Sube imágenes panorámicas para el carrusel de inicio. Puedes tener hasta <strong>3 banners activos</strong>.</p>
-        
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Sube imágenes panorámicas para el carrusel de
+          inicio. Puedes tener hasta <strong>3 banners activos</strong>.</p>
+
         <div class="glass-card">
           <form id="banner-form" class="admin-form" enctype="multipart/form-data">
             <div class="form-grid">
@@ -231,8 +262,9 @@
         <div class="admin-header-row">
           <h2>Logos y Branding</h2>
         </div>
-        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Sube logos y asegúrate de marcar <strong>uno</strong> como principal.</p>
-        
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Sube logos y asegúrate de marcar
+          <strong>uno</strong> como principal.</p>
+
         <div class="glass-card">
           <form id="logo-form" class="admin-form" enctype="multipart/form-data">
             <div class="form-grid">
@@ -263,8 +295,9 @@
         <div class="admin-header-row">
           <h2>Biblioteca de Imágenes</h2>
         </div>
-        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Almacena imágenes reutilizables. Podrás seleccionarlas al momento de crear un producto.</p>
-        
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Almacena imágenes reutilizables. Podrás
+          seleccionarlas al momento de crear un producto.</p>
+
         <div class="glass-card">
           <form id="library-form" class="admin-form" enctype="multipart/form-data">
             <div class="form-grid">
@@ -293,6 +326,7 @@
     </main>
   </div>
 
-  <script src="/admin-page.js" type="module"></script>
+  <script src="/admin-page.js?v=2" type="module"></script>
 </body>
+
 </html>

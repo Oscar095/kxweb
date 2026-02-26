@@ -33,6 +33,7 @@ export function renderHeader(container) {
   <div class="logo"><a href="/"><img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/></a></div>
       <nav class="nav nav-animated">
         <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
+        <a href="/products" class="nav-link" data-nav="productos">Productos</a>
         <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
 
         <span class="nav-rect"></span>

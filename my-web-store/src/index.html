@@ -24,8 +24,8 @@
               especiales diseñadas para destacar tu marca y conservar la calidad de tus productos.</p>
             <div class="hero-actions">
               <button class="btn-primary"
-                onclick="document.getElementById('catalog').scrollIntoView({ behavior: 'smooth' })">Ver Catálogo
-                Completo</button>
+                style="font-size: 1.3rem; padding: 18px 48px; text-transform: uppercase; letter-spacing: 1px;"
+                onclick="window.location.href='/products'">Compra ahora</button>
             </div>
           </div>
           <div class="hero-carousel-right">
@@ -48,12 +48,53 @@
         </div>
       </section>
 
+      <section id="benefits" class="benefits-section container">
+        <h2 class="benefits-title">¿Por qué elegirnos?</h2>
+        <div class="benefits-grid">
+          <div class="benefit-card">
+            <div class="benefit-icon">
+              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <h3>Calidad premium</h3>
+            <p>Seleccionamos cuidadosamente cada envase para garantizar los mejores acabados y presentación.</p>
+          </div>
+          <div class="benefit-card">
+            <div class="benefit-icon">
+              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+            <h3>Materiales resistentes</h3>
+            <p>Nuestros productos están fabricados con materiales de alta durabilidad, soportando diferentes
+              temperaturas y usos.</p>
+          </div>
+          <div class="benefit-card">
+            <div class="benefit-icon">
+              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="1" y="3" width="15" height="13"></rect>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+              </svg>
+            </div>
+            <h3>Entrega ágil</h3>
+            <p>Optimizamos nuestros procesos logísticos para que recibas tus empaques en el menor tiempo posible.</p>
+          </div>
+        </div>
+      </section>
+
       <section id="catalog" style="padding-top: 20px;">
         <div class="container" style="text-align:center;">
-          <h2 style="font-size: 2.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Descubre
-            Nuestros Productos</h2>
-          <p style="font-size: 1.1rem; color: var(--muted); margin-bottom: 32px;">Explora la tienda por categorías para
-            encontrar la mejor calidad y diseño.</p>
+          <h2 style="font-size: 2.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">Explora por
+            Categoría</h2>
+          <p style="font-size: 1.1rem; color: var(--muted); margin-bottom: 32px;">Selecciona la línea de productos que
+            mejor se adapte a tu negocio.</p>
         </div>
 
         <div class="catalog-header container" style="display: none;" id="catalog-nav">
@@ -67,6 +108,14 @@
 
         <section id="category-grid" class="category-hub container" style="display: none;"></section>
         <section id="products" class="product-grid animated-products container" style="display: none;"></section>
+      </section>
+
+      <section id="best-sellers" class="best-sellers-section container">
+        <div class="best-sellers-header">
+          <h2>Más vendidos</h2>
+          <p>Los productos preferidos por nuestros clientes.</p>
+        </div>
+        <div id="best-sellers-grid" class="best-sellers-grid"></div>
       </section>
     </main>
 
