@@ -301,7 +301,7 @@ async function openWompi(form, amountInCents, pedidoId) {
       amountInCents,
       reference,
       publicKey,
-      signatureIntegrity: signature.integrity,
+      'signature:integrity': signature.integrity,
       redirectUrl: finalRedirect,
       customerData: {
         email: form.email.value,
@@ -321,7 +321,7 @@ async function openWompi(form, amountInCents, pedidoId) {
     url.searchParams.set('amount-in-cents', String(amountInCents));
     url.searchParams.set('reference', reference);
     url.searchParams.set('redirect-url', finalRedirect);
-    url.searchParams.set('signature-integrity', signature.integrity);
+    url.searchParams.set('signature:integrity', signature.integrity);
     msgEl.textContent = 'Redirigiendo a Wompi...';
     window.location.href = url.toString();
   }

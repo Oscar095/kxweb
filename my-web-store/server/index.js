@@ -108,8 +108,11 @@ app.post('/api/wompi/signature', (req, res) => {
     if (!Number.isFinite(cents) || cents <= 0) return res.status(400).json({ message: 'amountInCents inválido' });
 
     const cur = (currency || 'COP').toUpperCase();
-    const textToSign = `${reference}${cents}${cur}`;
-    const integrity = crypto.createHmac('sha256', WOMPI_INTEGRITY_SECRET).update(textToSign).digest('hex');
+    const textToSign = `${reference}${cents}${cur}${WOMPI_INTEGRITY_SECRET}`;
+    const integrity = crypto
+      .createHash('sha256')
+      .update(textToSign)
+      .digest('hex');
 
     const publicBaseUrl = (process.env.PUBLIC_BASE_URL || process.env.APP_BASE_URL || '').toString().trim().replace(/\/$/, '');
     const fallbackBase = `${req.protocol}://${req.get('host')}`;
