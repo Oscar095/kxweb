@@ -295,7 +295,11 @@ async function openWompi(form, amountInCents, pedidoId) {
   try {
     await ensureWompiWidgetLoaded();
     const checkout = new WidgetCheckout({
-      currency, amountInCents, reference, publicKey, signature,
+      currency,
+      amountInCents,
+      reference,
+      publicKey,
+      signatureIntegrity: signature.integrity,
       redirectUrl: finalRedirect,
       customerData: {
         email: form.email.value,
