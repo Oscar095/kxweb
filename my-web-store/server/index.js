@@ -1262,8 +1262,11 @@ app.post('/api/pedidos/:pedidoId/confirmar-pago', async (req, res) => {
     const txId = String(transactionId || '').trim();
     if (!txId) return res.status(400).json({ message: 'transactionId requerido' });
 
-    // Consultar Wompi (producción). Si luego usas sandbox, se puede parametrizar.
-    const wompiBase = 'https://production.wompi.co/v1';
+    // Auto-detectar sandbox vs producción según el prefijo de la llave pública
+    const isSandbox = (WOMPI_PUBLIC_KEY || '').startsWith('pub_test_');
+    const wompiBase = isSandbox
+      ? 'https://sandbox.wompi.co/v1'
+      : 'https://production.wompi.co/v1';
     const wompiResp = await fetch(`${wompiBase}/transactions/${encodeURIComponent(txId)}`, {
       headers: { 'accept': 'application/json' }
     });

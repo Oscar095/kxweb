@@ -114,6 +114,9 @@ async function init() {
     }
   };
 
+  // Track active category to restore it when search is cleared
+  let currentCat = initialCat;
+
   // Apply initial filter
   applyCategoryFilter(initialCat);
 
@@ -328,6 +331,7 @@ async function init() {
       if (!btn || !catWrap.contains(btn)) return;
 
       const cat = btn.dataset.cat;
+      currentCat = cat;
       applyCategoryFilter(cat);
 
       // Add small feedback class
@@ -339,6 +343,45 @@ async function init() {
       window.history.pushState({ path: newurl }, '', newurl);
     });
   }
+
+  // Search filter (global event dispatched from header)
+  window.addEventListener('search', (e) => {
+    const q = (e.detail || '').trim().toLowerCase();
+    const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
+    const descEl = document.getElementById('current-category-desc');
+
+    if (!q) {
+      applyCategoryFilter(currentCat);
+      return;
+    }
+
+    const filtered = products.filter(p => {
+      const pName = (p.name || '').toLowerCase();
+      const pDesc = (p.description || '').toLowerCase();
+      const pCat = String(p.category_name || p.category_nombre || p.category_desc || p.category || '').toLowerCase();
+      return pName.includes(q) || pDesc.includes(q) || pCat.includes(q);
+    });
+
+    if (titleEl) titleEl.textContent = `Resultados: "${e.detail}"`;
+    if (descEl) descEl.style.display = 'none';
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+
+    if (filtered.length === 0) {
+      mount.innerHTML = `
+        <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: var(--muted); margin-bottom: 16px; margin: 0 auto; display: block;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin resultados</h3>
+          <p style="color: var(--muted); font-size: 1.1rem;">No se encontraron productos para "${e.detail}".</p>
+        </div>
+      `;
+    } else {
+      renderProducts(filtered, mount);
+    }
+  });
 }
 
 init();

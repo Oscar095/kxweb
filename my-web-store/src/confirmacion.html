@@ -3,17 +3,324 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Confirmación de Pago — Kos Xpress</title>
+  <title>Confirmación de Pedido — Kos Xpress</title>
   <link rel="stylesheet" href="styles/main.css">
+  <style>
+    .confirm-wrapper {
+      min-height: calc(100vh - 160px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .confirm-card {
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.09);
+      border-radius: 28px;
+      max-width: 520px;
+      width: 100%;
+      padding: 52px 44px 44px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .confirm-card::before {
+      content: '';
+      position: absolute;
+      top: -90px;
+      right: -90px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 159, 227, 0.10), transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ── Icon wrap ── */
+    .confirm-icon-wrap {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 32px;
+    }
+
+    .confirm-icon-wrap.loading {
+      background: rgba(0, 159, 227, 0.09);
+      border: 2px solid rgba(0, 159, 227, 0.22);
+    }
+
+    .confirm-icon-wrap.success {
+      background: rgba(22, 163, 74, 0.10);
+      border: 2px solid rgba(22, 163, 74, 0.28);
+      animation: iconPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    .confirm-icon-wrap.pending {
+      background: rgba(234, 179, 8, 0.10);
+      border: 2px solid rgba(234, 179, 8, 0.28);
+    }
+
+    .confirm-icon-wrap.failed {
+      background: rgba(220, 38, 38, 0.09);
+      border: 2px solid rgba(220, 38, 38, 0.25);
+    }
+
+    @keyframes iconPop {
+      0%   { transform: scale(0.4); opacity: 0; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 52px;
+      height: 52px;
+      border: 4px solid rgba(0, 159, 227, 0.15);
+      border-top-color: #009FE3;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Text ── */
+    .confirm-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin: 0 0 10px;
+      letter-spacing: -0.025em;
+      color: var(--text-main);
+    }
+
+    .confirm-title.success { color: #16a34a; }
+    .confirm-title.pending { color: #b45309; }
+    .confirm-title.failed  { color: #dc2626; }
+
+    .confirm-subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      margin: 0 0 36px;
+      line-height: 1.55;
+    }
+
+    /* ── Order badge ── */
+    .order-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: linear-gradient(135deg, #009FE3 0%, #0068b8 100%);
+      color: #fff;
+      border-radius: 18px;
+      padding: 22px 32px;
+      margin-bottom: 28px;
+      box-shadow: 0 8px 28px rgba(0, 159, 227, 0.28);
+    }
+
+    .order-badge-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      opacity: 0.82;
+      margin-bottom: 8px;
+    }
+
+    .order-badge-number {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    /* ── Details table ── */
+    .confirm-details {
+      background: rgba(248, 250, 252, 0.75);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 16px;
+      padding: 6px 24px;
+      margin-bottom: 32px;
+      text-align: left;
+    }
+
+    .confirm-details-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px dashed rgba(0, 0, 0, 0.07);
+    }
+
+    .confirm-details-row:last-child {
+      border-bottom: none;
+    }
+
+    .confirm-details-label {
+      color: var(--muted);
+      font-size: 0.875rem;
+      flex-shrink: 0;
+    }
+
+    .confirm-details-value {
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 0.875rem;
+      max-width: 58%;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    /* ── Status chip ── */
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 13px;
+      border-radius: 100px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+    }
+
+    .status-chip.success { background: rgba(22, 163, 74, 0.12);  color: #16a34a; }
+    .status-chip.pending { background: rgba(234, 179, 8, 0.14);  color: #92400e; }
+    .status-chip.failed  { background: rgba(220, 38, 38, 0.10);  color: #dc2626; }
+
+    /* ── Action buttons ── */
+    .confirm-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .btn-confirm-primary {
+      background: linear-gradient(135deg, #009FE3 0%, #0068b8 100%);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      padding: 15px 24px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: block;
+      font-family: inherit;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 18px rgba(0, 159, 227, 0.28);
+    }
+
+    .btn-confirm-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(0, 159, 227, 0.38);
+    }
+
+    .btn-confirm-secondary {
+      background: rgba(255, 255, 255, 0.85);
+      color: #009FE3;
+      border: 1.5px solid rgba(0, 159, 227, 0.28);
+      border-radius: 14px;
+      padding: 14px 24px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: block;
+      font-family: inherit;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .btn-confirm-secondary:hover {
+      background: rgba(0, 159, 227, 0.06);
+      border-color: #009FE3;
+    }
+
+    /* ── Footer note ── */
+    .confirm-note {
+      color: #94a3b8;
+      font-size: 0.8rem;
+      margin: 24px 0 0;
+      line-height: 1.6;
+    }
+
+    /* ── Bottom decorative orb ── */
+    .confirm-card::after {
+      content: '';
+      position: absolute;
+      bottom: -70px;
+      left: -70px;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(242, 140, 48, 0.07), transparent 70%);
+      pointer-events: none;
+    }
+
+    @media (max-width: 560px) {
+      .confirm-card {
+        padding: 40px 20px 36px;
+        border-radius: 22px;
+      }
+
+      .confirm-title { font-size: 1.45rem; }
+      .order-badge-number { font-size: 1.8rem; }
+    }
+  </style>
 </head>
 <body>
   <header id="site-header"></header>
 
-  <main class="container">
-    <h1>Confirmación de Pago</h1>
-    <section id="confirm-root" style="background:#fff;border:1px solid #eee;border-radius:10px;padding:14px;">
-      <div id="confirm-box">Verificando...</div>
-    </section>
+  <main>
+    <div class="confirm-wrapper">
+      <article class="confirm-card" id="confirm-card">
+
+        <!-- State icon -->
+        <div class="confirm-icon-wrap loading" id="confirm-icon">
+          <div class="spinner" id="confirm-spinner"></div>
+        </div>
+
+        <!-- Title & subtitle -->
+        <h1 class="confirm-title" id="confirm-title">Verificando pago…</h1>
+        <p class="confirm-subtitle" id="confirm-subtitle">Por favor espera un momento.</p>
+
+        <!-- Order number badge -->
+        <div class="order-badge" id="order-badge" style="display:none;">
+          <span class="order-badge-label">Número de pedido</span>
+          <span class="order-badge-number" id="order-number">—</span>
+        </div>
+
+        <!-- Detail rows -->
+        <div class="confirm-details" id="confirm-details" style="display:none;">
+          <div class="confirm-details-row" id="row-transaction" style="display:none;">
+            <span class="confirm-details-label">ID Transacción Wompi</span>
+            <span class="confirm-details-value" id="detail-transaction">—</span>
+          </div>
+          <div class="confirm-details-row">
+            <span class="confirm-details-label">Estado del pago</span>
+            <span class="confirm-details-value" id="detail-status">—</span>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="confirm-actions" id="confirm-actions" style="display:none;">
+          <a href="/" class="btn-confirm-primary">Seguir comprando</a>
+          <a href="/contact.html" class="btn-confirm-secondary">Contactar soporte</a>
+        </div>
+
+        <!-- Footer note -->
+        <p class="confirm-note" id="confirm-note" style="display:none;">
+          Recibirás un correo con los detalles de tu pedido.<br>
+          Si tienes alguna duda contáctanos, con gusto te ayudamos.
+        </p>
+
+      </article>
+    </div>
   </main>
 
   <script type="module" src="./confirmacion-page.js"></script>

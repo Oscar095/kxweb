@@ -5,16 +5,14 @@ import { cartService } from './services/cart-service.js';
 renderHeader(document.getElementById('site-header'));
 renderCartDrawer(document.getElementById('cart-drawer'));
 
-// Utilidades
+// ── utilities ─────────────────────────────────────────────────────────────────
+
 function readCart() {
   try {
-    // Tu app guarda el carrito bajo la llave 'cart'
     const raw = localStorage.getItem('cart');
     const arr = raw ? JSON.parse(raw) : [];
     return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 function priceOf(item) {
@@ -22,68 +20,214 @@ function priceOf(item) {
   const num = typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw);
   return Number.isFinite(num) ? num : 0;
 }
+
 function computeTotal(items) {
-  return items.reduce((s, i) => {
-    const qty = Math.max(1, Number(i._qty) || 1);
-    return s + priceOf(i) * qty;
-  }, 0);
+  return items.reduce((s, i) => s + priceOf(i) * Math.max(1, Number(i._qty) || 1), 0);
 }
+
 function computeTotalInCents(items) {
   return Math.round(computeTotal(items) * 100);
 }
 
+function fmt(n) {
+  return n.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+}
+
+function showToast(msg, type = 'success') {
+  let root = document.getElementById('toast-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'toast-root';
+    document.body.appendChild(root);
+  }
+  const toast = document.createElement('div');
+  toast.className = type === 'error' ? 'toast-error' : 'toast-success';
+  toast.textContent = msg;
+  root.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(20px)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+// ── order summary ─────────────────────────────────────────────────────────────
+
 function renderOrderSummary() {
   const el = document.getElementById('order-summary');
+  if (!el) return { items: [], amountInCents: 0 };
+
   const items = readCart();
 
-  // Agrupar por id con cantidades
+  // Group by id
   const map = new Map();
   for (const it of items) {
-    const id = it.id;
     const qty = Math.max(1, Number(it._qty) || 1);
-    const price = priceOf(it);
-    const cover = (Array.isArray(it.images) && it.images[0]) ? it.images[0] : (it.image || '/images/placeholder.svg');
-    const g = map.get(id) || { id, name: it.name, price, qty: 0, image: cover };
-    g.qty += qty;
-    g.image = g.image || cover;
-    map.set(id, g);
+    const existing = map.get(it.id) || {
+      id: it.id, name: it.name, price: priceOf(it), qty: 0,
+      image: (Array.isArray(it.images) && it.images[0]) || it.image || '/images/placeholder.svg'
+    };
+    existing.qty += qty;
+    map.set(it.id, existing);
   }
   const grouped = Array.from(map.values());
-
   const cents = computeTotalInCents(items);
-  const amount = (cents / 100).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
 
   if (grouped.length === 0) {
     el.innerHTML = `
-      <h3 style="color: black; font-size: 18px; font-weight: 500;">Resumen de la Orden</h3>
-      <p>Tu carrito está vacío.</p>
+      <div class="co-summary-card glass-panel">
+        <h3 class="co-summary-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+          </svg>
+          Resumen del pedido
+        </h3>
+        <p style="color:var(--muted);font-size:.9rem;text-align:center;padding:24px 0;line-height:1.6">
+          Tu carrito está vacío.<br>
+          <a href="/products" style="color:var(--primary);font-weight:600;">Explorar productos →</a>
+        </p>
+      </div>
     `;
     return { items, amountInCents: cents };
   }
 
-  const rows = grouped.map(it => {
-    const unit = it.price.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
-    const sub = (it.price * it.qty).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
-    return `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed #eee;">
-        <img src="${it.image}" alt="${it.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'" style="width:56px;height:56px;object-fit:contain;background:#fff;border:1px solid #eee;border-radius:6px;flex-shrink:0;" />
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;color:black;white-space:normal;">${it.name}</div>
-          <div style="color:#555;font-size:13px;">${unit} x ${it.qty} = <strong>${sub}</strong></div>
-        </div>
+  const rows = grouped.map(it => `
+    <div class="co-summary-item">
+      <div style="position:relative;flex-shrink:0;">
+        <img class="co-summary-img" src="${it.image}" alt="${it.name}"
+          onerror="this.onerror=null;this.src='/images/placeholder.svg'">
+        <span class="co-summary-qty-badge">${it.qty}</span>
       </div>
-    `;
-  }).join('');
+      <div style="flex:1;min-width:0;">
+        <div class="co-summary-item-name">${it.name}</div>
+        <div class="co-summary-item-sub">${fmt(it.price)} × ${it.qty} = <strong>${fmt(it.price * it.qty)}</strong></div>
+      </div>
+    </div>
+  `).join('');
 
   el.innerHTML = `
-    <h3 style="color: black; font-size: 18px; font-weight: 500;">Resumen de la Orden</h3>
-    <div>${rows}</div>
-    <div style="display:flex;justify-content:flex-end;margin-top:10px;color:black;font-size:16px;">
-      Total a pagar: <strong style="margin-left:6px;">${amount}</strong>
+    <div class="co-summary-card glass-panel">
+      <h3 class="co-summary-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        Resumen del pedido
+        <span class="co-summary-count">${grouped.length} ${grouped.length === 1 ? 'producto' : 'productos'}</span>
+      </h3>
+      <div class="co-summary-items">${rows}</div>
+      <div class="co-summary-total">
+        <span>Total a pagar</span>
+        <span class="co-summary-total-amount">${fmt(cents / 100)}</span>
+      </div>
     </div>
   `;
+
   return { items, amountInCents: cents };
 }
+
+// ── related products ──────────────────────────────────────────────────────────
+
+async function renderRelatedProducts() {
+  const container = document.getElementById('related-products');
+  const section = document.querySelector('.co-related');
+  if (!container) return;
+
+  try {
+    const cartItems = readCart();
+    const res = await fetch('/api/products');
+    if (!res.ok) throw new Error('fetch failed');
+    const allProducts = await res.json();
+
+    const cartIds = new Set(cartItems.map(i => i.id));
+    const cartCats = new Set(
+      cartItems.map(i => String(i.category_name || i.category_nombre || i.category || '').trim()).filter(Boolean)
+    );
+
+    // Prefer same-category products not in cart
+    let related = allProducts.filter(p => {
+      if (cartIds.has(p.id)) return false;
+      const pCat = String(p.category_name || p.category_nombre || p.category || '').trim();
+      return cartCats.has(pCat);
+    });
+
+    // Fill up to 4 with shuffled random products
+    if (related.length < 4) {
+      const pool = allProducts.filter(p => !cartIds.has(p.id) && !related.find(r => r.id === p.id));
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      related = [...related, ...pool.slice(0, 4 - related.length)];
+    }
+
+    related = related.slice(0, 4);
+
+    if (related.length === 0) { section?.remove(); return; }
+
+    container.innerHTML = related.map(p => {
+      const img = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
+      const price = priceOf(p);
+      return `
+        <div class="co-rel-card glass-panel">
+          <a href="/product?id=${p.id}" class="co-rel-img-wrap">
+            <img src="${img}" alt="${p.name}" loading="lazy"
+              onerror="this.onerror=null;this.src='/images/placeholder.svg'">
+          </a>
+          <div class="co-rel-body">
+            <h4 class="co-rel-name">${p.name}</h4>
+            <p class="co-rel-price">${fmt(price)}<span style="font-size:.75rem;font-weight:400;"> / caja</span></p>
+            <button class="btn-primary co-rel-add" data-id="${p.id}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Agregar
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Add to cart delegate
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.co-rel-add');
+      if (!btn || btn.disabled) return;
+      const id = Number(btn.dataset.id);
+      const product = related.find(p => p.id === id);
+      if (!product) return;
+
+      cartService.add(product, 1);
+      btn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Agregado
+      `;
+      btn.disabled = true;
+      btn.style.background = '#10b981';
+      btn.style.borderColor = '#10b981';
+      showToast(`"${product.name}" agregado al carrito`);
+
+      setTimeout(() => {
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Agregar
+        `;
+        btn.disabled = false;
+        btn.style.background = '';
+        btn.style.borderColor = '';
+      }, 2500);
+    });
+
+  } catch (e) {
+    console.warn('No se pudieron cargar productos relacionados:', e);
+    section?.remove();
+  }
+}
+
+// ── Wompi integration ─────────────────────────────────────────────────────────
 
 function showReturnMessageFromWompi() {
   const msgEl = document.getElementById('checkout-message');
@@ -95,7 +239,6 @@ function showReturnMessageFromWompi() {
   }
 }
 
-// Cargar scripts con timeout
 function loadScript(url, timeout = 8000) {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -103,37 +246,27 @@ function loadScript(url, timeout = 8000) {
     s.async = false;
     let done = false;
     const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      s.remove();
+      if (done) return; done = true; s.remove();
       reject(new Error(`Timeout cargando ${url}`));
     }, timeout);
-    s.onload = () => { if (!done) { done = true; clearTimeout(timer); resolve(); } };
+    s.onload  = () => { if (!done) { done = true; clearTimeout(timer); resolve(); } };
     s.onerror = () => { if (!done) { done = true; clearTimeout(timer); reject(new Error(`Error cargando ${url}`)); } };
     document.head.appendChild(s);
   });
 }
 
-// Intentar varias URLs del CDN
 async function ensureWompiWidgetLoaded() {
   if (window.WidgetCheckout) return;
   const candidates = [
-    'https://cdn.wompi.co/libs/widget/v1.js',
-    'https://cdn.wompi.co/libs/widget/v1.1.1.js',
-    'https://cdn.wompi.co/libs/widget/v1.1.0.js'
+    'https://checkout.wompi.co/widget.js',
+    'https://cdn.wompi.co/libs/widget/v1.js'
   ];
   let lastErr;
   for (const url of candidates) {
     try {
       await loadScript(url);
-      if (window.WidgetCheckout) {
-        console.log('Wompi widget cargado desde', url);
-        return;
-      }
-    } catch (e) {
-      console.warn(e.message);
-      lastErr = e;
-    }
+      if (window.WidgetCheckout) { console.log('Wompi widget cargado desde', url); return; }
+    } catch (e) { console.warn(e.message); lastErr = e; }
   }
   throw lastErr || new Error('No se pudo cargar el Widget de Wompi.');
 }
@@ -141,22 +274,15 @@ async function ensureWompiWidgetLoaded() {
 async function openWompi(form, amountInCents, pedidoId) {
   const msgEl = document.getElementById('checkout-message');
   const reference = pedidoId ? `PED-${pedidoId}` : `KOSX-${Date.now()}`;
-  // Nota: algunos gateways/CDNs bloquean redirect-url apuntando a localhost/http.
-  // En local, omitimos redirectUrl para que el backend use PUBLIC_BASE_URL (si está configurado)
-  // o su fallback.
   const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   const redirectPath = pedidoId ? `/confirmacion.html?pedidoId=${encodeURIComponent(pedidoId)}` : '/checkout.html';
   const redirectUrl = isLocalhost ? null : `${location.origin}${redirectPath}`;
 
-  // 1) Obtener firma desde el backend
   const resp = await fetch('/api/wompi/signature', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      reference,
-      amountInCents,
-      currency: 'COP',
-      redirectPath,
+      reference, amountInCents, currency: 'COP', redirectPath,
       ...(redirectUrl ? { redirectUrl } : {})
     })
   });
@@ -166,36 +292,23 @@ async function openWompi(form, amountInCents, pedidoId) {
   }
   const { publicKey, signature, currency, redirectUrl: finalRedirect } = await resp.json();
 
-  // 2) Intentar cargar el widget; si falla, redirigir al checkout de Wompi
   try {
     await ensureWompiWidgetLoaded();
-
     const checkout = new WidgetCheckout({
-      currency,
-      amountInCents,
-      reference,
-      publicKey,
-      signature, // { integrity: '...' }
+      currency, amountInCents, reference, publicKey, signature,
       redirectUrl: finalRedirect,
       customerData: {
         email: form.email.value,
         fullName: form.name.value,
         phoneNumber: form.phone.value
       },
-      shippingAddress: {
-        addressLine1: form.address.value,
-        city: form.city.value
-      }
+      shippingAddress: { addressLine1: form.address.value, city: form.city.value }
     });
-
     msgEl.textContent = 'Abriendo pasarela de pago...';
-    checkout.open(function onResult(result) {
-      if (result) console.log('Wompi result:', result);
-    });
+    msgEl.className = 'co-message';
+    checkout.open(result => { if (result) console.log('Wompi result:', result); });
   } catch (e) {
     console.warn('No se pudo cargar el widget. Fallback a redirección:', e?.message);
-
-    // 3) Fallback: redirección al Checkout Web de Wompi
     const url = new URL('https://checkout.wompi.co/p/');
     url.searchParams.set('public-key', publicKey);
     url.searchParams.set('currency', currency);
@@ -203,58 +316,105 @@ async function openWompi(form, amountInCents, pedidoId) {
     url.searchParams.set('reference', reference);
     url.searchParams.set('redirect-url', finalRedirect);
     url.searchParams.set('signature-integrity', signature.integrity);
-
     msgEl.textContent = 'Redirigiendo a Wompi...';
     window.location.href = url.toString();
   }
 }
 
+// ── field validation visual feedback ─────────────────────────────────────────
+
+function setupFieldValidation() {
+  document.querySelectorAll('.co-field input, .co-field textarea').forEach(input => {
+    const syncState = () => {
+      const hasValue = !!input.value.trim();
+      input.classList.toggle('has-value', hasValue);
+      if (hasValue && input.checkValidity()) {
+        input.classList.add('valid');
+      } else {
+        input.classList.remove('valid');
+      }
+    };
+    input.addEventListener('input', syncState);
+    input.addEventListener('blur', syncState);
+    // Init for pre-filled values
+    if (input.value.trim()) syncState();
+  });
+}
+
+// ── step progress helper ──────────────────────────────────────────────────────
+
+function setStep(n) {
+  [1, 2, 3].forEach(i => {
+    const el = document.getElementById(`step-${i}`);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  });
+}
+
+// ── DOMContentLoaded ──────────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('checkout-form');
-  const payBtn = document.getElementById('pay-btn');
+  const form    = document.getElementById('checkout-form');
+  const payBtn  = document.getElementById('pay-btn');
   const nitInput = document.getElementById('nitId');
+  const msgEl   = document.getElementById('checkout-message');
 
   renderOrderSummary();
   showReturnMessageFromWompi();
+  renderRelatedProducts();
+  setupFieldValidation();
 
-  // Actualizar resumen cuando cambie el carrito (desde el drawer u otras páginas)
+  // Keep summary in sync with cart changes
   cartService.subscribe(() => renderOrderSummary());
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'cart') renderOrderSummary();
-  });
+  window.addEventListener('storage', e => { if (e.key === 'cart') renderOrderSummary(); });
 
-  // Mantener NIT/ID solo numérico
+  // NIT: digits only
   nitInput?.addEventListener('input', () => {
     nitInput.value = String(nitInput.value || '').replace(/\D+/g, '');
   });
 
-  form.addEventListener('submit', async (e) => {
+  // Form submit
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const { amountInCents } = renderOrderSummary();
-    const msg = document.getElementById('checkout-message');
+    msgEl.className = 'co-message';
+    msgEl.textContent = '';
 
     if (amountInCents <= 0) {
-      msg.textContent = 'Tu carrito está vacío.';
+      msgEl.textContent = 'Tu carrito está vacío.';
+      msgEl.className = 'co-message co-message-error';
       return;
     }
 
     const nitId = String(form?.nitId?.value || '').replace(/\D+/g, '').trim();
     if (!nitId) {
-      msg.textContent = 'NIT/ID es obligatorio y debe ser numérico.';
+      msgEl.textContent = 'NIT / Cédula es obligatorio y debe ser numérico.';
+      msgEl.className = 'co-message co-message-error';
+      document.getElementById('nitId')?.focus();
       return;
     }
 
+    // Advance to step 2
+    setStep(2);
     payBtn.disabled = true;
+    payBtn.innerHTML = `
+      <svg class="co-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+        <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+      </svg>
+      Procesando pedido...
+    `;
+
     try {
-      // Registrar pedido en base de datos (solo campos del formulario)
       const payload = {
         nitId,
-        name: String(form.name.value || '').trim(),
-        email: String(form.email.value || '').trim(),
-        phone: String(form.phone.value || '').trim(),
-        address: String(form.address.value || '').trim(),
-        city: String(form.city.value || '').trim(),
-        notes: String(form.notes?.value || '').trim(),
+        name:          String(form.name.value || '').trim(),
+        email:         String(form.email.value || '').trim(),
+        phone:         String(form.phone.value || '').trim(),
+        address:       String(form.address.value || '').trim(),
+        city:          String(form.city.value || '').trim(),
+        notes:         String(form.notes?.value || '').trim(),
         paymentMethod: String(form.paymentMethod?.value || '').trim()
       };
 
@@ -263,6 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
       if (!saveResp.ok) {
         const ct = (saveResp.headers.get('content-type') || '').toLowerCase();
         let errMsg = '';
@@ -270,28 +431,33 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const j = await saveResp.json();
             errMsg = j?.detail ? `${j.message || 'Error'} (${j.detail})` : (j?.message || 'Error');
-          } catch {
-            errMsg = '';
-          }
+          } catch { errMsg = ''; }
         }
-        if (!errMsg) {
-          const errTxt = await saveResp.text().catch(() => '');
-          errMsg = errTxt || String(saveResp.status);
-        }
+        if (!errMsg) { errMsg = await saveResp.text().catch(() => '') || String(saveResp.status); }
         throw new Error(`No se pudo registrar el pedido: ${errMsg}`);
       }
 
       const saved = await saveResp.json().catch(() => ({}));
       const pedidoId = saved?.id;
-      if (!pedidoId) {
-        throw new Error('No se pudo obtener el id del pedido (respuesta inválida).');
-      }
+      if (!pedidoId) throw new Error('No se pudo obtener el id del pedido.');
 
+      // Advance to step 3
+      setStep(3);
+      msgEl.textContent = '¡Pedido registrado! Abriendo pasarela de pago...';
       await openWompi(form, amountInCents, pedidoId);
+
     } catch (err) {
       console.error(err);
-      msg.textContent = err.message || 'Error de pago, intenta de nuevo.';
+      setStep(1);
+      msgEl.textContent = err.message || 'Error de pago, intenta de nuevo.';
+      msgEl.className = 'co-message co-message-error';
       payBtn.disabled = false;
+      payBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        Realizar Pedido Seguro
+      `;
     }
   });
 });

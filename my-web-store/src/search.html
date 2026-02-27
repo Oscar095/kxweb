@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Búsqueda - KosXpress</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+
+<body>
+  <div id="app">
+    <header id="site-header"></header>
+
+    <main class="search-page-main">
+      <div class="bg-orb orb-blue" style="top:4%;left:6%;width:420px;height:420px;"></div>
+      <div class="bg-orb orb-orange" style="top:50%;right:4%;width:320px;height:320px;"></div>
+
+      <!-- Hero Search Section -->
+      <section class="search-hero-section">
+        <div class="container search-hero-wrap">
+          <p class="search-hero-eyebrow">Búsqueda</p>
+
+          <div class="search-bar-hero glass-panel">
+            <svg class="search-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              width="22" height="22" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input id="search-page-input" class="search-input-hero" placeholder="¿Qué estás buscando?"
+              autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" />
+            <button id="clear-search-btn" class="search-clear-btn" aria-label="Limpiar búsqueda">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="search-stats" id="search-stats"></div>
+        </div>
+      </section>
+
+      <!-- Chips + Results -->
+      <div class="container">
+        <div class="search-filters-bar" id="search-filters"></div>
+        <div class="search-results-grid" id="search-results"></div>
+      </div>
+    </main>
+
+    <div id="cart-drawer" class="cart-drawer"></div>
+    <footer class="site-footer"></footer>
+  </div>
+
+  <script type="module" src="./search-page.js"></script>
+</body>
+
+</html>

@@ -1,10 +1,58 @@
 import { renderHeader } from './components/header.js';
 import { renderProducts } from './components/product-list.js';
+import { attachDynamicPriceBehavior } from './components/product-item.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
+import { formatMoney } from './utils/format.js';
 
 console.log('app.js (módulo) cargado');
 
+function renderBestSellers(products, mount) {
+  if (!mount || !products.length) return;
+  mount.innerHTML = products.map((p, idx) => {
+    const priceNum = (() => {
+      const raw = p.price ?? p.precio ?? 0;
+      const num = typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw);
+      return Number.isFinite(num) ? num : 0;
+    })();
+    const cantidadNum = (() => {
+      const raw = p.cantidad ?? p.Cantidad ?? p.cant ?? null;
+      const n = raw == null ? null : (typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw));
+      return Number.isFinite(n) ? n : null;
+    })();
+    const unitPrice = (() => {
+      const uRaw = p.price_unit ?? p.precio_unitario ?? null;
+      const u = uRaw == null ? null : (typeof uRaw === 'string' ? Number(uRaw.replace(/[^\d.-]/g, '')) : Number(uRaw));
+      if (Number.isFinite(u)) return u;
+      if (cantidadNum && priceNum) return priceNum / cantidadNum;
+      return 0;
+    })();
+    const totalPerBox = cantidadNum ? (unitPrice * cantidadNum) : unitPrice;
+    const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
+    return `
+      <article class="bs-card" data-id="${p.id}">
+        <a href="/product?id=${p.id}" class="bs-card-visual">
+          <span class="bs-card-rank">#${idx + 1}</span>
+          <img class="bs-card-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
+          <span class="bs-card-flame">🔥</span>
+        </a>
+        <div class="bs-card-body">
+          <a href="/product?id=${p.id}" class="bs-card-name-link">
+            <h3 class="bs-card-name">${p.name}</h3>
+          </a>
+          <p class="price bs-card-price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
+            $${formatMoney(totalPerBox)}<span class="bs-per-box"> / caja</span>
+          </p>
+          <div class="bs-card-actions">
+            <input id="bs-qty-${p.id}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
+            <button class="add-to-cart bs-add-btn btn-primary" data-id="${p.id}">Agregar</button>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+  Array.from(mount.querySelectorAll('.bs-card')).forEach(card => attachDynamicPriceBehavior(card));
+}
 
 async function init() {
   try {
@@ -35,12 +83,11 @@ async function init() {
     // Populate Best Sellers
     const bestSellersGrid = document.getElementById('best-sellers-grid');
     if (bestSellersGrid && products.length > 0) {
-      // Tomamos 4 productos
       let bsProducts = products.filter(p => p.image && !p.image.includes('placeholder')).slice(0, 4);
       if (bsProducts.length < 4) {
         bsProducts.push(...products.slice(0, 4 - bsProducts.length));
       }
-      renderProducts(bsProducts, bestSellersGrid);
+      renderBestSellers(bsProducts, bestSellersGrid);
     }
 
     // Hero Product Rotator - Dynamic from all products
@@ -174,23 +221,26 @@ async function init() {
           // 1) Find all products matching this category
           const catProducts = products.filter(p => window.pMatcher(p, c.nombre));
 
-          // 2) Gather all unique images from ALL products
+          // 2) Gather unique images only from products matching this category
           const allCatImages = new Set();
-          allCatImages.add(c.img); // Always include the default
-          for (const p of products) {
-            if (p.image) allCatImages.add(p.image);
-            if (Array.isArray(p.images)) p.images.forEach(img => allCatImages.add(img));
-            if (p.image2) allCatImages.add(p.image2);
-            if (p.image3) allCatImages.add(p.image3);
-            if (p.image4) allCatImages.add(p.image4);
+          for (const p of catProducts) {
+            if (p.image && p.image !== '/images/placeholder.svg') allCatImages.add(p.image);
+            if (Array.isArray(p.images)) p.images.forEach(img => { if (img && img !== '/images/placeholder.svg') allCatImages.add(img); });
+            if (p.image2 && p.image2 !== '/images/placeholder.svg') allCatImages.add(p.image2);
+            if (p.image3 && p.image3 !== '/images/placeholder.svg') allCatImages.add(p.image3);
+            if (p.image4 && p.image4 !== '/images/placeholder.svg') allCatImages.add(p.image4);
           }
-          const imgArray = Array.from(allCatImages).filter(img => img && img !== '/images/placeholder.svg');
-          const imagesJson = JSON.stringify(imgArray).replace(/"/g, '&quot;');
+          const imgArray = Array.from(allCatImages);
+          // Pick a random image from category products; fall back to hardcoded only if none found
+          const displayImg = imgArray.length > 0
+            ? imgArray[Math.floor(Math.random() * imgArray.length)]
+            : c.img;
+          const imagesJson = JSON.stringify(imgArray.length > 0 ? imgArray : [c.img]).replace(/"/g, '&quot;');
 
           return `
               <div class="category-card-modern" data-cat="${c.id}">
                 <div class="cat-card-bg">
-                  <img src="${c.img}" alt="${c.nombre}" loading="lazy" draggable="false" class="cat-hero-img" data-images="${imagesJson}">
+                  <img src="${displayImg}" alt="${c.nombre}" loading="lazy" draggable="false" class="cat-hero-img" data-images="${imagesJson}">
                   <div class="cat-card-overlay"></div>
                 </div>
                 <div class="cat-card-content">

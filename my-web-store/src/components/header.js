@@ -71,7 +71,16 @@ export function renderHeader(container) {
   if (cartToggle) cartToggle.addEventListener('click', () => window.dispatchEvent(new CustomEvent('toggle-cart')));
 
   const input = document.getElementById('search-input');
-  if (input) input.addEventListener('input', () => window.dispatchEvent(new CustomEvent('search', { detail: input.value })));
+  if (input) {
+    // Live search event for pages that support in-place filtering
+    input.addEventListener('input', () => window.dispatchEvent(new CustomEvent('search', { detail: input.value })));
+    // Enter key → navigate to dedicated search results page
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && input.value.trim()) {
+        window.location.href = '/search?q=' + encodeURIComponent(input.value.trim());
+      }
+    });
+  }
 
   // Logo principal (si existe)
   (async () => {

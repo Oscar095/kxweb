@@ -171,11 +171,56 @@ export function initChatbot() {
       0%, 80%, 100% { transform: scale(0); }
       40% { transform: scale(1); }
     }
+
+    .kos-welcome-bubble {
+      position: fixed;
+      bottom: 96px;
+      right: 24px;
+      background: #fff;
+      border: 1px solid rgba(0,159,227,0.2);
+      border-radius: 14px;
+      padding: 11px 18px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-main, #1e293b);
+      box-shadow: 0 6px 24px rgba(0,159,227,0.14);
+      z-index: 9997;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(10px) scale(0.96);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      pointer-events: none;
+    }
+    .kos-welcome-bubble.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .kos-welcome-bubble.hiding {
+      opacity: 0;
+      transform: translateY(6px) scale(0.96);
+    }
+    .kos-welcome-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -7px;
+      right: 19px;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-right: 1px solid rgba(0,159,227,0.2);
+      border-bottom: 1px solid rgba(0,159,227,0.2);
+      transform: rotate(45deg);
+    }
   `;
   document.head.appendChild(style);
 
   const container = document.createElement('div');
   container.innerHTML = `
+    <!-- Welcome Bubble -->
+    <div class="kos-welcome-bubble" id="kos-welcome-bubble">
+      👋 Hola, soy Koski, tu Asistente Personal
+    </div>
+
     <!-- Floating Button -->
     <button class="kos-chatbot-btn" aria-label="Abrir chat">
       <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.03 2 11c0 2.82 1.494 5.334 3.824 6.953C5.617 19.344 5.166 21 5.166 21s1.777-.113 3.655-1.121C9.696 20.301 10.82 20.5 12 20.5c5.523 0 10-4.03 10-9s-4.477-9-10-9z"/></svg>
@@ -219,7 +264,20 @@ export function initChatbot() {
     if (windowEl.classList.contains('open')) input.focus();
   };
 
-  btnOpen.addEventListener('click', toggleWindow);
+  // Welcome bubble logic
+  const bubble = container.querySelector('#kos-welcome-bubble');
+  const hideBubble = () => {
+    if (!bubble) return;
+    bubble.classList.add('hiding');
+    setTimeout(() => bubble.remove(), 400);
+  };
+  setTimeout(() => {
+    if (!bubble) return;
+    bubble.classList.add('visible');
+    setTimeout(hideBubble, 4500);
+  }, 1200);
+
+  btnOpen.addEventListener('click', () => { hideBubble(); toggleWindow(); });
   btnClose.addEventListener('click', toggleWindow);
 
   const appendMessage = (text, sender) => {

@@ -50,9 +50,11 @@ export function renderCartDrawer(mount) {
     const body = document.getElementById('cart-body');
     body.innerHTML = grouped.length ? grouped.map(i => `
       <div class="cart-item" data-id="${i.id}" style="display:flex;align-items:center;justify-content:space-between;gap:12px; padding: 12px; margin-bottom: 12px; background: rgba(255,255,255,0.5); border: 1px solid rgba(0,0,0,0.05); border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
-        <img src="${i.image || '/images/placeholder.svg'}" alt="${i.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'" style="width:64px;height:64px;object-fit:contain;background:#fff;border-radius:12px;flex-shrink:0; padding:4px;" />
+        <a href="/product?id=${i.id}" style="flex-shrink:0;display:block;" title="Ver ${i.name}">
+          <img src="${i.image || '/images/placeholder.svg'}" alt="${i.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'" style="width:64px;height:64px;object-fit:contain;background:#fff;border-radius:12px;padding:4px;transition:opacity .2s;" onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'" />
+        </a>
         <div class="meta" style="flex:1;min-width:0;">
-          <div style="font-weight:700;white-space:normal;overflow:visible; font-size: 1rem; color:var(--text-main); line-height: 1.2;">${i.name}</div>
+          <a href="/product?id=${i.id}" style="text-decoration:none;color:inherit;"><div style="font-weight:700;white-space:normal;overflow:visible; font-size: 1rem; color:var(--text-main); line-height: 1.2;">${i.name}</div></a>
           <div style="color:var(--primary);font-size:13px; font-weight: 600; margin-top:4px;">$${formatMoney(i.price)}</div>
           <div style="color:var(--text-main);font-size:13px; margin-top:2px;">Subtotal: <strong>$${formatMoney(i.subtotal)}</strong></div>
         </div>
