@@ -1,32 +1,152 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title style="font-size: 1.5rem; font-weight: 600">Detalle del Producto</title>
   <link rel="stylesheet" href="styles/main.css">
   <style>
-    .product-detail{max-width:1100px;margin:0 auto;padding:20px;display:grid;grid-template-columns: 1.1fr 1fr;gap:24px}
-    .pd-gallery{display:flex;flex-direction:column;gap:12px}
-    .pd-gallery .product-img-wrap{position:relative;overflow:hidden;border-radius:10px}
-    .pd-main{width:100%;height:420px;object-fit:contain;background:#fff;border:1px solid #eee;border-radius:10px;padding:8px;display:block;transition: transform .2s ease}
-    .pd-gallery .product-img-wrap:hover .pd-main{transform: scale(1.15)}
-  .pd-gallery .img-lens{position:absolute;pointer-events:none;width:180px;height:180px;border-radius:50%;border:2px solid rgba(0,0,0,0.25);box-shadow:0 6px 16px rgba(0,0,0,.25);display:none;background-repeat:no-repeat;background-position:center;background-size:500% 500%;z-index:3}
-  .pd-gallery .img-prev,.pd-gallery .img-next{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.45);color:#fff;border:none;width:36px;height:40px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:4}
-  .pd-gallery .img-prev{left:8px}
-  .pd-gallery .img-next{right:8px}
-    .pd-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px}
-    .pd-thumbs img{width:100%;height:80px;object-fit:contain;background:#fff;border:1px solid #eee;border-radius:8px;padding:4px;cursor:pointer}
-    .pd-info h1{margin:0 0 6px 0}
-    .pd-price{font-size:1.4rem;color:var(--primary);font-weight:700;margin:10px 0}
-    .pd-stock{margin:-6px 0 10px 0;font-weight:700}
-    .pd-stock--loading{color:#666;font-weight:600}
-    .pd-stock--ok{color:#0a7a28}
-    .pd-stock--out{color:#b00020}
-    .pd-desc{color:#333;line-height:1.5;white-space:pre-line;text-align:justify;text-justify:inter-word}
-    @media (max-width: 900px){.product-detail{grid-template-columns:1fr}}
+    .product-detail {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 24px
+    }
+
+    .pd-gallery {
+      display: flex;
+      flex-direction: column;
+      gap: 12px
+    }
+
+    .pd-gallery .product-img-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 10px
+    }
+
+    .pd-main {
+      width: 100%;
+      height: 420px;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 8px;
+      display: block;
+      transition: transform .2s ease
+    }
+
+    .pd-gallery .product-img-wrap:hover .pd-main {
+      transform: scale(1.15)
+    }
+
+    .pd-gallery .img-lens {
+      position: absolute;
+      pointer-events: none;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 0, 0, 0.25);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .25);
+      display: none;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 500% 500%;
+      z-index: 3
+    }
+
+    .pd-gallery .img-prev,
+    .pd-gallery .img-next {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(0, 0, 0, 0.45);
+      color: #fff;
+      border: none;
+      width: 36px;
+      height: 40px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 4
+    }
+
+    .pd-gallery .img-prev {
+      left: 8px
+    }
+
+    .pd-gallery .img-next {
+      right: 8px
+    }
+
+    .pd-thumbs {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 10px
+    }
+
+    .pd-thumbs img {
+      width: 100%;
+      height: 80px;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 4px;
+      cursor: pointer
+    }
+
+    .pd-info h1 {
+      margin: 0 0 6px 0
+    }
+
+    .pd-price {
+      font-size: 1.4rem;
+      color: var(--primary);
+      font-weight: 700;
+      margin: 10px 0
+    }
+
+    .pd-stock {
+      margin: -6px 0 10px 0;
+      font-weight: 700
+    }
+
+    .pd-stock--loading {
+      color: #666;
+      font-weight: 600
+    }
+
+    .pd-stock--ok {
+      color: #0a7a28
+    }
+
+    .pd-stock--out {
+      color: #b00020
+    }
+
+    .pd-desc {
+      color: #333;
+      line-height: 1.5;
+      white-space: pre-line;
+      text-align: justify;
+      text-justify: inter-word
+    }
+
+    @media (max-width: 900px) {
+      .product-detail {
+        grid-template-columns: 1fr
+      }
+    }
   </style>
 </head>
+
 <body>
   <div id="app">
     <header id="site-header"></header>
@@ -40,6 +160,7 @@
             <img id="pd-main" class="pd-main product-img" src="images/placeholder.svg" alt="" />
           </div>
           <div id="pd-thumbs" class="pd-thumbs"></div>
+          <div id="pd-desc-left" class="pd-desc-left" style="margin-top: 24px;"></div>
         </div>
         <div class="pd-info">
           <h1 id="pd-name"></h1>
@@ -51,9 +172,14 @@
             <input id="pd-qty" type="number" min="1" value="1" style="width:72px;padding:6px;" />
             <button id="pd-add" class="btn-primary">Agregar al carrito</button>
           </div>
+          <div id="pd-subtitle" class="pd-subtitle"></div>
           <div style="margin-top:24px;">
-            <h2>Especificaciones de Producto:</h2>
-          <div id="pd-desc" class="pd-desc"></div>
+            <div id="pd-desc-container">
+              <!-- La descripción se renderiza de forma dinámica aquí -->
+              <div id="pd-desc" class="pd-desc"></div>
+            </div>
+          </div>
+          <div id="pd-complementary" class="pd-complementary" style="margin-top: 32px;"></div>
         </div>
       </div>
     </main>
@@ -62,4 +188,5 @@
   </div>
   <script type="module" src="./product-page.js"></script>
 </body>
+
 </html>

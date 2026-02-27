@@ -30,12 +30,15 @@ export function renderHeader(container) {
   }, 100);
   container.innerHTML = `
     <div class="header-glass-pill">
-  <div class="logo"><a href="/"><img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/></a></div>
+      <div class="logo">
+        <a href="/">
+          <img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/>
+        </a>
+      </div>
       <nav class="nav nav-animated">
         <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
         <a href="/products" class="nav-link" data-nav="productos">Productos</a>
         <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
-
         <span class="nav-rect"></span>
       </nav>
       <div class="search">
@@ -48,15 +51,10 @@ export function renderHeader(container) {
                 <path d="M3 0H0M0 0V3" stroke="currentColor" stroke-width="0.3"/>
               </pattern>
             </defs>
-            <!-- Handle -->
             <path d="M4 4 H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <!-- Basket (trapezoid) with grid fill -->
             <polygon points="6,6 21,6 19.5,13.5 8.5,13.5" fill="url(#cartGrid)" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-            <!-- Base line under basket -->
             <path d="M8.5 13.5 L19.5 13.5" stroke="currentColor" stroke-width="1.5"/>
-            <!-- Legs to wheels -->
             <path d="M8.5 13.5 L7.5 18 M19.5 13.5 L20.5 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <!-- Wheels (outlined) -->
             <circle cx="10" cy="20" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
             <circle cx="18" cy="20" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
           </svg>
@@ -130,6 +128,11 @@ export function renderHeader(container) {
     if (!nav) return;
     if (nav.classList.contains('open')) closeNav();
     else openNav();
+  });
+
+  // Close nav when clicking a link
+  nav?.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', closeNav);
   });
   backdrop?.addEventListener('click', closeNav);
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNav(); });

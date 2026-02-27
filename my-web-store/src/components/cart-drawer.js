@@ -78,10 +78,35 @@ export function renderCartDrawer(mount) {
   cartService._notify();
 
   mount.querySelector('#close-cart').addEventListener('click', () => mount.classList.remove('open'));
-  mount.querySelector('#clear-cart').addEventListener('click', () => {
-    if (confirm('¿Vaciar todo el carrito?')) cartService.clear();
-  });
+
+  let clearConfirmTimeout = null;
+
   mount.addEventListener('click', (e) => {
+    const clearBtn = e.target.closest('#clear-cart');
+    if (clearBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (clearBtn.dataset.confirm === 'true') {
+        cartService.clear();
+        mount.classList.remove('open');
+        clearBtn.dataset.confirm = 'false';
+        clearBtn.textContent = 'Vaciar';
+        clearBtn.style.color = 'var(--muted)';
+        clearTimeout(clearConfirmTimeout);
+      } else {
+        clearBtn.dataset.confirm = 'true';
+        clearBtn.textContent = '¿Seguro?';
+        clearBtn.style.color = '#ff4d4f';
+        clearConfirmTimeout = setTimeout(() => {
+          clearBtn.dataset.confirm = 'false';
+          clearBtn.textContent = 'Vaciar';
+          clearBtn.style.color = 'var(--muted)';
+        }, 4500);
+      }
+      return;
+    }
+
     const removeBtn = e.target.closest('.remove');
     if (removeBtn) {
       cartService.remove(Number(removeBtn.dataset.id));

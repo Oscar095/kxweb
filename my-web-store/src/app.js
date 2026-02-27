@@ -90,64 +90,27 @@ async function init() {
       renderBestSellers(bsProducts, bestSellersGrid);
     }
 
-    // Hero Product Rotator - Dynamic from all products
+    // Hero Product Rotator - Use predefined HTML items
     const rotatorContainer = document.querySelector('.product-rotator');
-    if (rotatorContainer && products.length > 0) {
-      // Collect valid images with their product name
-      const allProductItems = [];
-      for (const p of products) {
-        const pImages = new Set();
-        if (p.image) pImages.add(p.image);
-        if (Array.isArray(p.images)) p.images.forEach(img => pImages.add(img));
-        if (p.image2) pImages.add(p.image2);
-        if (p.image3) pImages.add(p.image3);
-        if (p.image4) pImages.add(p.image4);
+    if (rotatorContainer) {
+      const newRotatorItems = document.querySelectorAll('.rotator-item');
+      if (newRotatorItems.length > 1) {
+        let currentIdx = 0;
+        setInterval(() => {
+          const currentItem = newRotatorItems[currentIdx];
+          currentItem.classList.remove('active');
+          currentItem.classList.add('exiting');
+          setTimeout(() => {
+            currentItem.classList.remove('exiting');
+          }, 800);
 
-        const validImgs = Array.from(pImages).filter(img => img && img !== '/images/placeholder.svg');
-        validImgs.forEach(img => {
-          allProductItems.push({ img, name: p.name || 'Producto KOS' });
-        });
-      }
-
-      // Shuffle logic
-      const shuffle = (array) => {
-        for (let i = array.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-      };
-
-      // Select up to 8 random unique images
-      const randomItems = shuffle(allProductItems).slice(0, 8);
-
-      if (randomItems.length > 0) {
-        rotatorContainer.innerHTML = randomItems.map((it, idx) => `
-          <div class="rotator-item ${idx === 0 ? 'active' : ''}">
-            <img src="${it.img}" alt="${it.name}">
-            <div class="rotator-caption">${it.name}</div>
-          </div>
-        `).join('');
-
-        const newRotatorItems = document.querySelectorAll('.rotator-item');
-        if (newRotatorItems.length > 1) {
-          let currentIdx = 0;
-          setInterval(() => {
-            const currentItem = newRotatorItems[currentIdx];
-            currentItem.classList.remove('active');
-            currentItem.classList.add('exiting');
-            setTimeout(() => {
-              currentItem.classList.remove('exiting');
-            }, 800);
-
-            currentIdx = (currentIdx + 1) % newRotatorItems.length;
-            const nextItem = newRotatorItems[currentIdx];
-            nextItem.classList.remove('exiting');
-            setTimeout(() => {
-              nextItem.classList.add('active');
-            }, 100);
-          }, 4000);
-        }
+          currentIdx = (currentIdx + 1) % newRotatorItems.length;
+          const nextItem = newRotatorItems[currentIdx];
+          nextItem.classList.remove('exiting');
+          setTimeout(() => {
+            nextItem.classList.add('active');
+          }, 100);
+        }, 4000);
       }
     }
 
@@ -200,15 +163,15 @@ async function init() {
         // Categorías solicitadas por el cliente mapeadas a imágenes y rutas id
         // Categorías solicitadas por el cliente mapeadas a imágenes
         const userCategories = [
-          { id: "Bebidas calientes", nombre: "Bebidas calientes", img: "https://datalakekos.blob.core.windows.net/images/products/1769629696360-biaota-bc.jpg?sv=2025-11-05&se=2026-02-26T21%3A44%3A12Z&sr=b&sp=r&sig=l%2BYk0oxJpXFWJE%2BNZPUBDd4hHLEm1819BYPk3NXW1qk%3D" },
-          { id: "Bebidas Frías", nombre: "Bebidas Frías", img: "https://datalakekos.blob.core.windows.net/images/products/1769629716983-obzb88-bf.jpg?sv=2025-11-05&se=2026-02-26T21%3A44%3A12Z&sr=b&sp=r&sig=aD%2BIZD5DPNm8Ff60j9z14Fb7GhNL3dKXDLyo4gNyUic%3D" },
-          { id: "Contenedores", nombre: "Contenedores", img: "https://datalakekos.blob.core.windows.net/images/products/1769629736581-hmztu7-contenedores.jpg?sv=2025-11-05&se=2026-02-26T21%3A44%3A12Z&sr=b&sp=r&sig=%2B658Eixso%2FdSldlGAA%2FXrRvT3KZclbOKTKFachHcqnY%3D" },
-          { id: "Empaques", nombre: "Empaques", img: "https://datalakekos.blob.core.windows.net/images/products/1769629749077-mg4feg-empaques.jpg?sv=2025-11-05&se=2026-02-26T21%3A44%3A12Z&sr=b&sp=r&sig=mwxRrT2MkeCvxiBC%2BHfeI9pecJXAhmM9ozlVsuPKJ9o%3D" },
-          { id: "Platos", nombre: "Platos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629764583-4y38gx-platos.jpg?sv=2025-11-05&se=2026-02-26T21%3A45%3A00Z&sr=b&sp=r&sig=U33EuOSuR6ttg6GwhvF%2F2RBXESE6ZkwNNtbvnDXvwfc%3D" },
-          { id: "Porta vasos", nombre: "Porta vasos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629787369-kao1o8-porta-vasos.jpg?sv=2025-11-05&se=2026-02-26T21%3A45%3A00Z&sr=b&sp=r&sig=Jd6wF2DgrJAN23QsHReicvV%2BB%2FU3btx7A6bO0bUmhK0%3D" },
-          { id: "Tapas para Contenedores", nombre: "Tapas para Contenedores", img: "https://datalakekos.blob.core.windows.net/images/products/1769629814468-tugjuk-tapascontenedores.jpg?sv=2025-11-05&se=2026-02-26T21%3A45%3A00Z&sr=b&sp=r&sig=30GrQmD7cHxvRE%2Blwy12%2Brp58Mq5hp7txtVe%2F4jVAHI%3D" },
-          { id: "Tapas para Vasos", nombre: "Tapas para Vasos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629834934-5ceoiw-tapasvaso.jpg?sv=2025-11-05&se=2026-02-26T21%3A45%3A00Z&sr=b&sp=r&sig=FHk9gV568TNwB0ZW9JJPfNkhRI7JIPi%2F8dTgcbO%2FpK4%3D" },
-          { id: "Accesorios", nombre: "Accesorios", img: "https://datalakekos.blob.core.windows.net/images/products/1772141806562-oycteh-accesorios.png?sv=2025-11-05&se=2026-02-26T21%3A51%3A49Z&sr=b&sp=r&sig=YMMMpLeMfhEoSvVnVcNa%2BJtNruNUTk4rGusxMS9N36s%3D" }
+          { id: "Bebidas calientes", nombre: "Bebidas calientes", img: "https://datalakekos.blob.core.windows.net/images/products/1769629696360-biaota-bc.jpg" },
+          { id: "Bebidas Frías", nombre: "Bebidas Frías", img: "https://datalakekos.blob.core.windows.net/images/products/1769629716983-obzb88-bf.jpg" },
+          { id: "Contenedores", nombre: "Contenedores", img: "https://datalakekos.blob.core.windows.net/images/products/1769629736581-hmztu7-contenedores.jpg" },
+          { id: "Empaques", nombre: "Empaques", img: "https://datalakekos.blob.core.windows.net/images/products/1769629749077-mg4feg-empaques.jpg" },
+          { id: "Platos", nombre: "Platos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629764583-4y38gx-platos.jpg" },
+          { id: "Porta vasos", nombre: "Porta vasos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629787369-kao1o8-porta-vasos.jpg" },
+          { id: "Tapas para Contenedores", nombre: "Tapas para Contenedores", img: "https://datalakekos.blob.core.windows.net/images/products/1769629814468-tugjuk-tapascontenedores.jpg" },
+          { id: "Tapas para Vasos", nombre: "Tapas para Vasos", img: "https://datalakekos.blob.core.windows.net/images/products/1769629834934-5ceoiw-tapasvaso.jpg" },
+          { id: "Accesorios", nombre: "Accesorios", img: "https://datalakekos.blob.core.windows.net/images/products/1772141806562-oycteh-accesorios.png" }
         ];
 
         // Cambiamos wrapper base
@@ -218,24 +181,8 @@ async function init() {
         categoryHub.innerHTML = `
           <div class="category-grid-modern" id="cat-grid">
             ${userCategories.map(c => {
-          // 1) Find all products matching this category
-          const catProducts = products.filter(p => window.pMatcher(p, c.nombre));
-
-          // 2) Gather unique images only from products matching this category
-          const allCatImages = new Set();
-          for (const p of catProducts) {
-            if (p.image && p.image !== '/images/placeholder.svg') allCatImages.add(p.image);
-            if (Array.isArray(p.images)) p.images.forEach(img => { if (img && img !== '/images/placeholder.svg') allCatImages.add(img); });
-            if (p.image2 && p.image2 !== '/images/placeholder.svg') allCatImages.add(p.image2);
-            if (p.image3 && p.image3 !== '/images/placeholder.svg') allCatImages.add(p.image3);
-            if (p.image4 && p.image4 !== '/images/placeholder.svg') allCatImages.add(p.image4);
-          }
-          const imgArray = Array.from(allCatImages);
-          // Pick a random image from category products; fall back to hardcoded only if none found
-          const displayImg = imgArray.length > 0
-            ? imgArray[Math.floor(Math.random() * imgArray.length)]
-            : c.img;
-          const imagesJson = JSON.stringify(imgArray.length > 0 ? imgArray : [c.img]).replace(/"/g, '&quot;');
+          const displayImg = c.img;
+          const imagesJson = JSON.stringify([c.img]).replace(/"/g, '&quot;');
 
           return `
               <div class="category-card-modern" data-cat="${c.id}">
@@ -334,19 +281,15 @@ async function init() {
       toast.className = type === 'error' ? 'toast-error' : 'toast-success';
       toast.textContent = msg;
 
-      // Basic fallback styles just in case css isn't present
-      if (type === 'error') {
-        toast.style.background = '#e74c3c';
-        toast.style.color = '#fff';
-      }
-
       root.appendChild(toast);
+
+      // Trigger animation
+      setTimeout(() => toast.classList.add('visible'), 10);
+
       setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(20px)';
-        toast.style.transition = 'all 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-      }, 2500);
+        toast.classList.remove('visible');
+        setTimeout(() => toast.remove(), 400);
+      }, 3500);
     };
 
     // Delegado: manejar clicks "Agregar" y leer cantidad del input

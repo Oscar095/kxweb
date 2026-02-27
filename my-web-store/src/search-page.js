@@ -70,10 +70,10 @@ async function init() {
   let query = params.get('q') || '';
 
   const searchInput = document.getElementById('search-page-input');
-  const clearBtn    = document.getElementById('clear-search-btn');
-  const statsEl     = document.getElementById('search-stats');
-  const filtersEl   = document.getElementById('search-filters');
-  const resultsEl   = document.getElementById('search-results');
+  const clearBtn = document.getElementById('clear-search-btn');
+  const statsEl = document.getElementById('search-stats');
+  const filtersEl = document.getElementById('search-filters');
+  const resultsEl = document.getElementById('search-results');
 
   if (searchInput) { searchInput.value = query; }
   syncClearBtn(query);
@@ -93,7 +93,7 @@ async function init() {
     return products.filter(p => {
       const name = (p.name || '').toLowerCase();
       const desc = (p.description || '').toLowerCase();
-      const cat  = getCatLabel(p).toLowerCase();
+      const cat = getCatLabel(p).toLowerCase();
       return name.includes(qL) || desc.includes(qL) || cat.includes(qL);
     });
   }
@@ -270,13 +270,16 @@ async function init() {
     const toast = document.createElement('div');
     toast.className = type === 'error' ? 'toast-error' : 'toast-success';
     toast.textContent = msg;
+
     root.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => toast.classList.add('visible'), 10);
+
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(20px)';
-      toast.style.transition = 'all 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, 2500);
+      toast.classList.remove('visible');
+      setTimeout(() => toast.remove(), 400);
+    }, 3500);
   };
 
   resultsEl.addEventListener('click', async (e) => {
@@ -286,8 +289,8 @@ async function init() {
     const product = products.find(p => p.id === id);
     if (!product) return;
     const card = btn.closest('.product');
-    const qty  = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
-    const sku  = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
+    const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
+    const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
 
     if (!sku) {
       cartService.add(product, qty);
@@ -322,11 +325,11 @@ async function init() {
   resultsEl.addEventListener('click', (e) => {
     const prev = e.target.closest('.img-prev');
     const next = e.target.closest('.img-next');
-    const nav  = prev || next;
+    const nav = prev || next;
     if (!nav) return;
     e.preventDefault(); e.stopPropagation();
     const card = nav.closest('.product');
-    const id   = Number(card?.dataset.id);
+    const id = Number(card?.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
     const imgs = Array.isArray(product.images) && product.images.length ? product.images : [product.image];

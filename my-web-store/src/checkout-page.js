@@ -44,12 +44,14 @@ function showToast(msg, type = 'success') {
   toast.className = type === 'error' ? 'toast-error' : 'toast-success';
   toast.textContent = msg;
   root.appendChild(toast);
+
+  // Trigger animation
+  setTimeout(() => toast.classList.add('visible'), 10);
+
   setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(20px)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 2500);
+    toast.classList.remove('visible');
+    setTimeout(() => toast.remove(), 400);
+  }, 3500);
 }
 
 // ── order summary ─────────────────────────────────────────────────────────────
@@ -249,7 +251,7 @@ function loadScript(url, timeout = 8000) {
       if (done) return; done = true; s.remove();
       reject(new Error(`Timeout cargando ${url}`));
     }, timeout);
-    s.onload  = () => { if (!done) { done = true; clearTimeout(timer); resolve(); } };
+    s.onload = () => { if (!done) { done = true; clearTimeout(timer); resolve(); } };
     s.onerror = () => { if (!done) { done = true; clearTimeout(timer); reject(new Error(`Error cargando ${url}`)); } };
     document.head.appendChild(s);
   });
@@ -360,10 +362,10 @@ function setStep(n) {
 // ── DOMContentLoaded ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
-  const form    = document.getElementById('checkout-form');
-  const payBtn  = document.getElementById('pay-btn');
+  const form = document.getElementById('checkout-form');
+  const payBtn = document.getElementById('pay-btn');
   const nitInput = document.getElementById('nitId');
-  const msgEl   = document.getElementById('checkout-message');
+  const msgEl = document.getElementById('checkout-message');
 
   renderOrderSummary();
   showReturnMessageFromWompi();
@@ -413,12 +415,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const payload = {
         nitId,
-        name:          String(form.name.value || '').trim(),
-        email:         String(form.email.value || '').trim(),
-        phone:         String(form.phone.value || '').trim(),
-        address:       String(form.address.value || '').trim(),
-        city:          String(form.city.value || '').trim(),
-        notes:         String(form.notes?.value || '').trim(),
+        name: String(form.name.value || '').trim(),
+        email: String(form.email.value || '').trim(),
+        phone: String(form.phone.value || '').trim(),
+        address: String(form.address.value || '').trim(),
+        city: String(form.city.value || '').trim(),
+        notes: String(form.notes?.value || '').trim(),
         paymentMethod: String(form.paymentMethod?.value || '').trim()
       };
 

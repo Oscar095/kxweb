@@ -3,6 +3,182 @@ import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 import { formatMoney } from './utils/format.js';
 
+function parseProductDescription(text) {
+  if (!text) return { subtitle: '', specsHtml: '', recommendationsHtml: '', brandHtml: '', remainingHtml: '' };
+
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) return { subtitle: '', specsHtml: '', recommendationsHtml: '', brandHtml: '', remainingHtml: '' };
+
+  // 1. Breve inicial (primera línea)
+  const subtitle = lines[0];
+  let remainingLines = lines.slice(1);
+
+  // Expresiones regulares para detectar las diferentes secciones
+  const specRegex = /^(Material|Capacidad[\s\w]*|Cantidad por caja|Cantidad|Calibre):\s*(.*)$/i;
+  const recomTitleRegex = /^Recomendaciones de uso:$/i;
+  const brandRegex = /^Elegir KOS Colombia es elegir consciencia\.$/i;
+
+  let specs = [];
+  let recommendations = [];
+  let hasRecommendationsTitle = false;
+  let brandText = [];
+  let otherText = [];
+
+  let currentSection = 'normal'; // 'normal', 'recommendations', 'brand', 'material_specs'
+  let currentSpecLabel = null;
+
+  for (let i = 0; i < remainingLines.length; i++) {
+    const line = remainingLines[i];
+
+    // Detectar bloque de marca (KOS Colombia)
+    if (brandRegex.test(line) || currentSection === 'brand') {
+      currentSection = 'brand';
+      brandText.push(line);
+      continue;
+    }
+
+    // Detectar Inicio de Recomendaciones de uso
+    if (recomTitleRegex.test(line)) {
+      currentSection = 'recommendations';
+      hasRecommendationsTitle = true;
+      continue;
+    }
+
+    // Procesar lineas dentro de Recomendaciones
+    if (currentSection === 'recommendations') {
+      let recomLine = line.replace(/^-\s*/, '').trim();
+      if (recomLine) recommendations.push(recomLine);
+      continue;
+    }
+
+    // Detectar Especificaciones Técnicas (las principales)
+    const specMatch = line.match(specRegex);
+    if (specMatch && currentSection !== 'recommendations') {
+      currentSpecLabel = specMatch[1];
+
+      // Si el valor está en la misma línea lo guardamos
+      let specValue = specMatch[2].trim();
+
+      // Si el valor está en la línea siguiente (se dejó en blanco en esta línea)
+      // Pero no avanzamos i todavía, solo "espiamos". OJO con viñetas.
+      if (!specValue && (i + 1) < remainingLines.length) {
+        let nextLine = remainingLines[i + 1];
+        // Si la siguiente línea no es un subtítulo o viñeta, asumimos que es el valor
+        if (!specRegex.test(nextLine) && !recomTitleRegex.test(nextLine) && !brandRegex.test(nextLine) && !nextLine.startsWith('-')) {
+          specValue = nextLine;
+          i++; // saltamos esa línea porque ya la procesamos
+        }
+      }
+
+      specs.push({ label: currentSpecLabel, value: specValue, isSubItem: false });
+
+      // Si la etiqueta era Material o similar, permitimos viñetas sub-items
+      if (currentSpecLabel.toLowerCase() === 'material') {
+        currentSection = 'material_specs';
+      } else {
+        currentSection = 'normal';
+      }
+      continue;
+    }
+
+    // Detectar viñetas dentro de especificaciones de Material (Ej: "- Plato de: 23cmx...")
+    if (currentSection === 'material_specs' && line.startsWith('-')) {
+      // Es un sub-item del material / empaque
+      const cleanLine = line.replace(/^-\s*/, '').trim();
+
+      // Intentar ver si tiene formato "Etiqueta: valor"
+      const colonIdx = cleanLine.indexOf(':');
+      if (colonIdx !== -1) {
+        const subLabel = cleanLine.substring(0, colonIdx).trim();
+        const subValue = cleanLine.substring(colonIdx + 1).trim();
+        specs.push({ label: subLabel, value: subValue, isSubItem: true });
+      } else {
+        // Si no tiene dos puntos, lo toma como valor de algo sin etiqueta fuerte
+        specs.push({ label: '', value: cleanLine, isSubItem: true });
+      }
+      continue;
+    }
+
+    // Si había una sección material_specs y aparece texto suelto... 
+    // y no hizo `continue`, ¿es párrafo extra de Material o normal?
+    // Según requerimiento de usuario, si material dice "Material:" vacío y luego "Polyboard...", se capta arriba en el 'espiar'.
+    // Si quedan líneas extra, pasamos a normal.
+    if (currentSection === 'material_specs') {
+      currentSection = 'normal';
+    }
+
+    //Texto normal (no clasificado en lo anterior)
+    otherText.push(line);
+  }
+
+  // --- Construcción de HTML ---
+
+  let specsHtml = '';
+  let capacityHtml = '';
+
+  if (specs.length > 0) {
+    specsHtml += `<div class="pd-tech-specs glass-panel">`;
+    specsHtml += `<div class="pd-tech-specs-header">ESPECIFICACIONES TÉCNICAS</div>`;
+    specsHtml += `<div class="pd-tech-specs-grid">`;
+    specs.forEach(s => {
+      if (s.isSubItem) {
+        specsHtml += `
+            <div class="pd-spec-item pd-spec-subitem" style="grid-column: 1 / -1; padding-left: 12px; border-left: 2px solid var(--primary, #009FE3); margin-top: -10px; margin-bottom: 8px;">
+              <span class="pd-spec-label" style="font-size: 0.85rem;">${s.label ? s.label + ':' : ''}</span>
+              <span class="pd-spec-value" style="font-size: 0.95rem;">${s.value}</span>
+            </div>
+          `;
+      } else {
+        specsHtml += `
+            <div class="pd-spec-item">
+              <span class="pd-spec-label">${s.label}</span>
+              <span class="pd-spec-value">${s.value}</span>
+            </div>
+          `;
+      }
+    });
+    specsHtml += `</div></div>`;
+  }
+
+  let recommendationsHtml = '';
+  if (hasRecommendationsTitle || recommendations.length > 0) {
+    recommendationsHtml += `<div class="pd-recommendations">`;
+    if (hasRecommendationsTitle) {
+      recommendationsHtml += `<h3>Recomendaciones de uso</h3>`;
+    }
+    if (recommendations.length > 0) {
+      recommendationsHtml += `<ul>`;
+      recommendations.forEach(r => {
+        recommendationsHtml += `<li><span class="pd-rec-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span> <span class="pd-rec-text">${r}</span></li>`;
+      });
+      recommendationsHtml += `</ul>`;
+    }
+    recommendationsHtml += `</div>`;
+  }
+
+  let brandHtml = '';
+  if (brandText.length > 0) {
+    brandHtml += `<div class="pd-brand-block" style="margin-top: 32px;">`;
+    if (brandRegex.test(brandText[0])) {
+      brandHtml += `<h4>${brandText[0]}</h4>`;
+      brandText = brandText.slice(1);
+    }
+
+    // Agrupar el resto en parrafos
+    if (brandText.length > 0) {
+      brandText.forEach(p => brandHtml += `<p>${p}</p>`);
+    }
+    brandHtml += `</div>`;
+  }
+
+  let remainingHtml = '';
+  if (otherText.length > 0) {
+    remainingHtml = `<div class="pd-other-text" style="margin-top:24px; font-weight: 500;"><p>${otherText.join('</p><p>')}</p></div>`;
+  }
+
+  return { subtitle, specsHtml, capacityHtml, recommendationsHtml, brandHtml, remainingHtml };
+}
+
 function getIdFromQuery() {
   const u = new URL(location.href);
   return Number(u.searchParams.get('id'));
@@ -111,7 +287,33 @@ function renderProduct(p) {
   const precioCajaInicial = (Number.isFinite(unitario) && cantidadNum) ? (unitario * cantidadNum) : Number(p.price || 0);
   price.textContent = '$' + formatMoney(precioCajaInicial) + ' / caja';
   price.dataset.codigo = p.codigo || '';
-  desc.textContent = p.description || '';
+
+  const subtitleEl = document.getElementById('pd-subtitle');
+  const descLeft = document.getElementById('pd-desc-left');
+
+  if (p.description) {
+    const parsed = parseProductDescription(p.description);
+
+    if (subtitleEl) {
+      subtitleEl.textContent = parsed.subtitle;
+    }
+
+    desc.innerHTML = `
+        ${parsed.specsHtml}
+        ${parsed.remainingHtml}
+      `;
+
+    if (descLeft) {
+      descLeft.innerHTML = `
+        ${parsed.recommendationsHtml}
+        ${parsed.brandHtml}
+      `;
+    }
+  } else {
+    desc.textContent = '';
+    if (subtitleEl) subtitleEl.textContent = '';
+    if (descLeft) descLeft.innerHTML = '';
+  }
 
   // Inventario por SKU (codigo_siesa)
   if (stock) {
@@ -256,20 +458,110 @@ const showToast = (msg, type = 'success') => {
   toast.className = type === 'error' ? 'toast-error' : 'toast-success';
   toast.textContent = msg;
 
-  // Basic fallback styles just in case css isn't present
-  if (type === 'error') {
-    toast.style.background = '#e74c3c';
-    toast.style.color = '#fff';
-  }
-
   root.appendChild(toast);
+
+  // Trigger animation
+  setTimeout(() => toast.classList.add('visible'), 10);
+
   setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(20px)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 2500);
+    toast.classList.remove('visible');
+    setTimeout(() => toast.remove(), 400);
+  }, 3500);
 };
+
+// --- Productos Complementarios ---
+async function renderComplementaryProducts(currentProduct) {
+  const container = document.getElementById('pd-complementary');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/products', { cache: 'no-store' });
+    if (!res.ok) return;
+    const allProducts = await res.json();
+
+    // Excluir el actual y agotados/inactivos
+    const candidates = allProducts.filter(x =>
+      Number(x.id) !== Number(currentProduct.id) &&
+      x.active !== false &&
+      x.estado !== 'Agotado'
+    );
+
+    let catName = '';
+    if (typeof currentProduct.category === 'object' && currentProduct.category !== null) {
+      catName = currentProduct.category.name || currentProduct.category.nombre || currentProduct.category.id || '';
+    } else {
+      catName = currentProduct.category_name || currentProduct.category_nombre || currentProduct.category || '';
+    }
+    catName = catName.toString().toLowerCase();
+
+    let related = [];
+    // Heurística de complementariedad
+    if (catName.includes('vaso')) {
+      related = candidates.filter(x => {
+        const cn = (x.category?.nombre || x.category_name || '').toLowerCase();
+        return cn.includes('tapa') || cn.includes('portavaso');
+      });
+    } else if (catName.includes('tapa')) {
+      related = candidates.filter(x => {
+        const cn = (x.category?.nombre || x.category_name || '').toLowerCase();
+        return cn.includes('vaso') || cn.includes('contenedor');
+      });
+    } else if (catName.includes('contenedor') || catName.includes('plato')) {
+      related = candidates.filter(x => {
+        const cn = (x.category?.nombre || x.category_name || '').toLowerCase();
+        return cn.includes('tapa') || cn.includes('cubierto') || cn.includes('empaque');
+      });
+    }
+
+    // Fallback: misma categoría si no hay complementos específicos
+    if (related.length === 0) {
+      related = candidates.filter(x => {
+        const cn = (x.category?.nombre || x.category_name || '').toLowerCase();
+        return cn === catName;
+      });
+    }
+
+    // Mezclar aleatoriamente y tomar máximo 2
+    related.sort(() => Math.random() - 0.5);
+    related = related.slice(0, 2);
+
+    if (related.length === 0) return;
+
+    let html = `
+      <div class="pd-comp-header">Complementa tu compra</div>
+      <div class="pd-comp-grid">
+    `;
+
+    related.forEach(p => {
+      const img = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : (p.image || '/images/placeholder.svg');
+      const name = p.name || 'Producto';
+      // Precio unitario aproximado o precio base
+      let priceText = '';
+      if (p.price) {
+        priceText = '$' + formatMoney(p.price);
+      }
+
+      // Enlace: asume que la vista de producto es product.html
+      html += `
+        <a href="product.html?id=${p.id}" class="pd-comp-card">
+          <div class="pd-comp-img">
+            <img src="${img}" alt="${name}" loading="lazy" />
+          </div>
+          <div class="pd-comp-info">
+            <h4 class="pd-comp-name">${name}</h4>
+            <div class="pd-comp-price">${priceText}</div>
+          </div>
+        </a>
+      `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+
+  } catch (err) {
+    console.error("Error cargando complementarios:", err);
+  }
+}
 
 async function init() {
   renderHeader(document.getElementById('site-header'));
@@ -282,6 +574,7 @@ async function init() {
   try {
     const p = await loadProduct(id);
     renderProduct(p);
+    renderComplementaryProducts(p);
     // Setup lens effects on detail page
     const wrap = document.querySelector('.pd-gallery .product-img-wrap');
     const main = document.getElementById('pd-main');

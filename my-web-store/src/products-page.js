@@ -132,19 +132,15 @@ async function init() {
     toast.className = type === 'error' ? 'toast-error' : 'toast-success';
     toast.textContent = msg;
 
-    // Basic fallback styles just in case css isn't present
-    if (type === 'error') {
-      toast.style.background = '#e74c3c';
-      toast.style.color = '#fff';
-    }
-
     root.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => toast.classList.add('visible'), 10);
+
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(20px)';
-      toast.style.transition = 'all 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, 2500);
+      toast.classList.remove('visible');
+      setTimeout(() => toast.remove(), 400);
+    }, 3500);
   };
 
   // Delegado: manejar clicks "Agregar" y leer cantidad del input
