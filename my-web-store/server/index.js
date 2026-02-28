@@ -1340,12 +1340,56 @@ app.post('/api/pedidos/:pedidoId/confirmar-pago', async (req, res) => {
       }
     }
 
+    // Obtener el email del cliente para devolverlo en la respuesta
+    const emailCol = pick(['email', 'correo', 'Email', 'Correo']);
+    const nameCol = pick(['name', 'nombre', 'Name', 'Nombre']);
+    let clientEmail = null;
+    let clientName = null;
+    if (emailCol || nameCol) {
+      const selectCols = [emailCol, nameCol].filter(Boolean).map(c => `[${c}]`).join(', ');
+      const pedidoData = await db.query(
+        `SELECT ${selectCols} FROM [${tableSchema}].[${tableName}] WHERE [${idCol}] = @pedidoId;`,
+        { pedidoId }
+      );
+      if (pedidoData && pedidoData[0]) {
+        clientEmail = pedidoData[0][emailCol] || null;
+        clientName = pedidoData[0][nameCol] || null;
+      }
+    }
+
+    // Enviar webhook a n8n si el pago fue aprobado
+    const isApproved = status === 'APPROVED' || status === 'APPROVED_PARTIAL';
+    if (isApproved && process.env.N8N_WEBHOOK_URL) {
+      try {
+        await fetch(process.env.N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'token1': process.env.N8N_WEBHOOK_TOKEN || ''
+          },
+          body: JSON.stringify({
+            pedidoId,
+            transactionId: txId,
+            estado: status,
+            email: clientEmail,
+            name: clientName,
+            timestamp: new Date().toISOString()
+          })
+        });
+        console.log('Webhook n8n enviado correctamente para pedido', pedidoId);
+      } catch (webhookErr) {
+        console.error('Error enviando webhook a n8n:', webhookErr);
+      }
+    }
+
     return res.json({
       ok: true,
       pedidoId,
       id_wompi: txId,
       payment_status: status,
-      reference
+      reference,
+      email: clientEmail,
+      name: clientName
     });
   } catch (e) {
     console.error('confirmar-pago error', e);
