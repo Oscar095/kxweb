@@ -114,44 +114,24 @@ async function init() {
       }
     }
 
-    // Funciones de navegación (SPA mode)    
+    // Helper: find DB category by nombre or descripcion (case-insensitive)
+    const findCategory = (name) => {
+      const q = String(name || '').trim().toLowerCase();
+      return categories.find(c =>
+        String(c.nombre || '').toLowerCase() === q ||
+        String(c.descripcion || '').toLowerCase() === q
+      ) || null;
+    };
+
+    // Funciones de navegación (SPA mode)
+    // Matcher: filters products by DB category ID (no fuzzy text)
     window.pMatcher = (p, cQuery) => {
-      const pCat = String(p.category_name || p.category_nombre || p.category_desc || p.category || '').toLowerCase();
-      const pName = String(p.name || '').toLowerCase();
-      const pDesc = String(p.description || '').toLowerCase();
-      const pStr = pCat + " " + pName + " " + pDesc;
       const catNameLower = String(cQuery || '').trim().toLowerCase();
-
-      if (String(p.category).toLowerCase() === catNameLower || pCat === catNameLower) return true;
-
-      if (catNameLower.includes('tapas') && catNameLower.includes('contenedor')) {
-        return pStr.includes('tapa') && pStr.includes('contenedor');
-      }
-      if (catNameLower.includes('tapas') && catNameLower.includes('vaso')) {
-        return pStr.includes('tapa') && (!pStr.includes('contenedor'));
-      }
-      if (catNameLower.includes('porta') || catNameLower.includes('porta vasos') || catNameLower.includes('porta_vasos')) {
-        return pStr.includes('porta');
-      }
-      if (catNameLower.includes('vasos') && catNameLower.includes('caliente')) {
-        return (pStr.includes('vaso') || pStr.includes('7oz') || pName.includes('vaso')) && !pStr.includes('fria') && !pStr.includes('porta') && !pStr.includes('tapa');
-      }
-      if (catNameLower.includes('vasos') && (catNameLower.includes('fría') || catNameLower.includes('fria'))) {
-        return (pStr.includes('vaso') || pStr.includes('9oz') || pStr.includes('fria')) && !pStr.includes('caliente') && !pStr.includes('porta') && !pStr.includes('tapa');
-      }
-      if (catNameLower.includes('contenedor')) {
-        return pStr.includes('contenedor') && !pStr.includes('tapa');
-      }
-      if (catNameLower.includes('empaque')) {
-        return pStr.includes('empaque');
-      }
-      if (catNameLower.includes('plato')) {
-        return pStr.includes('plato');
-      }
-      if (catNameLower === 'tapas') {
-        return pStr.includes('tapa');
-      }
-
+      // Exact match by category_name (c.descripcion from DB)
+      if (String(p.category_name || '').toLowerCase() === catNameLower) return true;
+      // Match via DB category ID
+      const matchedCat = findCategory(cQuery);
+      if (matchedCat && String(p.category) === String(matchedCat.id)) return true;
       return false;
     };
 
