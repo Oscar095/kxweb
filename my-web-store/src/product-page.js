@@ -609,12 +609,14 @@ async function init() {
       });
       wrap.addEventListener('mousemove', (e) => moveLens(e.clientX, e.clientY));
       wrap.addEventListener('touchstart', (e) => {
+        if (e.target.closest('button')) return;
         const t = e.touches[0];
         if (!t) return; e.preventDefault();
         showLens();
         moveLens(t.clientX, t.clientY);
       }, { passive: false });
       wrap.addEventListener('touchmove', (e) => {
+        if (e.target.closest('button')) return;
         const t = e.touches[0];
         if (!t) return; e.preventDefault();
         moveLens(t.clientX, t.clientY);

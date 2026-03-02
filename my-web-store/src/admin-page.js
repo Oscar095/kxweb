@@ -380,17 +380,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       const list = await r.json();
       const first = Array.isArray(list) ? list[0] : null;
       if (first && first.url) {
-        const sep = first.url.includes('?') ? '&' : '?';
-        const finalUrl = first.url + sep + 'v=' + Date.now();
+        const finalUrl = first.url; // Remote blob storage may reject unknown query params
         const loginLogo = document.getElementById('admin-login-logo');
-        if (loginLogo) loginLogo.src = finalUrl;
+        if (loginLogo) {
+          loginLogo.src = finalUrl;
+          loginLogo.onerror = null; // Remove placeholder fallback if url is officially provided
+        }
         const sidebarLogo = document.getElementById('admin-sidebar-logo');
         if (sidebarLogo) {
           sidebarLogo.src = finalUrl;
           sidebarLogo.style.display = 'inline-block';
+          sidebarLogo.onerror = null;
           const svgIcon = document.getElementById('admin-sidebar-svg');
           if (svgIcon) svgIcon.style.display = 'none';
         }
+
+        // Also ensure favicon updates dynamically (optional fallback)
+        let link = document.querySelector("link[rel*='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          link.type = 'image/png';
+          document.head.appendChild(link);
+        }
+        link.href = finalUrl;
       }
     }
   } catch (e) {

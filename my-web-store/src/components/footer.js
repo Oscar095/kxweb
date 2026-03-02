@@ -170,8 +170,7 @@ export function renderFooter(mount) {
       const list = await r.json();
       const first = Array.isArray(list) ? list[0] : null;
       if (!first || !first.url) return;
-      const sep = first.url.includes('?') ? '&' : '?';
-      img.src = first.url + sep + 'v=' + Date.now();
+      img.src = first.url;
     } catch {
       // ignore
     }

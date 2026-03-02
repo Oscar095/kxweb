@@ -298,6 +298,7 @@ async function init() {
 
   // Touch support
   mount.addEventListener('touchstart', (e) => {
+    if (e.target.closest('button') || e.target.closest('a')) return;
     const touch = e.touches[0];
     const wrap = e.target.closest('.product-img-wrap');
     if (!wrap || !mount.contains(wrap) || !touch) return;
@@ -307,6 +308,7 @@ async function init() {
   }, { passive: false });
 
   mount.addEventListener('touchmove', (e) => {
+    if (e.target.closest('button') || e.target.closest('a')) return;
     const touch = e.touches[0];
     const wrap = e.target.closest('.product-img-wrap');
     if (!wrap || !mount.contains(wrap) || !touch) return;
