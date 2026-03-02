@@ -3,27 +3,6 @@ import { renderProducts } from './components/product-list.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 async function init() {
-  // Reusable fuzzy matcher
-  window.pMatcher = (p, cQuery) => {
-    const pCat = String(p.category_name || '').toLowerCase();
-    const pName = String(p.name || '').toLowerCase();
-    const pStr = pCat + " " + pName + " " + String(p.description || '').toLowerCase();
-    const catNameLower = String(cQuery || '').toLowerCase();
-
-    if (String(p.category) === catNameLower || pCat === catNameLower) return true;
-    if (catNameLower.includes('vasos')) {
-      if (catNameLower.includes('caliente') && (pCat.includes('generica') || pName.includes('7oz') || pName.includes('vasos'))) return true;
-      if (catNameLower.includes('fría') && (pCat.includes('fria') || pStr.includes('fria') || pName.includes('9oz'))) return true;
-    }
-    if (catNameLower.includes('contenedor') && pStr.includes('contenedor')) return true;
-    if (catNameLower.includes('tapa') && pStr.includes('tapa')) return true;
-    if (catNameLower.includes('empaque') && pStr.includes('empaque')) return true;
-    if (catNameLower.includes('plato') && pStr.includes('plato')) return true;
-    if (catNameLower.includes('porta') && pStr.includes('porta')) return true;
-
-    return false;
-  };
-
   renderHeader(document.getElementById('site-header'));
   renderCartDrawer(document.getElementById('cart-drawer'));
 
@@ -34,6 +13,26 @@ async function init() {
   ]);
   const products = await res.json();
   const categories = resCats.ok ? await resCats.json() : [];
+
+  // Helper: find DB category by nombre or descripcion (case-insensitive)
+  const findCategory = (name) => {
+    const q = String(name || '').trim().toLowerCase();
+    return categories.find(c =>
+      String(c.nombre || '').toLowerCase() === q ||
+      String(c.descripcion || '').toLowerCase() === q
+    ) || null;
+  };
+
+  // Reusable matcher: filters products by DB category ID
+  window.pMatcher = (p, cQuery) => {
+    const catNameLower = String(cQuery || '').trim().toLowerCase();
+    // Exact match by category_name (c.descripcion from DB)
+    if (String(p.category_name || '').toLowerCase() === catNameLower) return true;
+    // Match via DB category ID
+    const matchedCat = findCategory(cQuery);
+    if (matchedCat && String(p.category) === String(matchedCat.id)) return true;
+    return false;
+  };
   const mount = document.getElementById('products');
   renderProducts(products, mount);
 
