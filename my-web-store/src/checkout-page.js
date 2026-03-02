@@ -25,8 +25,16 @@ function computeTotal(items) {
   return items.reduce((s, i) => s + priceOf(i) * Math.max(1, Number(i._qty) || 1), 0);
 }
 
-function computeTotalInCents(items) {
-  return Math.round(computeTotal(items) * 100);
+function computeTotals(items) {
+  const subtotal = computeTotal(items);
+  const iva = Math.round(subtotal * 0.19);
+  const total = subtotal + iva;
+  return {
+    subtotal,
+    iva,
+    total,
+    totalInCents: Math.round(total * 100)
+  };
 }
 
 function fmt(n) {
@@ -74,7 +82,7 @@ function renderOrderSummary() {
     map.set(it.id, existing);
   }
   const grouped = Array.from(map.values());
-  const cents = computeTotalInCents(items);
+  const { subtotal, iva, total, totalInCents } = computeTotals(items);
 
   if (grouped.length === 0) {
     el.innerHTML = `
@@ -91,7 +99,7 @@ function renderOrderSummary() {
         </p>
       </div>
     `;
-    return { items, amountInCents: cents };
+    return { items, amountInCents: totalInCents, subtotal: 0, iva: 0, totalValue: 0 };
   }
 
   const rows = grouped.map(it => `
@@ -118,14 +126,24 @@ function renderOrderSummary() {
         <span class="co-summary-count">${grouped.length} ${grouped.length === 1 ? 'producto' : 'productos'}</span>
       </h3>
       <div class="co-summary-items">${rows}</div>
-      <div class="co-summary-total">
-        <span>Total a pagar</span>
-        <span class="co-summary-total-amount">${fmt(cents / 100)}</span>
+      <div class="co-summary-totals">
+        <div class="co-summary-line">
+          <span>Subtotal</span>
+          <span>${fmt(subtotal)}</span>
+        </div>
+        <div class="co-summary-line">
+          <span>IVA (19%)</span>
+          <span>${fmt(iva)}</span>
+        </div>
+        <div class="co-summary-total">
+          <span>Total a pagar</span>
+          <span class="co-summary-total-amount">${fmt(total)}</span>
+        </div>
       </div>
     </div>
   `;
 
-  return { items, amountInCents: cents };
+  return { items, amountInCents: totalInCents, subtotal, iva, totalValue: total };
 }
 
 // ── related products ──────────────────────────────────────────────────────────
@@ -384,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Form submit
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    const { amountInCents } = renderOrderSummary();
+    const { amountInCents, subtotal, iva, totalValue } = renderOrderSummary();
     msgEl.className = 'co-message';
     msgEl.textContent = '';
 
@@ -421,7 +439,10 @@ document.addEventListener('DOMContentLoaded', () => {
         address: String(form.address.value || '').trim(),
         city: String(form.city.value || '').trim(),
         notes: String(form.notes?.value || '').trim(),
-        paymentMethod: String(form.paymentMethod?.value || '').trim()
+        paymentMethod: String(form.paymentMethod?.value || '').trim(),
+        subtotal,
+        iva,
+        total_value: totalValue
       };
 
       const saveResp = await fetch('/api/pedidos', {

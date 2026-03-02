@@ -157,6 +157,9 @@ async function ensureSchema() {
         city NVARCHAR(120) NOT NULL,
         notes NVARCHAR(MAX) NULL,
         payment_method NVARCHAR(50) NULL,
+        subtotal DECIMAL(18,2) NULL,
+        iva DECIMAL(18,2) NULL,
+        total_value DECIMAL(18,2) NULL,
         createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
       );
     END

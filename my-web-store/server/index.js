@@ -157,6 +157,9 @@ app.post('/api/pedidos', async (req, res) => {
     const city = String(b.city || '').trim();
     const notes = (b.notes == null ? '' : String(b.notes)).trim();
     const paymentMethod = (b.paymentMethod == null ? '' : String(b.paymentMethod)).trim();
+    const subtotal = Number(b.subtotal) || 0;
+    const ivaVal = Number(b.iva) || 0;
+    const totalValue = Number(b.total_value) || 0;
 
     if (!nitId) return res.status(400).json({ message: 'nitId requerido (numérico)' });
     if (!name || !email || !phone || !address || !city) {
@@ -201,7 +204,10 @@ app.post('/api/pedidos', async (req, res) => {
       address: pick(['address', 'direccion']),
       city: pick(['city', 'ciudad']),
       notes: pick(['notes', 'nota', 'notas', 'observaciones', 'observacion']),
-      pay: pick(['payment_method', 'paymentmethod', 'paymentMethod', 'metodo_pago', 'metodopago'])
+      pay: pick(['payment_method', 'paymentmethod', 'paymentMethod', 'metodo_pago', 'metodopago']),
+      subtotal: pick(['subtotal']),
+      iva: pick(['iva']),
+      totalValue: pick(['total_value', 'totalvalue', 'total_valor', 'totalvalor'])
     };
 
     const missing = ['nit', 'name', 'email', 'phone', 'address', 'city']
@@ -232,6 +238,9 @@ app.post('/api/pedidos', async (req, res) => {
     add(mapping.city, 'city', city);
     add(mapping.notes, 'notes', notes);
     add(mapping.pay, 'pay', paymentMethod);
+    add(mapping.subtotal, 'subtotal', subtotal);
+    add(mapping.iva, 'iva', ivaVal);
+    add(mapping.totalValue, 'totalValue', totalValue);
 
     // Intentar devolver id si existe columna id
     const idCol = pick(['id', 'Id', 'ID']);
