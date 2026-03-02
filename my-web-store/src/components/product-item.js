@@ -25,7 +25,7 @@ export function productItemTemplate(p) {
   const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
   const qtyInputId = `qty-${p.id}`;
   return /* html */`
-    <article class="product" data-id="${p.id}">
+    <article class="product" data-id="${p.id}" style="cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions')) { window.location.href='/product?id=${p.id}'; }">
       <div class="product-media">
         <div class="product-img-wrap" data-index="0" style="position:relative;">
           <a href="/product?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">

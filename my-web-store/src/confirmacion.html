@@ -1,9 +1,12 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Confirmación de Pedido — Kos Xpress</title>
+  <link rel="icon" type="image/png"
+    href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
   <link rel="stylesheet" href="styles/main.css">
   <style>
     .confirm-wrapper {
@@ -74,8 +77,15 @@
     }
 
     @keyframes iconPop {
-      0%   { transform: scale(0.4); opacity: 0; }
-      100% { transform: scale(1);   opacity: 1; }
+      0% {
+        transform: scale(0.4);
+        opacity: 0;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
 
     /* ── Spinner ── */
@@ -89,7 +99,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     /* ── Text ── */
@@ -101,9 +113,17 @@
       color: var(--text-main);
     }
 
-    .confirm-title.success { color: #16a34a; }
-    .confirm-title.pending { color: #b45309; }
-    .confirm-title.failed  { color: #dc2626; }
+    .confirm-title.success {
+      color: #16a34a;
+    }
+
+    .confirm-title.pending {
+      color: #b45309;
+    }
+
+    .confirm-title.failed {
+      color: #dc2626;
+    }
 
     .confirm-subtitle {
       color: var(--muted);
@@ -189,9 +209,20 @@
       letter-spacing: 0.04em;
     }
 
-    .status-chip.success { background: rgba(22, 163, 74, 0.12);  color: #16a34a; }
-    .status-chip.pending { background: rgba(234, 179, 8, 0.14);  color: #92400e; }
-    .status-chip.failed  { background: rgba(220, 38, 38, 0.10);  color: #dc2626; }
+    .status-chip.success {
+      background: rgba(22, 163, 74, 0.12);
+      color: #16a34a;
+    }
+
+    .status-chip.pending {
+      background: rgba(234, 179, 8, 0.14);
+      color: #92400e;
+    }
+
+    .status-chip.failed {
+      background: rgba(220, 38, 38, 0.10);
+      color: #dc2626;
+    }
 
     /* ── Action buttons ── */
     .confirm-actions {
@@ -268,11 +299,17 @@
         border-radius: 22px;
       }
 
-      .confirm-title { font-size: 1.45rem; }
-      .order-badge-number { font-size: 1.8rem; }
+      .confirm-title {
+        font-size: 1.45rem;
+      }
+
+      .order-badge-number {
+        font-size: 1.8rem;
+      }
     }
   </style>
 </head>
+
 <body>
   <header id="site-header"></header>
 
@@ -325,4 +362,5 @@
 
   <script type="module" src="./confirmacion-page.js"></script>
 </body>
+
 </html>

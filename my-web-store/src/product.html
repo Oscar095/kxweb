@@ -5,6 +5,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title style="font-size: 1.5rem; font-weight: 600">Detalle del Producto</title>
+  <link rel="icon" type="image/png"
+    href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
   <link rel="stylesheet" href="styles/main.css">
   <style>
     .product-detail {
@@ -141,7 +143,61 @@
 
     @media (max-width: 900px) {
       .product-detail {
-        grid-template-columns: 1fr
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .pd-gallery,
+      .pd-info {
+        display: contents;
+      }
+
+      .product-img-wrap {
+        order: 1;
+      }
+
+      .pd-thumbs {
+        order: 2;
+        margin-bottom: 16px;
+      }
+
+      #pd-name {
+        order: 3;
+      }
+
+      .pd-category {
+        order: 4;
+      }
+
+      .pd-price {
+        order: 5;
+      }
+
+      .pd-stock {
+        order: 6;
+      }
+
+      .pd-actions-row {
+        order: 7;
+      }
+
+      .pd-subtitle {
+        order: 8;
+      }
+
+      .pd-desc-wrapper {
+        order: 9;
+      }
+
+      #pd-desc-left {
+        order: 10;
+        margin-top: 24px;
+      }
+
+      .pd-complementary {
+        order: 11;
+        margin-top: 24px;
       }
     }
   </style>
@@ -167,13 +223,13 @@
           <div id="pd-category" class="pd-category"></div>
           <div id="pd-price" class="pd-price"></div>
           <div id="pd-stock" class="pd-stock"></div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+          <div class="pd-actions-row" style="display:flex;align-items:center;gap:10px;margin-top:12px;">
             <label for="pd-qty">Cantidad</label>
             <input id="pd-qty" type="number" min="1" value="1" style="width:72px;padding:6px;" />
             <button id="pd-add" class="btn-primary">Agregar al carrito</button>
           </div>
           <div id="pd-subtitle" class="pd-subtitle"></div>
-          <div style="margin-top:24px;">
+          <div class="pd-desc-wrapper" style="margin-top:24px;">
             <div id="pd-desc-container">
               <!-- La descripción se renderiza de forma dinámica aquí -->
               <div id="pd-desc" class="pd-desc"></div>
