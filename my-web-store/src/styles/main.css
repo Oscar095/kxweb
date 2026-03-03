@@ -3018,13 +3018,28 @@ h6 {
 	color: var(--muted)
 }
 
+.co-summary-totals {
+	margin-top: 10px;
+	border-top: 2px solid var(--glass-border);
+	padding-top: 10px
+}
+
+.co-summary-line {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 4px 0;
+	font-size: .9rem;
+	color: var(--muted)
+}
+
 .co-summary-total {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 14px 0 0;
-	margin-top: 10px;
-	border-top: 2px solid var(--glass-border);
+	padding: 10px 0 0;
+	margin-top: 6px;
+	border-top: 1px solid var(--glass-border);
 	font-weight: 700;
 	font-size: 1rem;
 	color: var(--text-main)

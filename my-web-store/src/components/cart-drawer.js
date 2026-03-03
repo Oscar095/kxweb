@@ -55,8 +55,8 @@ export function renderCartDrawer(mount) {
         </a>
         <div class="meta" style="flex:1;min-width:0;">
           <a href="/product?id=${i.id}" style="text-decoration:none;color:inherit;"><div style="font-weight:700;white-space:normal;overflow:visible; font-size: 1rem; color:var(--text-main); line-height: 1.2;">${i.name}</div></a>
-          <div style="color:var(--primary);font-size:13px; font-weight: 600; margin-top:4px;">$${formatMoney(i.price)}</div>
-          <div style="color:var(--text-main);font-size:13px; margin-top:2px;">Subtotal: <strong>$${formatMoney(i.subtotal)}</strong></div>
+          <div style="color:var(--primary);font-size:13px; font-weight: 600; margin-top:4px;">$${formatMoney(Math.round(i.price * 1.19))} <span style="font-size:10px;color:#4CAF50;">IVA incl.</span></div>
+          <div style="color:var(--text-main);font-size:13px; margin-top:2px;">Subtotal: <strong>$${formatMoney(Math.round(i.subtotal * 1.19))}</strong></div>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
           <button data-id="${i.id}" class="remove" style="color:#ff4d4f;background:transparent; border:none; font-weight:600; font-size:12px;cursor:pointer; padding:0; text-decoration:underline;">Quitar</button>
@@ -70,8 +70,8 @@ export function renderCartDrawer(mount) {
       </div>
     `).join('') : '<div style="text-align:center; padding:40px 0; color:var(--muted); font-weight:600;">Ouch, tu carrito está vacío 🛒</div>';
 
-    const total = grouped.reduce((s, it) => s + it.subtotal, 0);
-    document.getElementById('cart-total').textContent = `Total: $${formatMoney(total)}`;
+    const total = grouped.reduce((s, it) => s + Math.round(it.subtotal * 1.19), 0);
+    document.getElementById('cart-total').innerHTML = `Total: $${formatMoney(total)} <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>`;
   }
 
   cartService.onChange = update;

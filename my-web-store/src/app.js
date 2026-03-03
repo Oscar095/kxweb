@@ -28,6 +28,7 @@ function renderBestSellers(products, mount) {
       return 0;
     })();
     const totalPerBox = cantidadNum ? (unitPrice * cantidadNum) : unitPrice;
+    const totalConIva = Math.round(totalPerBox * 1.19);
     const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
     const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
     return `
@@ -43,7 +44,7 @@ function renderBestSellers(products, mount) {
             <h3 class="bs-card-name">${p.name}</h3>
           </a>
           <p class="price bs-card-price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
-            $${formatMoney(totalPerBox)}<span class="bs-per-box"> / caja</span>
+            $${formatMoney(totalConIva)}<span class="bs-per-box"> / caja</span> <span style="font-size:0.65rem;color:#4CAF50;font-weight:600;">IVA incluido</span>
           </p>
           <div class="bs-card-actions">
             <input id="bs-qty-${p.id}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
