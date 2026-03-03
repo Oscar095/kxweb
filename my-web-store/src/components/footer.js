@@ -146,7 +146,7 @@ export function renderFooter(mount) {
         <h4>¿Dónde estamos ubicados?</h4>
         <p class="footer-address-row">
           <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          Cl. 10 #6-21, Br. Puerto Isaac, Yumbo, Valle del Cauca, Colombia
+         Cl. 10 #no. 21A 120, Yumbo, Arroyo Hondo, Yumbo, Valle del Cauca
         </p>
         <div class="footer-map-wrap">
           <iframe title="Ubicación KOS Colombia" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3982.1!2d-76.5047945!3d3.5468968!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e30a976708cf407%3A0x7f1e9ebdd755feea!2sKOS%20Colombia!5e0!3m2!1ses!2sco!4v1709518577768!5m2!1ses!2sco" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
