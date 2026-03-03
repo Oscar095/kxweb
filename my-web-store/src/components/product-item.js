@@ -21,6 +21,7 @@ export function productItemTemplate(p) {
     return 0;
   })();
   const totalPerBox = cantidadNum ? (unitPrice * cantidadNum) : unitPrice;
+  const totalConIva = Math.round(totalPerBox * 1.19);
   // Use placeholder.svg by default and fallback on image load error (use absolute path)
   const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
   const qtyInputId = `qty-${p.id}`;
@@ -39,7 +40,7 @@ export function productItemTemplate(p) {
       </div>
       <div>
         <a href="/product?id=${p.id}" class="product-link" style="color:inherit;text-decoration:none"><h3>${p.name}</h3></a>
-  <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">$${formatMoney(totalPerBox)} <span style="font-size:0.7rem;color:#666;">/ caja</span></p>
+  <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">$${formatMoney(totalConIva)} <span style="font-size:0.7rem;color:#666;">/ caja</span> <span style="font-size:0.65rem;color:#4CAF50;font-weight:600;">IVA incluido</span></p>
       </div>
       <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
         <label for="${qtyInputId}" class="qty-label" style="font-size:0.9rem;">Cantidad</label>
@@ -98,7 +99,8 @@ export function attachDynamicPriceBehavior(rootEl) {
       }
     }
     const precioCaja = unitario * BOX_SIZE;
-    priceEl.textContent = '$' + fmt(precioCaja) + ' / caja';
+    const precioConIva = Math.round(precioCaja * 1.19);
+    priceEl.innerHTML = '$' + fmt(precioConIva) + ' <span style="font-size:0.7rem;color:#666;">/ caja</span> <span style="font-size:0.65rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
     priceEl.dataset.precioCaja = String(precioCaja);
     if (data?.escalonUsado) {
       priceEl.dataset.dynamicEscalon = String(data.escalonUsado);

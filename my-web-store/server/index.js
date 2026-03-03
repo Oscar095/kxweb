@@ -275,14 +275,72 @@ app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res
     if (!name || !email || !message) {
       return res.status(400).json({ message: 'name, email y message son requeridos' });
     }
-    const id = await Contact.nextId();
     const files = Array.isArray(req.files) ? req.files : [];
-    const attachments = files.map(f => ({ data: f.buffer, type: f.mimetype, filename: f.originalname, size: f.size }));
-    const saved = await Contact.create({ id, name: String(name).trim(), email: String(email).trim(), phone: String(phone || '').trim(), message: String(message).trim(), attachments });
-    res.status(201).json({ ok: true, id: saved.id });
+
+    // Subir cada adjunto a Azure Blob Storage → Contactos/
+    const attachmentMeta = [];
+    if (files.length > 0 && blobServiceClient) {
+      const containerClient = blobServiceClient.getContainerClient(containerName);
+      try { await containerClient.createIfNotExists({ access: 'blob' }); } catch { /* ignore */ }
+      for (const f of files) {
+        const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.originalname}`;
+        const blobName = rootPath ? `${rootPath}/Contactos/${filename}` : `Contactos/${filename}`;
+        const blockClient = containerClient.getBlockBlobClient(blobName);
+        await blockClient.uploadData(f.buffer, { blobHTTPHeaders: { blobContentType: f.mimetype } });
+        const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+        const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+        attachmentMeta.push({ filename: f.originalname, type: f.mimetype, size: f.size, url: blobUrl });
+      }
+    } else {
+      for (const f of files) {
+        attachmentMeta.push({ filename: f.originalname, type: f.mimetype, size: f.size });
+      }
+    }
+
+    // Insertar en dbo.contacts (SQL Server)
+    const r = await db.query(
+      `INSERT INTO dbo.contacts (name, email, phone, message, attachments)
+       OUTPUT INSERTED.id
+       VALUES (@name, @email, @phone, @message, @attachments);`,
+      {
+        name: String(name).trim(),
+        email: String(email).trim(),
+        phone: String(phone || '').trim(),
+        message: String(message).trim(),
+        attachments: JSON.stringify(attachmentMeta)
+      }
+    );
+    const savedId = r && r[0] && r[0].id;
+
+    // Enviar webhook a n8n (fire-and-forget, no bloquea la respuesta)
+    if (process.env.N8N_WEBHOOK_URL_CONTACTO) {
+      const webhookPayload = {
+        id: savedId,
+        name: String(name).trim(),
+        email: String(email).trim(),
+        phone: String(phone || '').trim(),
+        message: String(message).trim(),
+        attachments: attachmentMeta.map(a => ({ filename: a.filename, type: a.type, size: a.size })),
+        timestamp: new Date().toISOString()
+      };
+      fetch(process.env.N8N_WEBHOOK_URL_CONTACTO, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'token1': process.env.N8N_WEBHOOK_TOKEN || ''
+        },
+        body: JSON.stringify(webhookPayload)
+      }).then(wr => {
+        if (!wr.ok) wr.text().then(t => console.error(`[webhook-contacto] Error HTTP ${wr.status}: ${t}`));
+        else console.log(`[webhook-contacto] OK (${wr.status}) para contacto ${savedId}`);
+      }).catch(err => console.error('[webhook-contacto] Error de conexión:', err.message || err));
+    }
+
+    res.status(201).json({ ok: true, id: savedId });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Error guardando contacto' });
+    console.error('[contacts] Error:', e);
+    const detail = e && e.message ? String(e.message).slice(0, 600) : String(e);
+    res.status(500).json({ message: 'Error guardando contacto', detail });
   }
 });
 
@@ -1368,27 +1426,40 @@ app.post('/api/pedidos/:pedidoId/confirmar-pago', async (req, res) => {
 
     // Enviar webhook a n8n si el pago fue aprobado
     const isApproved = status === 'APPROVED' || status === 'APPROVED_PARTIAL';
+    console.log(`[webhook-n8n] pedido=${pedidoId} status="${status}" isApproved=${isApproved} N8N_WEBHOOK_URL=${process.env.N8N_WEBHOOK_URL ? 'SET' : 'NOT SET'}`);
     if (isApproved && process.env.N8N_WEBHOOK_URL) {
       try {
-        await fetch(process.env.N8N_WEBHOOK_URL, {
+        const webhookPayload = {
+          pedidoId,
+          transactionId: txId,
+          estado: status,
+          email: clientEmail,
+          name: clientName,
+          timestamp: new Date().toISOString()
+        };
+        console.log('[webhook-n8n] Enviando payload:', JSON.stringify(webhookPayload));
+        const webhookResp = await fetch(process.env.N8N_WEBHOOK_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'token1': process.env.N8N_WEBHOOK_TOKEN || ''
           },
-          body: JSON.stringify({
-            pedidoId,
-            transactionId: txId,
-            estado: status,
-            email: clientEmail,
-            name: clientName,
-            timestamp: new Date().toISOString()
-          })
+          body: JSON.stringify(webhookPayload)
         });
-        console.log('Webhook n8n enviado correctamente para pedido', pedidoId);
+        const webhookStatus = webhookResp.status;
+        const webhookBody = await webhookResp.text().catch(() => '');
+        if (!webhookResp.ok) {
+          console.error(`[webhook-n8n] Error: HTTP ${webhookStatus} - ${webhookBody}`);
+        } else {
+          console.log(`[webhook-n8n] OK (${webhookStatus}) para pedido ${pedidoId}`);
+        }
       } catch (webhookErr) {
-        console.error('Error enviando webhook a n8n:', webhookErr);
+        console.error('[webhook-n8n] Error de conexión:', webhookErr.message || webhookErr);
       }
+    } else if (!isApproved) {
+      console.log(`[webhook-n8n] Webhook NO enviado: status="${status}" no es APPROVED/APPROVED_PARTIAL`);
+    } else {
+      console.log('[webhook-n8n] Webhook NO enviado: N8N_WEBHOOK_URL no está configurada');
     }
 
     return res.json({

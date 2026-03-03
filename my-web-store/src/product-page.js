@@ -285,7 +285,8 @@ function renderProduct(p) {
   const unitarioRaw = p.price_unit ?? p.precio_unitario ?? null;
   const unitario = unitarioRaw != null ? Number(unitarioRaw) : (cantidadNum && p.price ? Number(p.price) / cantidadNum : null);
   const precioCajaInicial = (Number.isFinite(unitario) && cantidadNum) ? (unitario * cantidadNum) : Number(p.price || 0);
-  price.textContent = '$' + formatMoney(precioCajaInicial) + ' / caja';
+  const precioConIvaInicial = Math.round(precioCajaInicial * 1.19);
+  price.innerHTML = '$' + formatMoney(precioConIvaInicial) + ' <span style="font-size:0.75rem;color:#666;">/ caja</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
   price.dataset.codigo = p.codigo || '';
 
   const subtitleEl = document.getElementById('pd-subtitle');
@@ -416,7 +417,8 @@ function renderProduct(p) {
         unitario = Number(p.price) / BOX_SIZE;
       }
       const precioCaja = unitario * BOX_SIZE;
-      price.textContent = '$' + formatMoney(precioCaja) + ' / caja';
+      const precioConIva = Math.round(precioCaja * 1.19);
+      price.innerHTML = '$' + formatMoney(precioConIva) + ' <span style="font-size:0.75rem;color:#666;">/ caja</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
       price.classList.remove('loading');
     } catch { price.classList.remove('loading'); }
   }
@@ -538,7 +540,7 @@ async function renderComplementaryProducts(currentProduct) {
       // Precio unitario aproximado o precio base
       let priceText = '';
       if (p.price) {
-        priceText = '$' + formatMoney(p.price);
+        priceText = '$' + formatMoney(Math.round(Number(p.price) * 1.19));
       }
 
       // Enlace: asume que la vista de producto es product.html

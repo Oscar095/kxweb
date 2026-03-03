@@ -26,14 +26,20 @@ function computeTotal(items) {
 }
 
 function computeTotals(items) {
-  const subtotal = computeTotal(items);
-  const iva = Math.round(subtotal * 0.19);
-  const total = subtotal + iva;
+  const subtotal = computeTotal(items); // sin IVA
+  // Calcular total con IVA por ítem para que coincida con precios mostrados en catálogo
+  let totalConIva = 0;
+  for (const i of items) {
+    const price = priceOf(i);
+    const qty = Math.max(1, Number(i._qty) || 1);
+    totalConIva += Math.round(price * 1.19) * qty;
+  }
+  const iva = totalConIva - subtotal;
   return {
     subtotal,
     iva,
-    total,
-    totalInCents: Math.round(total * 100)
+    total: totalConIva,
+    totalInCents: Math.round(totalConIva * 100)
   };
 }
 
@@ -104,14 +110,14 @@ function renderOrderSummary() {
 
   const rows = grouped.map(it => `
     <div class="co-summary-item">
-      <div style="position:relative;flex-shrink:0;">
+      <a href="/product?id=${it.id}" style="position:relative;flex-shrink:0;display:block;">
         <img class="co-summary-img" src="${it.image}" alt="${it.name}"
           onerror="this.onerror=null;this.src='/images/placeholder.svg'">
         <span class="co-summary-qty-badge">${it.qty}</span>
-      </div>
+      </a>
       <div style="flex:1;min-width:0;">
-        <div class="co-summary-item-name">${it.name}</div>
-        <div class="co-summary-item-sub">${fmt(it.price)} × ${it.qty} = <strong>${fmt(it.price * it.qty)}</strong></div>
+        <a href="/product?id=${it.id}" class="co-summary-item-name" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${it.name}</a>
+        <div class="co-summary-item-sub">${fmt(Math.round(it.price * 1.19))} × ${it.qty} = <strong>${fmt(Math.round(it.price * 1.19) * it.qty)}</strong> <span style="font-size:0.7rem;color:#4CAF50;">IVA incl.</span></div>
       </div>
     </div>
   `).join('');
@@ -128,7 +134,7 @@ function renderOrderSummary() {
       <div class="co-summary-items">${rows}</div>
       <div class="co-summary-totals">
         <div class="co-summary-line">
-          <span>Subtotal</span>
+          <span>Subtotal (sin IVA)</span>
           <span>${fmt(subtotal)}</span>
         </div>
         <div class="co-summary-line">
@@ -196,7 +202,7 @@ async function renderRelatedProducts() {
           </a>
           <div class="co-rel-body">
             <h4 class="co-rel-name">${p.name}</h4>
-            <p class="co-rel-price">${fmt(price)}<span style="font-size:.75rem;font-weight:400;"> / caja</span></p>
+            <p class="co-rel-price">${fmt(Math.round(price * 1.19))}<span style="font-size:.75rem;font-weight:400;"> / caja</span> <span style="font-size:.65rem;color:#4CAF50;font-weight:600;">IVA incl.</span></p>
             <button class="btn-primary co-rel-add" data-id="${p.id}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>

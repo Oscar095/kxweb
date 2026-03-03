@@ -22,7 +22,10 @@ let poolPromise = null;
 
 async function getPool() {
   if (!poolPromise) {
-    poolPromise = sql.connect(config);
+    poolPromise = sql.connect(config).catch(err => {
+      poolPromise = null; // Reset so the next request retries
+      throw err;
+    });
   }
   return poolPromise;
 }
