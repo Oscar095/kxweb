@@ -87,6 +87,7 @@ export function initChatbot() {
       font-size: 0.95rem;
       line-height: 1.4;
       word-wrap: break-word;
+      white-space: pre-wrap;
     }
     .chatbot-msg.user {
       align-self: flex-end;
@@ -283,7 +284,13 @@ export function initChatbot() {
   const appendMessage = (text, sender) => {
     const div = document.createElement('div');
     div.className = `chatbot-msg ${sender}`;
-    div.textContent = text;
+    if (sender === 'bot') {
+      let formattedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      div.innerHTML = formattedText;
+    } else {
+      div.textContent = text;
+    }
     msgContainer.insertBefore(div, typingInd);
     msgContainer.scrollTop = msgContainer.scrollHeight;
   };

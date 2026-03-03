@@ -24,10 +24,12 @@ export function productItemTemplate(p) {
   // Use placeholder.svg by default and fallback on image load error (use absolute path)
   const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
   const qtyInputId = `qty-${p.id}`;
+  const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
   return /* html */`
-    <article class="product" data-id="${p.id}" style="cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions')) { window.location.href='/product?id=${p.id}'; }">
+    <article class="product" data-id="${p.id}" data-sku="${skuAttr}" style="cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions')) { window.location.href='/product?id=${p.id}'; }">
       <div class="product-media">
         <div class="product-img-wrap" data-index="0" style="position:relative;">
+          <div class="out-of-stock-badge" style="display: none; position: absolute; top: 12px; left: 12px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
           <a href="/product?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
             <img class="product-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
           </a>
@@ -53,6 +55,66 @@ export function productItemTemplate(p) {
 // Listener helper para ser llamado tras insertar en el DOM (desde product list renderer)
 export function attachDynamicPriceBehavior(rootEl) {
   if (!rootEl) return;
+  // --- Dynamic Stock Check ---
+  const skuAttr = rootEl.getAttribute('data-sku');
+  if (skuAttr) {
+    const checkStock = async () => {
+      try {
+        let estado = 'Agotado'; // fallback in case of error
+        const r = await fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`, { cache: 'no-store' });
+
+        if (r.ok) {
+          const data = await r.json();
+          estado = (data && (data.estado || data.status || '')).toString();
+        }
+
+        const badge = rootEl.querySelector('.out-of-stock-badge');
+        const img = rootEl.querySelector('.product-img');
+        const btn = rootEl.querySelector('.add-to-cart');
+
+        if (estado !== 'En Existencia') {
+          if (badge) {
+            badge.style.setProperty('display', 'block', 'important');
+          }
+          if (img) {
+            img.style.setProperty('filter', 'grayscale(1)', 'important');
+            img.style.setProperty('opacity', '0.5', 'important');
+          }
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'No disponible';
+            btn.title = 'No disponible';
+            btn.style.backgroundColor = '#ccc';
+            btn.style.borderColor = '#ccc';
+            btn.style.color = '#777';
+            btn.style.cursor = 'not-allowed';
+            btn.classList.add('disabled');
+          }
+        }
+      } catch (e) {
+        // Fallback to out-of-stock UI if network error
+        const badge = rootEl.querySelector('.out-of-stock-badge');
+        const img = rootEl.querySelector('.product-img');
+        const btn = rootEl.querySelector('.add-to-cart');
+        if (badge) badge.style.setProperty('display', 'block', 'important');
+        if (img) {
+          img.style.setProperty('filter', 'grayscale(1)', 'important');
+          img.style.setProperty('opacity', '0.5', 'important');
+        }
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'No disponible';
+          btn.style.backgroundColor = '#ccc';
+          btn.style.borderColor = '#ccc';
+          btn.style.color = '#777';
+          btn.style.cursor = 'not-allowed';
+        }
+      }
+    };
+    // Desacoplar del flujo principal para no retrasar el render inicial
+    setTimeout(checkStock, 50);
+  }
+
   const qtyInput = rootEl.querySelector('.qty-input[data-dynamic-price]');
   const priceEl = rootEl.querySelector('.price[data-codigo]');
   if (!qtyInput || !priceEl) return;
@@ -143,4 +205,5 @@ export function attachDynamicPriceBehavior(rootEl) {
 
   // Cálculo inicial
   recalc();
+
 }

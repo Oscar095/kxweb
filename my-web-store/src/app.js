@@ -29,13 +29,15 @@ function renderBestSellers(products, mount) {
     })();
     const totalPerBox = cantidadNum ? (unitPrice * cantidadNum) : unitPrice;
     const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
+    const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
     return `
-      <article class="bs-card" data-id="${p.id}">
-        <a href="/product?id=${p.id}" class="bs-card-visual">
+      <article class="bs-card" data-id="${p.id}" data-sku="${skuAttr}">
+        <div class="bs-card-visual" style="position:relative; cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
+          <div class="out-of-stock-badge" style="display: none; position: absolute; top: 8px; left: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.70rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
           <span class="bs-card-rank">#${idx + 1}</span>
           <img class="bs-card-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
           <span class="bs-card-flame">🔥</span>
-        </a>
+        </div>
         <div class="bs-card-body">
           <a href="/product?id=${p.id}" class="bs-card-name-link">
             <h3 class="bs-card-name">${p.name}</h3>
@@ -51,7 +53,64 @@ function renderBestSellers(products, mount) {
       </article>
     `;
   }).join('');
-  Array.from(mount.querySelectorAll('.bs-card')).forEach(card => attachDynamicPriceBehavior(card));
+  const items = Array.from(mount.querySelectorAll('.bs-card'));
+  items.forEach(it => {
+    attachDynamicPriceBehavior(it);
+
+    // Check stock for best sellers
+    const sku = it.getAttribute('data-sku');
+    if (sku) {
+      setTimeout(async () => {
+        try {
+          let estado = 'Agotado'; // fallback in case of error
+          const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
+          if (r.ok) {
+            const data = await r.json();
+            estado = (data && (data.estado || data.status || '')).toString();
+          }
+
+          const badge = it.querySelector('.out-of-stock-badge');
+          const img = it.querySelector('.bs-card-img');
+          const btn = it.querySelector('.add-to-cart');
+
+          if (estado !== 'En Existencia') {
+            if (badge) badge.style.setProperty('display', 'block', 'important');
+            if (img) {
+              img.style.setProperty('filter', 'grayscale(1)', 'important');
+              img.style.setProperty('opacity', '0.5', 'important');
+            }
+            if (btn) {
+              btn.disabled = true;
+              btn.textContent = 'No disponible';
+              btn.title = 'No disponible';
+              btn.style.backgroundColor = '#ccc';
+              btn.style.borderColor = '#ccc';
+              btn.style.color = '#777';
+              btn.style.cursor = 'not-allowed';
+            }
+          }
+        } catch (e) {
+          // Fallback UI if network error
+          const badge = it.querySelector('.out-of-stock-badge');
+          const img = it.querySelector('.bs-card-img');
+          const btn = it.querySelector('.add-to-cart');
+          if (badge) badge.style.setProperty('display', 'block', 'important');
+          if (img) {
+            img.style.setProperty('filter', 'grayscale(1)', 'important');
+            img.style.setProperty('opacity', '0.5', 'important');
+          }
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'No disponible';
+            btn.style.backgroundColor = '#ccc';
+            btn.style.borderColor = '#ccc';
+            btn.style.color = '#777';
+            btn.style.cursor = 'not-allowed';
+          }
+        }
+      }, 50);
+    }
+  });
 }
 
 async function init() {
