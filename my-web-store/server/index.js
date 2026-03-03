@@ -314,13 +314,16 @@ app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res
 
     // Enviar webhook a n8n (fire-and-forget, no bloquea la respuesta)
     if (process.env.N8N_WEBHOOK_URL_CONTACTO) {
+      const firstAtt = attachmentMeta[0] || null;
       const webhookPayload = {
         id: savedId,
         name: String(name).trim(),
         email: String(email).trim(),
         phone: String(phone || '').trim(),
         message: String(message).trim(),
-        attachments: attachmentMeta.map(a => ({ filename: a.filename, type: a.type, size: a.size })),
+        attachment: firstAtt
+          ? { filename: firstAtt.filename, type: firstAtt.type, size: firstAtt.size, url: firstAtt.url || null }
+          : null,
         timestamp: new Date().toISOString()
       };
       fetch(process.env.N8N_WEBHOOK_URL_CONTACTO, {
