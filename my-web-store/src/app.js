@@ -32,7 +32,7 @@ function renderBestSellers(products, mount) {
     const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
     const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
     return `
-      <article class="bs-card" data-id="${p.id}" data-sku="${skuAttr}">
+      <article class="bs-card" data-id="${p.id}" data-sku="${skuAttr}" style="opacity:0;transition:opacity 0.3s ease;">
         <div class="bs-card-visual" style="position:relative; cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
           <div class="out-of-stock-badge" style="display: none; position: absolute; top: 8px; left: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.70rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
           <span class="bs-card-rank">#${idx + 1}</span>
@@ -54,16 +54,43 @@ function renderBestSellers(products, mount) {
       </article>
     `;
   }).join('');
+
+  // Loader para best sellers mientras consulta inventario
+  const bsLoader = document.createElement('div');
+  bsLoader.className = 'bs-loader';
+  bsLoader.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;grid-column:1/-1;gap:12px;">
+      <div style="width:32px;height:32px;border:3px solid #e0e0e0;border-top-color:var(--primary,#009FE3);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <p style="color:var(--muted,#888);font-size:0.95rem;margin:0;">Cargando productos...</p>
+    </div>
+  `;
+  if (!document.getElementById('loader-spin-style')) {
+    const style = document.createElement('style');
+    style.id = 'loader-spin-style';
+    style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+  }
+  mount.prepend(bsLoader);
+
   const items = Array.from(mount.querySelectorAll('.bs-card'));
+  let bsPending = items.length;
+  const onBsRevealed = () => {
+    bsPending--;
+    if (bsPending <= 0 && bsLoader.parentNode) bsLoader.remove();
+  };
+
   items.forEach(it => {
     attachDynamicPriceBehavior(it);
 
-    // Check stock for best sellers
+    // Check stock for best sellers — consultar ANTES de mostrar
     const sku = it.getAttribute('data-sku');
+    let revealed = false;
+    const revealCard = () => { if (revealed) return; revealed = true; it.style.opacity = '1'; onBsRevealed(); };
     if (sku) {
-      setTimeout(async () => {
+      const safetyTimer = setTimeout(revealCard, 6000);
+      (async () => {
         try {
-          let estado = 'Agotado'; // fallback in case of error
+          let estado = 'Agotado';
           const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
           if (r.ok) {
             const data = await r.json();
@@ -91,7 +118,6 @@ function renderBestSellers(products, mount) {
             }
           }
         } catch (e) {
-          // Fallback UI if network error
           const badge = it.querySelector('.out-of-stock-badge');
           const img = it.querySelector('.bs-card-img');
           const btn = it.querySelector('.add-to-cart');
@@ -108,8 +134,13 @@ function renderBestSellers(products, mount) {
             btn.style.color = '#777';
             btn.style.cursor = 'not-allowed';
           }
+        } finally {
+          clearTimeout(safetyTimer);
+          revealCard();
         }
-      }, 50);
+      })();
+    } else {
+      revealCard();
     }
   });
 }

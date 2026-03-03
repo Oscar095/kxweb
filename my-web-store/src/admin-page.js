@@ -110,6 +110,9 @@ async function loadProducts() {
           sel.appendChild(opt);
         }
         sel.value = val;
+        // Set empaque select
+        const selEmp = form.querySelector('#p-empaque');
+        if (selEmp) selEmp.value = prod.row_empaque != null ? prod.row_empaque : '';
         form.description.value = prod.description || '';
         form.images.value = ''; // limpia selección
 
@@ -195,6 +198,7 @@ async function submitForm(ev) {
     payload.price_unit = formEl.querySelector('#p-price-unit')?.value || '';
     payload.cantidad = formEl.querySelector('#p-cantidad')?.value || '';
     payload.category = formEl.querySelector('#p-category')?.value || '';
+    payload.row_empaque = formEl.querySelector('#p-empaque')?.value || '';
     payload.description = formEl.querySelector('#p-desc')?.value || '';
 
     // Files selected
@@ -301,6 +305,18 @@ async function initAdmin() {
         }).join('');
     }
   } catch (e) { console.error('No se pudieron cargar categorías', e); }
+
+  // Populate tipo empaque select
+  try {
+    const selEmp = $('#p-empaque');
+    if (selEmp) {
+      selEmp.innerHTML = '<option value="">Cargando empaques...</option>';
+      const r = await fetch('/api/tipo-empaque', { cache: 'no-store' });
+      const empaques = r.ok ? await r.json() : [];
+      selEmp.innerHTML = '<option value="">(sin empaque)</option>' +
+        empaques.map(e => `<option value="${e.id}">${e.descripcion}</option>`).join('');
+    }
+  } catch (e) { console.error('No se pudieron cargar tipos de empaque', e); }
 
   // Also populate categories list UI
   try {

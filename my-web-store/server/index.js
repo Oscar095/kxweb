@@ -477,7 +477,7 @@ app.get('/api/upload-sas', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     // JOIN para obtener el nombre de la categoría
-    const sqlQuery = `SELECT p.*, c.descripcion AS category_name FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id ORDER BY p.id`;
+    const sqlQuery = `SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id ORDER BY p.id`;
     const rows = await db.query(sqlQuery);
     const out = rows.map(d => {
       const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
@@ -493,6 +493,8 @@ app.get('/api/products', async (req, res) => {
         category: d.category != null ? d.category : null,
         category_name: d.category_name || '',
         category_desc: d.category_desc || '',
+        row_empaque: d.row_empaque != null ? d.row_empaque : null,
+        empaque_descripcion: d.empaque_descripcion || '',
         description: d.description || '',
         images: imgs,
         image: imgs[0] || '/images/placeholder.svg',
@@ -514,7 +516,7 @@ app.get('/api/products/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
     // JOIN para obtener el nombre de la categoría
-    const rows = await db.query('SELECT p.*, c.descripcion AS category_name FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id WHERE p.id = @id', { id });
+    const rows = await db.query('SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id WHERE p.id = @id', { id });
     const d = rows[0];
     if (!d) return res.status(404).json({ message: 'Producto no encontrado' });
     const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
@@ -529,6 +531,8 @@ app.get('/api/products/:id', async (req, res) => {
       cantidad: d.cantidad != null ? d.cantidad : null,
       category: d.category != null ? d.category : null,
       category_name: d.category_name || '',
+      row_empaque: d.row_empaque != null ? d.row_empaque : null,
+      empaque_descripcion: d.empaque_descripcion || '',
       description: d.description || '',
       image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
       images: imgs,
@@ -605,6 +609,17 @@ app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('/api/categories DELETE error', e);
     res.status(500).json({ message: 'Error eliminando categoría' });
+  }
+});
+
+// --- Tipo de Empaque ---
+app.get('/api/tipo-empaque', async (req, res) => {
+  try {
+    const rows = await db.query('SELECT * FROM dbo.tipos_empaques ORDER BY id');
+    res.json(rows.map(r => ({ id: r.id || r.Id || r.ID, descripcion: r.descripcion || r.Descripcion || r.description || '' })));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error listando tipos de empaque' });
   }
 });
 
@@ -997,6 +1012,7 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     const description = (b.description || b.Descripcion || '').toString().trim();
     const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
     const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
+    const row_empaque = asNumber(b.row_empaque) ?? null;
     if (!name) return res.status(400).json({ message: 'Nombre requerido' });
 
     // images: can be array or JSON string
@@ -1016,11 +1032,11 @@ app.post('/api/products', requireAdmin, async (req, res) => {
 
     // Validate categoryParam resolved and exists (FK)
     if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
-    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad });
-    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4) 
+    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque });
+    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque)
         OUTPUT INSERTED.id
-        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4);`, {
-      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4
+        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque);`, {
+      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque
     });
     const newId = resIns[0] && resIns[0].id;
     res.status(201).json({ ok: true, id: newId });
@@ -1261,6 +1277,7 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     const description = (b.description || '').toString().trim();
     const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
     const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
+    const row_empaque = asNumber(b.row_empaque);
     let images;
     if (b.images !== undefined) {
       images = [];
@@ -1279,6 +1296,7 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     if (price_unit != null) { sets.push('price_unit = @price_unit'); params.price_unit = price_unit; }
     if (cantidad != null) { sets.push('cantidad = @cantidad'); params.cantidad = cantidad; }
     if (categoryResolved != null) { sets.push('category = @category'); params.category = categoryResolved; }
+    if (row_empaque != null) { sets.push('row_empaque = @row_empaque'); params.row_empaque = row_empaque; }
     if (description !== '') { sets.push('description = @description'); params.description = description; }
     if (images !== undefined) {
       sets.push('images = @images'); params.images = JSON.stringify(images);

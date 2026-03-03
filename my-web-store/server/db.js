@@ -191,6 +191,14 @@ async function ensureSchema() {
     END
   `);
 
+  // Ensure row_empaque column exists on products (FK to dbo.tipos_empaques)
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.products','row_empaque') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD row_empaque INT NULL;
+    END
+  `);
+
   // logos (header/footer)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[logos]') AND type in (N'U'))

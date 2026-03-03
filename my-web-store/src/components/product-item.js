@@ -27,7 +27,7 @@ export function productItemTemplate(p) {
   const qtyInputId = `qty-${p.id}`;
   const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
   return /* html */`
-    <article class="product" data-id="${p.id}" data-sku="${skuAttr}" style="cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions')) { window.location.href='/product?id=${p.id}'; }">
+    <article class="product" data-id="${p.id}" data-sku="${skuAttr}" style="cursor: pointer; opacity: 0; transition: opacity 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions')) { window.location.href='/product?id=${p.id}'; }">
       <div class="product-media">
         <div class="product-img-wrap" data-index="0" style="position:relative;">
           <div class="out-of-stock-badge" style="display: none; position: absolute; top: 12px; left: 12px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
@@ -58,7 +58,12 @@ export function attachDynamicPriceBehavior(rootEl) {
   if (!rootEl) return;
   // --- Dynamic Stock Check ---
   const skuAttr = rootEl.getAttribute('data-sku');
+  const revealProduct = () => { rootEl.style.opacity = '1'; };
+
   if (skuAttr) {
+    // Timeout de seguridad: si la API no responde en 6s, revelar de todas formas
+    const safetyTimer = setTimeout(revealProduct, 6000);
+
     const checkStock = async () => {
       try {
         let estado = 'Agotado'; // fallback in case of error
@@ -110,10 +115,14 @@ export function attachDynamicPriceBehavior(rootEl) {
           btn.style.color = '#777';
           btn.style.cursor = 'not-allowed';
         }
+      } finally {
+        clearTimeout(safetyTimer);
+        revealProduct();
       }
     };
-    // Desacoplar del flujo principal para no retrasar el render inicial
-    setTimeout(checkStock, 50);
+    checkStock();
+  } else {
+    revealProduct();
   }
 
   const qtyInput = rootEl.querySelector('.qty-input[data-dynamic-price]');
