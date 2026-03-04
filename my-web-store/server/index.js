@@ -149,19 +149,31 @@ app.post('/api/wompi/signature', (req, res) => {
 app.post('/api/pedidos', async (req, res) => {
   try {
     const b = req.body || {};
-    const nitId = String(b.nitId || b.nit_id || '').replace(/\D+/g, '').trim();
-    const name = String(b.name || '').trim();
+    const tipoDocumento = String(b.tipo_documento || '').trim();
+    const rawNit = String(b.nitId || b.nit_id || '').trim();
+    const nitId = (tipoDocumento === 'CE' || tipoDocumento === 'PA') ? rawNit : rawNit.replace(/\D+/g, '');
+    const digitoVerificacion = (b.digito_verificacion == null ? '' : String(b.digito_verificacion)).trim();
+    const nombres = String(b.nombres || '').trim();
+    const apellidos = (b.apellidos == null ? '' : String(b.apellidos)).trim();
+    const nombreCompleto = String(b.nombre_completo || b.name || '').trim();
+    const name = nombreCompleto;
     const email = String(b.email || '').trim();
     const phone = String(b.phone || '').trim();
+    const telefonoFijo = (b.telefono_fijo == null ? '' : String(b.telefono_fijo)).trim();
     const address = String(b.address || '').trim();
     const city = String(b.city || '').trim();
+    const departamento = (b.departamento == null ? '' : String(b.departamento)).trim();
+    const pais = String(b.pais || 'CO').trim();
+    const tipoPersona = String(b.tipo_persona || 'N').trim();
+    const regimen = (b.regimen == null ? '' : String(b.regimen)).trim();
+    const fechaNacimiento = (b.fecha_nacimiento == null ? '' : String(b.fecha_nacimiento)).trim();
     const notes = (b.notes == null ? '' : String(b.notes)).trim();
     const paymentMethod = (b.paymentMethod == null ? '' : String(b.paymentMethod)).trim();
     const subtotal = Number(b.subtotal) || 0;
     const ivaVal = Number(b.iva) || 0;
     const totalValue = Number(b.total_value) || 0;
 
-    if (!nitId) return res.status(400).json({ message: 'nitId requerido (numérico)' });
+    if (!nitId) return res.status(400).json({ message: 'Número de documento requerido' });
     if (!name || !email || !phone || !address || !city) {
       return res.status(400).json({ message: 'name, email, phone, address y city son requeridos' });
     }
@@ -207,7 +219,18 @@ app.post('/api/pedidos', async (req, res) => {
       pay: pick(['payment_method', 'paymentmethod', 'paymentMethod', 'metodo_pago', 'metodopago']),
       subtotal: pick(['subtotal']),
       iva: pick(['iva']),
-      totalValue: pick(['total_value', 'totalvalue', 'total_valor', 'totalvalor'])
+      totalValue: pick(['total_value', 'totalvalue', 'total_valor', 'totalvalor']),
+      tipoDocumento: pick(['tipo_documento']),
+      digitoVerificacion: pick(['digito_verificacion']),
+      nombres: pick(['nombres']),
+      apellidos: pick(['apellidos']),
+      nombreCompleto: pick(['nombre_completo']),
+      telefonoFijo: pick(['telefono_fijo']),
+      departamento: pick(['departamento']),
+      pais: pick(['pais']),
+      tipoPersona: pick(['tipo_persona']),
+      regimen: pick(['regimen']),
+      fechaNacimiento: pick(['fecha_nacimiento'])
     };
 
     const missing = ['nit', 'name', 'email', 'phone', 'address', 'city']
@@ -241,6 +264,17 @@ app.post('/api/pedidos', async (req, res) => {
     add(mapping.subtotal, 'subtotal', subtotal);
     add(mapping.iva, 'iva', ivaVal);
     add(mapping.totalValue, 'totalValue', totalValue);
+    add(mapping.tipoDocumento, 'tipoDocumento', tipoDocumento || null);
+    add(mapping.digitoVerificacion, 'digitoVerificacion', digitoVerificacion || null);
+    add(mapping.nombres, 'nombres', nombres || null);
+    add(mapping.apellidos, 'apellidos', apellidos || null);
+    add(mapping.nombreCompleto, 'nombreCompleto', nombreCompleto || null);
+    add(mapping.telefonoFijo, 'telefonoFijo', telefonoFijo || null);
+    add(mapping.departamento, 'departamento', departamento || null);
+    add(mapping.pais, 'pais', pais || null);
+    add(mapping.tipoPersona, 'tipoPersona', tipoPersona || null);
+    add(mapping.regimen, 'regimen', regimen || null);
+    add(mapping.fechaNacimiento, 'fechaNacimiento', fechaNacimiento || null);
 
     // Intentar devolver id si existe columna id
     const idCol = pick(['id', 'Id', 'ID']);
@@ -266,6 +300,38 @@ app.post('/api/pedidos', async (req, res) => {
           { pedidoId: id, productId: pId, productName: pName, productSku: pSku, priceUnit: pPrice, qty: pQty, subtotalItem: pSubtotal }
         );
       }
+    }
+
+    // Crear tercero en backend externo (fire-and-forget, no bloquea el checkout)
+    try {
+      const terceroBody = {
+        tipo_documento: tipoDocumento || null,
+        numero_documento: nitId,
+        digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
+        nombres: nombres || null,
+        apellidos: apellidos || null,
+        nombre_completo: nombreCompleto || null,
+        fecha_nacimiento: fechaNacimiento || null,
+        email: email,
+        telefono: telefonoFijo || null,
+        celular: phone || null,
+        direccion: address || null,
+        ciudad: city || null,
+        departamento: departamento || null,
+        pais: pais || 'CO',
+        tipo_persona: tipoPersona || 'N',
+        regimen: regimen || null
+      };
+      fetch('https://kx-endpoints.azurewebsites.net/crear-tercero', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(terceroBody)
+      }).then(r => {
+        if (!r.ok) console.warn('crear-tercero respondió con status', r.status);
+        else console.log('Tercero creado/actualizado correctamente');
+      }).catch(err => console.warn('Error enviando a crear-tercero:', err.message));
+    } catch (terceroErr) {
+      console.warn('Error preparando crear-tercero:', terceroErr.message);
     }
 
     res.status(201).json({ ok: true, id: id ?? null });

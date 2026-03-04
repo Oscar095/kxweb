@@ -329,7 +329,7 @@ async function openWompi(form, amountInCents, pedidoId) {
       redirectUrl: finalRedirect,
       customerData: {
         email: form.email.value,
-        fullName: form.name.value,
+        fullName: [form.nombres?.value, form.apellidos?.value].filter(Boolean).join(' '),
         phoneNumber: form.phone.value
       },
       shippingAddress: { addressLine1: form.address.value, city: form.city.value }
@@ -391,6 +391,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const nitInput = document.getElementById('nitId');
   const msgEl = document.getElementById('checkout-message');
 
+  const tipoDocSelect = document.getElementById('tipoDocumento');
+  const tipoPersonaSelect = document.getElementById('tipoPersona');
+  const dvField = document.getElementById('dv-field');
+  const apellidosField = document.getElementById('apellidos-field');
+  const nombresLabel = document.getElementById('nombres-label');
+
   renderOrderSummary();
   showReturnMessageFromWompi();
   renderRelatedProducts();
@@ -400,9 +406,41 @@ document.addEventListener('DOMContentLoaded', () => {
   cartService.subscribe(() => renderOrderSummary());
   window.addEventListener('storage', e => { if (e.key === 'cart') renderOrderSummary(); });
 
-  // NIT: digits only
+  // Tipo documento: mostrar/ocultar DV y ajustar validación del número
+  tipoDocSelect?.addEventListener('change', () => {
+    const tipo = tipoDocSelect.value;
+    // Mostrar DV solo para NIT
+    if (dvField) dvField.style.display = tipo === 'NIT' ? '' : 'none';
+    // Alfanumérico para CE y PA, solo dígitos para CC, NIT, TI
+    if (nitInput) {
+      if (tipo === 'CE' || tipo === 'PA') {
+        nitInput.removeAttribute('inputmode');
+        nitInput.removeAttribute('pattern');
+      } else {
+        nitInput.setAttribute('inputmode', 'numeric');
+        nitInput.value = nitInput.value.replace(/\D+/g, '');
+      }
+    }
+  });
+
+  // Tipo persona: mostrar/ocultar apellidos, cambiar label nombres
+  tipoPersonaSelect?.addEventListener('change', () => {
+    const esJuridica = tipoPersonaSelect.value === 'J';
+    if (apellidosField) apellidosField.style.display = esJuridica ? 'none' : '';
+    if (nombresLabel) nombresLabel.textContent = esJuridica ? 'Razón social *' : 'Nombres *';
+    // Si es jurídica, auto-seleccionar NIT
+    if (esJuridica && tipoDocSelect) {
+      tipoDocSelect.value = 'NIT';
+      tipoDocSelect.dispatchEvent(new Event('change'));
+    }
+  });
+
+  // Número documento: filtrar según tipo
   nitInput?.addEventListener('input', () => {
-    nitInput.value = String(nitInput.value || '').replace(/\D+/g, '');
+    const tipo = tipoDocSelect?.value || 'CC';
+    if (tipo !== 'CE' && tipo !== 'PA') {
+      nitInput.value = String(nitInput.value || '').replace(/\D+/g, '');
+    }
   });
 
   // Form submit
@@ -418,9 +456,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const nitId = String(form?.nitId?.value || '').replace(/\D+/g, '').trim();
+    const tipoDoc = String(form.tipoDocumento?.value || '').trim();
+    const rawNit = String(form.nitId?.value || '').trim();
+    const nitId = (tipoDoc === 'CE' || tipoDoc === 'PA') ? rawNit : rawNit.replace(/\D+/g, '');
+    if (!tipoDoc) {
+      msgEl.textContent = 'Selecciona un tipo de documento.';
+      msgEl.className = 'co-message co-message-error';
+      tipoDocSelect?.focus();
+      return;
+    }
     if (!nitId) {
-      msgEl.textContent = 'NIT / Cédula es obligatorio y debe ser numérico.';
+      msgEl.textContent = 'El número de documento es obligatorio.';
       msgEl.className = 'co-message co-message-error';
       document.getElementById('nitId')?.focus();
       return;
@@ -455,13 +501,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      const nombres = String(form.nombres?.value || '').trim();
+      const apellidos = String(form.apellidos?.value || '').trim();
+      const tipoPersonaVal = String(form.tipoPersona?.value || 'N').trim();
+      const nombreCompleto = tipoPersonaVal === 'J' ? nombres : [nombres, apellidos].filter(Boolean).join(' ');
+
       const payload = {
         nitId,
-        name: String(form.name.value || '').trim(),
+        name: nombreCompleto,
+        tipo_documento: tipoDoc,
+        digito_verificacion: tipoDoc === 'NIT' ? String(form.digitoVerificacion?.value || '').trim() : null,
+        nombres,
+        apellidos: tipoPersonaVal === 'J' ? null : apellidos,
+        nombre_completo: nombreCompleto,
         email: String(form.email.value || '').trim(),
         phone: String(form.phone.value || '').trim(),
+        telefono_fijo: String(form.telefonoFijo?.value || '').trim() || null,
         address: String(form.address.value || '').trim(),
         city: String(form.city.value || '').trim(),
+        departamento: String(form.departamento?.value || '').trim() || null,
+        pais: String(form.pais?.value || 'CO').trim(),
+        tipo_persona: tipoPersonaVal,
+        regimen: String(form.regimen?.value || '').trim() || null,
+        fecha_nacimiento: String(form.fechaNacimiento?.value || '').trim() || null,
         notes: String(form.notes?.value || '').trim(),
         paymentMethod: String(form.paymentMethod?.value || '').trim(),
         subtotal,

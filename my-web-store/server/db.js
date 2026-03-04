@@ -240,6 +240,74 @@ async function ensureSchema() {
     END
   `);
 
+  // Nuevas columnas para datos del tercero
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','tipo_documento') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD tipo_documento NVARCHAR(10) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','digito_verificacion') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD digito_verificacion NVARCHAR(5) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','nombres') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD nombres NVARCHAR(255) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','apellidos') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD apellidos NVARCHAR(255) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','nombre_completo') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD nombre_completo NVARCHAR(255) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','telefono_fijo') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD telefono_fijo NVARCHAR(100) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','departamento') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD departamento NVARCHAR(120) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','pais') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD pais NVARCHAR(10) NULL CONSTRAINT DF_pedidos_pais DEFAULT 'CO';
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','tipo_persona') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD tipo_persona NVARCHAR(5) NULL CONSTRAINT DF_pedidos_tipo_persona DEFAULT 'N';
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','regimen') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD regimen NVARCHAR(50) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','fecha_nacimiento') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD fecha_nacimiento DATE NULL;
+    END
+  `);
+
   // pedido_items (line items for each order)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[pedido_items]') AND type in (N'U'))
