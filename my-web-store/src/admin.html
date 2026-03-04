@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/styles/admin.css" />
   <!-- Include Google Fonts for modern typography -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 
 <body class="admin-body">
@@ -54,7 +55,26 @@
       </div>
 
       <nav class="admin-sidebar-nav">
-        <button id="nav-products" class="admin-nav-item active">
+        <button id="nav-dashboard" class="admin-nav-item active">
+          <svg viewBox="0 0 24 24">
+            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <button id="nav-pedidos" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+          </svg>
+          <span>Pedidos</span>
+        </button>
+        <button id="nav-contacts" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+          </svg>
+          <span>Contactos</span>
+        </button>
+        <div style="border-top:1px solid rgba(255,255,255,0.15); margin:8px 16px;"></div>
+        <button id="nav-products" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
             <path
               d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z" />
@@ -63,9 +83,9 @@
         </button>
         <button id="nav-categories" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
-            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+            <path d="M12 2l-5.5 9h11z M17.5 13h-11l5.5 9z" />
           </svg>
-          <span>Categorías</span>
+          <span>Categorias</span>
         </button>
         <button id="nav-banners" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
@@ -111,8 +131,213 @@
     <!-- CONTENT -->
     <main class="admin-content">
 
+      <!-- ================= DASHBOARD VIEW ================= -->
+      <section id="view-dashboard" class="admin-view active">
+        <div class="admin-header-row">
+          <h2>Dashboard</h2>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="dash-kpis" id="dash-kpis">
+          <div class="dash-kpi-card">
+            <div class="dash-kpi-icon" style="background:var(--admin-kos-blue);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/></svg>
+            </div>
+            <div class="dash-kpi-info">
+              <span class="dash-kpi-value" id="kpi-total-pedidos">--</span>
+              <span class="dash-kpi-label">Total Pedidos</span>
+            </div>
+          </div>
+          <div class="dash-kpi-card">
+            <div class="dash-kpi-icon" style="background:var(--admin-success);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <div class="dash-kpi-info">
+              <span class="dash-kpi-value" id="kpi-aprobados">--</span>
+              <span class="dash-kpi-label">Aprobados</span>
+            </div>
+          </div>
+          <div class="dash-kpi-card">
+            <div class="dash-kpi-icon" style="background:var(--admin-kos-orange);">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+            </div>
+            <div class="dash-kpi-info">
+              <span class="dash-kpi-value" id="kpi-ingresos">--</span>
+              <span class="dash-kpi-label">Ingresos Totales</span>
+            </div>
+          </div>
+          <div class="dash-kpi-card">
+            <div class="dash-kpi-icon" style="background:#8b5cf6;">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </div>
+            <div class="dash-kpi-info">
+              <span class="dash-kpi-value" id="kpi-visitas">--</span>
+              <span class="dash-kpi-label">Visitas Totales</span>
+            </div>
+          </div>
+          <div class="dash-kpi-card">
+            <div class="dash-kpi-icon" style="background:#ec4899;">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            </div>
+            <div class="dash-kpi-info">
+              <span class="dash-kpi-value" id="kpi-contactos">--</span>
+              <span class="dash-kpi-label">Contactos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="dash-charts-row">
+          <div class="glass-card dash-chart-card">
+            <h3>Visitas (ultimos 30 dias)</h3>
+            <canvas id="chart-visitas"></canvas>
+          </div>
+          <div class="glass-card dash-chart-card">
+            <h3>Ventas por Mes</h3>
+            <canvas id="chart-ventas"></canvas>
+          </div>
+        </div>
+
+        <div class="dash-charts-row">
+          <div class="glass-card dash-chart-card">
+            <h3>Productos Mas Vendidos</h3>
+            <canvas id="chart-top-vendidos"></canvas>
+          </div>
+          <div class="glass-card dash-chart-card">
+            <h3>Productos Mas Vistos</h3>
+            <canvas id="chart-top-vistos"></canvas>
+          </div>
+        </div>
+
+        <!-- Regions Table -->
+        <div class="dash-charts-row">
+          <div class="glass-card dash-chart-card">
+            <h3>Top Paises</h3>
+            <div id="table-paises"></div>
+          </div>
+          <div class="glass-card dash-chart-card">
+            <h3>Top Ciudades</h3>
+            <div id="table-ciudades"></div>
+          </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="glass-card">
+          <h3 style="margin-top:0;">Pedidos Recientes</h3>
+          <div id="dash-pedidos-recientes"></div>
+        </div>
+      </section>
+
+      <!-- ================= PEDIDOS VIEW ================= -->
+      <section id="view-pedidos" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Pedidos</h2>
+        </div>
+
+        <!-- Filters -->
+        <div class="glass-card pedidos-filters">
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+            <div class="field-group">
+              <label>Estado</label>
+              <select id="pedidos-filter-status">
+                <option value="">Todos</option>
+                <option value="APPROVED">Aprobados</option>
+                <option value="PENDING">Pendientes</option>
+                <option value="DECLINED">Rechazados</option>
+                <option value="ERROR">Error</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label>Desde</label>
+              <input id="pedidos-filter-from" type="date" />
+            </div>
+            <div class="field-group">
+              <label>Hasta</label>
+              <input id="pedidos-filter-to" type="date" />
+            </div>
+            <div class="field-group">
+              <label>Buscar</label>
+              <input id="pedidos-filter-search" type="text" placeholder="Nombre, email, NIT o # pedido" />
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <button id="pedidos-filter-btn" class="admin-btn-primary" type="button">Filtrar</button>
+            <button id="pedidos-filter-clear" class="admin-btn-secondary" type="button">Limpiar</button>
+          </div>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="glass-card" style="overflow-x:auto;">
+          <table class="admin-table" id="pedidos-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Email</th>
+                <th>Ciudad</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="pedidos-tbody"></tbody>
+          </table>
+          <div id="pedidos-pagination" class="admin-pagination"></div>
+        </div>
+
+        <!-- Order Detail Modal -->
+        <div id="pedido-modal" class="admin-modal" style="display:none;">
+          <div class="admin-modal-overlay"></div>
+          <div class="admin-modal-content glass-card">
+            <div class="admin-modal-header">
+              <h3>Detalle del Pedido</h3>
+              <button id="pedido-modal-close" class="admin-modal-close">&times;</button>
+            </div>
+            <div id="pedido-modal-body"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= CONTACTOS VIEW ================= -->
+      <section id="view-contacts" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Contactos Recibidos</h2>
+        </div>
+
+        <div class="glass-card" style="margin-bottom:20px;">
+          <div class="form-grid" style="grid-template-columns: 1fr auto;">
+            <div class="field-group">
+              <label>Buscar</label>
+              <input id="contacts-filter-search" type="text" placeholder="Nombre, email o mensaje..." />
+            </div>
+            <div class="field-group" style="display:flex; align-items:flex-end;">
+              <button id="contacts-filter-btn" class="admin-btn-primary" type="button">Buscar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card" style="overflow-x:auto;">
+          <table class="admin-table" id="contacts-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Telefono</th>
+                <th>Mensaje</th>
+                <th>Adjuntos</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody id="contacts-tbody"></tbody>
+          </table>
+          <div id="contacts-pagination" class="admin-pagination"></div>
+        </div>
+      </section>
+
       <!-- ================= PRODUCTOS VIEW ================= -->
-      <section id="view-products" class="admin-view active">
+      <section id="view-products" class="admin-view">
         <div class="admin-header-row">
           <h2>Gestión de Productos</h2>
         </div>

@@ -291,6 +291,32 @@ async function showAdmin() {
 }
 
 async function initAdmin() {
+  // Load dashboard first (default view)
+  try { await loadDashboard(); } catch (e) { console.error('Dashboard init error', e); }
+
+  // Setup pedidos filters
+  document.getElementById('pedidos-filter-btn')?.addEventListener('click', () => loadPedidos(1));
+  document.getElementById('pedidos-filter-clear')?.addEventListener('click', () => {
+    document.getElementById('pedidos-filter-status').value = '';
+    document.getElementById('pedidos-filter-from').value = '';
+    document.getElementById('pedidos-filter-to').value = '';
+    document.getElementById('pedidos-filter-search').value = '';
+    loadPedidos(1);
+  });
+  document.getElementById('pedidos-filter-search')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPedidos(1); });
+
+  // Setup pedido modal close
+  document.getElementById('pedido-modal-close')?.addEventListener('click', () => {
+    document.getElementById('pedido-modal').style.display = 'none';
+  });
+  document.getElementById('pedido-modal')?.querySelector('.admin-modal-overlay')?.addEventListener('click', () => {
+    document.getElementById('pedido-modal').style.display = 'none';
+  });
+
+  // Setup contacts filter
+  document.getElementById('contacts-filter-btn')?.addEventListener('click', () => loadContacts(1));
+  document.getElementById('contacts-filter-search')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadContacts(1); });
+
   // Populate categories select
   try {
     const sel = $('#p-category');
@@ -469,6 +495,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Sidebar Navigation Routing
   const navs = [
+    { nav: 'nav-dashboard', view: 'view-dashboard', load: loadDashboard },
+    { nav: 'nav-pedidos', view: 'view-pedidos', load: loadPedidos },
+    { nav: 'nav-contacts', view: 'view-contacts', load: loadContacts },
     { nav: 'nav-products', view: 'view-products' },
     { nav: 'nav-categories', view: 'view-categories', load: loadCategoriesList },
     { nav: 'nav-banners', view: 'view-banners', load: loadBanners },
@@ -1077,3 +1106,351 @@ async function setLogoPrincipal(id) {
     return false;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Dashboard
+// ═══════════════════════════════════════════════════════════════════════════════
+const chartInstances = {};
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function fmtCOP(n) {
+  return Number(n || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+}
+
+function fmtNum(n) {
+  return Number(n || 0).toLocaleString('es-CO');
+}
+
+async function loadDashboard() {
+  try {
+    const r = await fetch('/api/admin/dashboard', { credentials: 'same-origin', cache: 'no-store' });
+    if (!r.ok) throw new Error('Error cargando dashboard');
+    const data = await r.json();
+    const k = data.kpis || {};
+
+    // KPIs
+    const el = (id) => document.getElementById(id);
+    el('kpi-total-pedidos').textContent = fmtNum(k.total_pedidos);
+    el('kpi-aprobados').textContent = fmtNum(k.pedidos_aprobados);
+    el('kpi-ingresos').textContent = fmtCOP(k.ingresos_totales);
+    el('kpi-visitas').textContent = fmtNum(k.total_views);
+    el('kpi-contactos').textContent = fmtNum(k.total_contacts);
+
+    const COLORS = ['#009FE3', '#F28C30', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#84cc16', '#f43f5e', '#6366f1'];
+
+    // Chart: Visitas por dia
+    destroyChart('chart-visitas');
+    const ctxV = el('chart-visitas');
+    if (ctxV && data.visitasPorDia) {
+      chartInstances['chart-visitas'] = new Chart(ctxV, {
+        type: 'line',
+        data: {
+          labels: data.visitasPorDia.map(d => d.dia?.slice(5) || ''),
+          datasets: [{
+            label: 'Visitas',
+            data: data.visitasPorDia.map(d => d.views),
+            borderColor: '#009FE3',
+            backgroundColor: 'rgba(0,159,227,0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    // Chart: Ventas por mes
+    destroyChart('chart-ventas');
+    const ctxS = el('chart-ventas');
+    if (ctxS && data.ventasPorMes) {
+      chartInstances['chart-ventas'] = new Chart(ctxS, {
+        type: 'bar',
+        data: {
+          labels: data.ventasPorMes.map(d => d.mes || ''),
+          datasets: [{
+            label: 'Ingresos',
+            data: data.ventasPorMes.map(d => d.ingresos),
+            backgroundColor: COLORS.slice(0, data.ventasPorMes.length)
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    // Chart: Top vendidos
+    destroyChart('chart-top-vendidos');
+    const ctxTV = el('chart-top-vendidos');
+    if (ctxTV && data.topVendidos && data.topVendidos.length) {
+      chartInstances['chart-top-vendidos'] = new Chart(ctxTV, {
+        type: 'bar',
+        data: {
+          labels: data.topVendidos.map(d => (d.product_name || '').slice(0, 25)),
+          datasets: [{
+            label: 'Unidades vendidas',
+            data: data.topVendidos.map(d => d.total_qty),
+            backgroundColor: COLORS.slice(0, data.topVendidos.length)
+          }]
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+      });
+    } else if (ctxTV) {
+      ctxTV.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+    }
+
+    // Chart: Top vistos
+    destroyChart('chart-top-vistos');
+    const ctxTVi = el('chart-top-vistos');
+    if (ctxTVi && data.topVistos && data.topVistos.length) {
+      chartInstances['chart-top-vistos'] = new Chart(ctxTVi, {
+        type: 'bar',
+        data: {
+          labels: data.topVistos.map(d => (d.product_name || 'ID:' + d.product_id).slice(0, 25)),
+          datasets: [{
+            label: 'Visitas',
+            data: data.topVistos.map(d => d.views),
+            backgroundColor: COLORS.slice(0, data.topVistos.length)
+          }]
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+      });
+    } else if (ctxTVi) {
+      ctxTVi.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+    }
+
+    // Table: Top paises
+    const paisesEl = el('table-paises');
+    if (paisesEl && data.topPaises) {
+      paisesEl.innerHTML = data.topPaises.length ? `<table class="admin-table"><thead><tr><th>Pais</th><th>Visitas</th></tr></thead><tbody>${data.topPaises.map(p => `<tr><td>${p.country}</td><td>${fmtNum(p.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+    }
+
+    // Table: Top ciudades
+    const ciudadesEl = el('table-ciudades');
+    if (ciudadesEl && data.topCiudades) {
+      ciudadesEl.innerHTML = data.topCiudades.length ? `<table class="admin-table"><thead><tr><th>Ciudad</th><th>Pais</th><th>Visitas</th></tr></thead><tbody>${data.topCiudades.map(c => `<tr><td>${c.city}</td><td>${c.country}</td><td>${fmtNum(c.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+    }
+
+    // Recent orders
+    const recentEl = el('dash-pedidos-recientes');
+    if (recentEl && data.pedidosRecientes) {
+      if (!data.pedidosRecientes.length) {
+        recentEl.innerHTML = '<p style="color:var(--admin-text-muted);">No hay pedidos aun.</p>';
+      } else {
+        recentEl.innerHTML = `<table class="admin-table"><thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>${data.pedidosRecientes.map(p => `<tr><td>${p.id}</td><td>${p.name || ''}</td><td>${fmtCOP(p.total_value)}</td><td>${renderStatusBadge(p.payment_status)}</td><td>${formatDate(p.createdAt)}</td></tr>`).join('')}</tbody></table>`;
+      }
+    }
+
+  } catch (e) {
+    console.error('loadDashboard error', e);
+  }
+}
+
+function renderStatusBadge(status) {
+  const s = (status || 'PENDING').toUpperCase();
+  const map = {
+    'APPROVED': { cls: 'badge-success', label: 'Aprobado' },
+    'PENDING': { cls: 'badge-warning', label: 'Pendiente' },
+    'DECLINED': { cls: 'badge-danger', label: 'Rechazado' },
+    'ERROR': { cls: 'badge-danger', label: 'Error' },
+  };
+  const info = map[s] || { cls: 'badge-muted', label: s };
+  return `<span class="admin-badge ${info.cls}">${info.label}</span>`;
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pedidos
+// ═══════════════════════════════════════════════════════════════════════════════
+let pedidosPage = 1;
+
+async function loadPedidos(page) {
+  pedidosPage = page || 1;
+  try {
+    const status = document.getElementById('pedidos-filter-status')?.value || '';
+    const from = document.getElementById('pedidos-filter-from')?.value || '';
+    const to = document.getElementById('pedidos-filter-to')?.value || '';
+    const search = document.getElementById('pedidos-filter-search')?.value || '';
+
+    const params = new URLSearchParams({ page: pedidosPage, limit: 15 });
+    if (status) params.set('status', status);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (search) params.set('search', search);
+
+    const r = await fetch(`/api/admin/pedidos?${params}`, { credentials: 'same-origin', cache: 'no-store' });
+    if (!r.ok) throw new Error('Error cargando pedidos');
+    const data = await r.json();
+
+    const tbody = document.getElementById('pedidos-tbody');
+    if (!tbody) return;
+
+    if (!data.data || data.data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--admin-text-muted);padding:32px;">No se encontraron pedidos</td></tr>';
+    } else {
+      tbody.innerHTML = data.data.map(p => `
+        <tr>
+          <td><strong>#${p.id}</strong></td>
+          <td>${p.name || ''}<br><small style="color:var(--admin-text-muted);">NIT: ${p.nit_id || ''}</small></td>
+          <td>${p.email || ''}</td>
+          <td>${p.city || ''}</td>
+          <td>${fmtCOP(p.total_value)}</td>
+          <td>${renderStatusBadge(p.payment_status)}</td>
+          <td>${formatDate(p.createdAt)}</td>
+          <td><button class="admin-btn-primary admin-btn-sm" onclick="window.__viewPedido(${p.id})">Ver</button></td>
+        </tr>
+      `).join('');
+    }
+
+    // Pagination
+    const pagEl = document.getElementById('pedidos-pagination');
+    if (pagEl && data.pages > 1) {
+      let html = '';
+      for (let i = 1; i <= data.pages; i++) {
+        html += `<button class="admin-page-btn ${i === data.page ? 'active' : ''}" onclick="window.__loadPedidosPage(${i})">${i}</button>`;
+      }
+      pagEl.innerHTML = html;
+    } else if (pagEl) {
+      pagEl.innerHTML = '';
+    }
+
+  } catch (e) {
+    console.error('loadPedidos error', e);
+    const tbody = document.getElementById('pedidos-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--admin-danger);">Error cargando pedidos</td></tr>';
+  }
+}
+
+// Expose for inline onclick handlers
+window.__loadPedidosPage = (p) => loadPedidos(p);
+
+window.__viewPedido = async (id) => {
+  try {
+    const r = await fetch(`/api/admin/pedidos/${id}`, { credentials: 'same-origin' });
+    if (!r.ok) throw new Error('Error cargando pedido');
+    const data = await r.json();
+    const p = data.pedido;
+    const items = data.items || [];
+
+    const modal = document.getElementById('pedido-modal');
+    const body = document.getElementById('pedido-modal-body');
+    if (!modal || !body) return;
+
+    const itemsHtml = items.length ? `
+      <table class="admin-table" style="margin-top:16px;">
+        <thead><tr><th>Producto</th><th>SKU</th><th>Precio Unit.</th><th>Cant.</th><th>Subtotal</th></tr></thead>
+        <tbody>${items.map(i => `<tr><td>${i.product_name || ''}</td><td>${i.product_sku || ''}</td><td>${fmtCOP(i.price_unit)}</td><td>${i.quantity}</td><td>${fmtCOP(i.subtotal)}</td></tr>`).join('')}</tbody>
+      </table>` : '<p style="color:var(--admin-text-muted);margin-top:16px;">No se registraron productos para este pedido (pedido anterior al sistema de items).</p>';
+
+    body.innerHTML = `
+      <div class="pedido-detail-grid">
+        <div class="pedido-detail-section">
+          <h4>Informacion del Pedido</h4>
+          <div class="pedido-detail-row"><strong>Pedido #:</strong> ${p.id}</div>
+          <div class="pedido-detail-row"><strong>Estado:</strong> ${renderStatusBadge(p.payment_status)}</div>
+          <div class="pedido-detail-row"><strong>ID Wompi:</strong> ${p.id_wompi || 'N/A'}</div>
+          <div class="pedido-detail-row"><strong>Metodo de Pago:</strong> ${p.payment_method || 'N/A'}</div>
+          <div class="pedido-detail-row"><strong>Fecha:</strong> ${formatDate(p.createdAt)}</div>
+          ${p.updatedAt ? `<div class="pedido-detail-row"><strong>Actualizado:</strong> ${formatDate(p.updatedAt)}</div>` : ''}
+        </div>
+        <div class="pedido-detail-section">
+          <h4>Datos del Cliente</h4>
+          <div class="pedido-detail-row"><strong>Nombre:</strong> ${p.name || ''}</div>
+          <div class="pedido-detail-row"><strong>NIT/Cedula:</strong> ${p.nit_id || ''}</div>
+          <div class="pedido-detail-row"><strong>Email:</strong> ${p.email || ''}</div>
+          <div class="pedido-detail-row"><strong>Telefono:</strong> ${p.phone || ''}</div>
+          <div class="pedido-detail-row"><strong>Direccion:</strong> ${p.address || ''}</div>
+          <div class="pedido-detail-row"><strong>Ciudad:</strong> ${p.city || ''}</div>
+          ${p.notes ? `<div class="pedido-detail-row"><strong>Notas:</strong> ${p.notes}</div>` : ''}
+        </div>
+      </div>
+      <div class="pedido-detail-section" style="margin-top:16px;">
+        <h4>Totales</h4>
+        <div class="pedido-totals">
+          <div><strong>Subtotal:</strong> ${fmtCOP(p.subtotal)}</div>
+          <div><strong>IVA:</strong> ${fmtCOP(p.iva)}</div>
+          <div style="font-size:1.2rem;"><strong>Total:</strong> ${fmtCOP(p.total_value)}</div>
+        </div>
+      </div>
+      <div class="pedido-detail-section">
+        <h4>Productos del Pedido</h4>
+        ${itemsHtml}
+      </div>
+    `;
+
+    modal.style.display = 'flex';
+  } catch (e) {
+    console.error('viewPedido error', e);
+    alert('Error cargando detalle del pedido');
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Contactos
+// ═══════════════════════════════════════════════════════════════════════════════
+let contactsPage = 1;
+
+async function loadContacts(page) {
+  contactsPage = page || 1;
+  try {
+    const search = document.getElementById('contacts-filter-search')?.value || '';
+    const params = new URLSearchParams({ page: contactsPage, limit: 15 });
+    if (search) params.set('search', search);
+
+    const r = await fetch(`/api/admin/contacts?${params}`, { credentials: 'same-origin', cache: 'no-store' });
+    if (!r.ok) throw new Error('Error cargando contactos');
+    const data = await r.json();
+
+    const tbody = document.getElementById('contacts-tbody');
+    if (!tbody) return;
+
+    if (!data.data || data.data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--admin-text-muted);padding:32px;">No se encontraron contactos</td></tr>';
+    } else {
+      tbody.innerHTML = data.data.map(c => {
+        const msg = (c.message || '').length > 80 ? c.message.slice(0, 80) + '...' : (c.message || '');
+        let attachHtml = '';
+        try {
+          const atts = typeof c.attachments === 'string' ? JSON.parse(c.attachments) : (c.attachments || []);
+          if (Array.isArray(atts) && atts.length) {
+            attachHtml = atts.map(a => `<a href="${a.url || a}" target="_blank" style="color:var(--admin-kos-blue);font-size:0.8rem;">${a.name || 'Archivo'}</a>`).join(', ');
+          }
+        } catch { }
+        return `<tr>
+          <td>${c.id}</td>
+          <td>${c.name || ''}</td>
+          <td><a href="mailto:${c.email || ''}">${c.email || ''}</a></td>
+          <td>${c.phone || ''}</td>
+          <td title="${(c.message || '').replace(/"/g, '&quot;')}" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${msg}</td>
+          <td>${attachHtml || '-'}</td>
+          <td>${formatDate(c.createdAt)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Pagination
+    const pagEl = document.getElementById('contacts-pagination');
+    if (pagEl && data.pages > 1) {
+      let html = '';
+      for (let i = 1; i <= data.pages; i++) {
+        html += `<button class="admin-page-btn ${i === data.page ? 'active' : ''}" onclick="window.__loadContactsPage(${i})">${i}</button>`;
+      }
+      pagEl.innerHTML = html;
+    } else if (pagEl) {
+      pagEl.innerHTML = '';
+    }
+
+  } catch (e) {
+    console.error('loadContacts error', e);
+    const tbody = document.getElementById('contacts-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--admin-danger);">Error cargando contactos</td></tr>';
+  }
+}
+
+window.__loadContactsPage = (p) => loadContacts(p);

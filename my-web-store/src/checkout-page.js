@@ -437,6 +437,24 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
 
     try {
+      // Build items array from cart for server-side persistence
+      const cartItems = readCart();
+      const itemsMap = new Map();
+      for (const ci of cartItems) {
+        const qty = Math.max(1, Number(ci._qty) || 1);
+        const existing = itemsMap.get(ci.id);
+        if (existing) { existing.quantity += qty; }
+        else {
+          itemsMap.set(ci.id, {
+            product_id: ci.id,
+            product_name: ci.name || '',
+            product_sku: ci.codigo_siesa || ci.sku || '',
+            price_unit: priceOf(ci),
+            quantity: qty
+          });
+        }
+      }
+
       const payload = {
         nitId,
         name: String(form.name.value || '').trim(),
@@ -448,7 +466,8 @@ document.addEventListener('DOMContentLoaded', () => {
         paymentMethod: String(form.paymentMethod?.value || '').trim(),
         subtotal,
         iva,
-        total_value: totalValue
+        total_value: totalValue,
+        items: Array.from(itemsMap.values())
       };
 
       const saveResp = await fetch('/api/pedidos', {

@@ -219,6 +219,63 @@ async function ensureSchema() {
       ALTER TABLE dbo.logos ADD principal BIT NOT NULL CONSTRAINT DF_logos_principal DEFAULT (0);
     END
   `);
+
+  // Ensure pedidos has payment_status, id_wompi, updatedAt columns
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','payment_status') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD payment_status NVARCHAR(50) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','id_wompi') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD id_wompi NVARCHAR(255) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','updatedAt') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD updatedAt DATETIME2 NULL;
+    END
+  `);
+
+  // pedido_items (line items for each order)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[pedido_items]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.pedido_items (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        pedido_id INT NOT NULL,
+        product_id INT NULL,
+        product_name NVARCHAR(255) NULL,
+        product_sku NVARCHAR(255) NULL,
+        price_unit DECIMAL(18,2) NULL,
+        quantity INT NOT NULL DEFAULT (1),
+        subtotal DECIMAL(18,2) NULL
+      );
+    END
+  `);
+
+  // page_views (analytics tracking)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[page_views]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.page_views (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        page NVARCHAR(500) NULL,
+        product_id INT NULL,
+        session_id NVARCHAR(100) NULL,
+        ip NVARCHAR(50) NULL,
+        country NVARCHAR(100) NULL,
+        city NVARCHAR(100) NULL,
+        region NVARCHAR(100) NULL,
+        user_agent NVARCHAR(500) NULL,
+        referrer NVARCHAR(500) NULL,
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
+      );
+    END
+  `);
 }
 
 module.exports = { query, getPool, ensureSchema, sql };

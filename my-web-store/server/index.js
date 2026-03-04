@@ -246,9 +246,28 @@ app.post('/api/pedidos', async (req, res) => {
     const idCol = pick(['id', 'Id', 'ID']);
     const output = idCol ? ` OUTPUT INSERTED.[${idCol}] AS id` : '';
 
-    const sql = `INSERT INTO [${tableSchema}].[${tableName}] (${insertCols.join(', ')})${output} VALUES (${insertVals.join(', ')});`;
-    const r = await db.query(sql, params);
+    const sqlInsert = `INSERT INTO [${tableSchema}].[${tableName}] (${insertCols.join(', ')})${output} VALUES (${insertVals.join(', ')});`;
+    const r = await db.query(sqlInsert, params);
     const id = r && r[0] && (r[0].id || r[0].Id);
+
+    // Save order items if provided
+    const items = Array.isArray(b.items) ? b.items : [];
+    if (id && items.length > 0) {
+      for (const item of items.slice(0, 50)) {
+        const pId = item.product_id != null ? Number(item.product_id) : null;
+        const pName = String(item.product_name || item.name || '').slice(0, 255);
+        const pSku = String(item.product_sku || item.sku || item.codigo_siesa || '').slice(0, 255);
+        const pPrice = Number(item.price_unit || item.price || 0);
+        const pQty = Math.max(1, Number(item.quantity || item.qty || 1));
+        const pSubtotal = Number.isFinite(pPrice * pQty) ? pPrice * pQty : 0;
+        await db.query(
+          `INSERT INTO dbo.pedido_items (pedido_id, product_id, product_name, product_sku, price_unit, quantity, subtotal)
+           VALUES (@pedidoId, @productId, @productName, @productSku, @priceUnit, @qty, @subtotalItem)`,
+          { pedidoId: id, productId: pId, productName: pName, productSku: pSku, priceUnit: pPrice, qty: pQty, subtotalItem: pSubtotal }
+        );
+      }
+    }
+
     res.status(201).json({ ok: true, id: id ?? null });
   } catch (e) {
     console.error('POST /api/pedidos error', e);
@@ -1260,6 +1279,279 @@ app.get('/api/inventario/:sku', async (req, res) => {
     }
     console.error(e);
     res.status(500).json({ message: 'Error consultando inventario' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN: Pedidos
+// ═══════════════════════════════════════════════════════════════════════════════
+app.get('/api/admin/pedidos', requireAdmin, async (req, res) => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+    const status = (req.query.status || '').trim();
+    const search = (req.query.search || '').trim();
+    const from = (req.query.from || '').trim();
+    const to = (req.query.to || '').trim();
+
+    let where = 'WHERE 1=1';
+    const params = {};
+    if (status) {
+      where += ' AND ISNULL(p.payment_status, \'PENDING\') = @status';
+      params.status = status;
+    }
+    if (search) {
+      where += ' AND (p.name LIKE @search OR p.email LIKE @search OR p.nit_id LIKE @search OR CAST(p.id AS NVARCHAR) = @searchExact)';
+      params.search = `%${search}%`;
+      params.searchExact = search;
+    }
+    if (from) {
+      where += ' AND p.createdAt >= @from';
+      params.from = from;
+    }
+    if (to) {
+      where += ' AND p.createdAt <= @to';
+      params.to = to + 'T23:59:59';
+    }
+
+    const countResult = await db.query(`SELECT COUNT(*) AS total FROM dbo.pedidos p ${where}`, params);
+    const total = (countResult && countResult[0] && countResult[0].total) || 0;
+
+    const rows = await db.query(
+      `SELECT p.* FROM dbo.pedidos p ${where} ORDER BY p.createdAt DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`,
+      { ...params, offset, limit }
+    );
+
+    res.json({ data: rows, total, page, limit, pages: Math.ceil(total / limit) });
+  } catch (e) {
+    console.error('GET /api/admin/pedidos error', e);
+    res.status(500).json({ message: 'Error listando pedidos' });
+  }
+});
+
+app.get('/api/admin/pedidos/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const rows = await db.query('SELECT * FROM dbo.pedidos WHERE id = @id', { id });
+    if (!rows || !rows.length) return res.status(404).json({ message: 'Pedido no encontrado' });
+
+    const items = await db.query('SELECT * FROM dbo.pedido_items WHERE pedido_id = @id ORDER BY id', { id });
+
+    res.json({ pedido: rows[0], items: items || [] });
+  } catch (e) {
+    console.error('GET /api/admin/pedidos/:id error', e);
+    res.status(500).json({ message: 'Error obteniendo pedido' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN: Contactos
+// ═══════════════════════════════════════════════════════════════════════════════
+app.get('/api/admin/contacts', requireAdmin, async (req, res) => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+    const search = (req.query.search || '').trim();
+
+    let where = 'WHERE 1=1';
+    const params = {};
+    if (search) {
+      where += ' AND (c.name LIKE @search OR c.email LIKE @search OR c.message LIKE @search)';
+      params.search = `%${search}%`;
+    }
+
+    const countResult = await db.query(`SELECT COUNT(*) AS total FROM dbo.contacts c ${where}`, params);
+    const total = (countResult && countResult[0] && countResult[0].total) || 0;
+
+    const rows = await db.query(
+      `SELECT c.* FROM dbo.contacts c ${where} ORDER BY c.createdAt DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY`,
+      { ...params, offset, limit }
+    );
+
+    res.json({ data: rows, total, page, limit, pages: Math.ceil(total / limit) });
+  } catch (e) {
+    console.error('GET /api/admin/contacts error', e);
+    res.status(500).json({ message: 'Error listando contactos' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tracking (público)
+// ═══════════════════════════════════════════════════════════════════════════════
+const geoCache = new Map();
+const GEO_CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+app.post('/api/track', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const page = String(b.page || '').slice(0, 500);
+    const productId = b.product_id != null ? Number(b.product_id) : null;
+    const sessionId = String(b.session_id || '').slice(0, 100);
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+    const referrer = String(b.referrer || req.headers.referer || '').slice(0, 500);
+
+    // Get client IP
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim().slice(0, 50);
+
+    // Geolocate IP (with cache)
+    let country = null, city = null, region = null;
+    if (ip && ip !== '127.0.0.1' && ip !== '::1' && !ip.startsWith('192.168.') && !ip.startsWith('10.')) {
+      const cached = geoCache.get(ip);
+      if (cached && (Date.now() - cached.ts < GEO_CACHE_TTL)) {
+        country = cached.country;
+        city = cached.city;
+        region = cached.region;
+      } else {
+        try {
+          const geoResp = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,regionName,city`, { timeout: 3000 });
+          if (geoResp.ok) {
+            const geo = await geoResp.json();
+            if (geo.status === 'success') {
+              country = geo.country || null;
+              city = geo.city || null;
+              region = geo.regionName || null;
+              geoCache.set(ip, { country, city, region, ts: Date.now() });
+            }
+          }
+        } catch { /* ignore geo errors */ }
+      }
+    }
+
+    await db.query(
+      `INSERT INTO dbo.page_views (page, product_id, session_id, ip, country, city, region, user_agent, referrer)
+       VALUES (@page, @productId, @sessionId, @ip, @country, @city, @region, @userAgent, @referrer)`,
+      { page, productId, sessionId, ip, country, city, region, userAgent, referrer }
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('POST /api/track error', e);
+    res.status(500).json({ ok: false });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN: Dashboard
+// ═══════════════════════════════════════════════════════════════════════════════
+app.get('/api/admin/dashboard', requireAdmin, async (req, res) => {
+  try {
+    // KPIs
+    const [pedidosStats] = await db.query(`
+      SELECT
+        COUNT(*) AS total_pedidos,
+        ISNULL(SUM(total_value), 0) AS ingresos_totales,
+        SUM(CASE WHEN ISNULL(payment_status,'') = 'APPROVED' THEN 1 ELSE 0 END) AS pedidos_aprobados,
+        SUM(CASE WHEN ISNULL(payment_status,'PENDING') = 'PENDING' OR payment_status IS NULL THEN 1 ELSE 0 END) AS pedidos_pendientes,
+        SUM(CASE WHEN payment_status = 'DECLINED' OR payment_status = 'ERROR' THEN 1 ELSE 0 END) AS pedidos_rechazados
+      FROM dbo.pedidos
+    `);
+
+    const [contactsStats] = await db.query('SELECT COUNT(*) AS total_contacts FROM dbo.contacts');
+
+    const [viewsStats] = await db.query('SELECT COUNT(*) AS total_views FROM dbo.page_views');
+
+    // Ventas por mes (últimos 6 meses)
+    const ventasPorMes = await db.query(`
+      SELECT
+        FORMAT(createdAt, 'yyyy-MM') AS mes,
+        COUNT(*) AS pedidos,
+        ISNULL(SUM(total_value), 0) AS ingresos
+      FROM dbo.pedidos
+      WHERE createdAt >= DATEADD(MONTH, -6, GETUTCDATE())
+      GROUP BY FORMAT(createdAt, 'yyyy-MM')
+      ORDER BY mes ASC
+    `);
+
+    // Top productos más vendidos (de pedido_items)
+    const topVendidos = await db.query(`
+      SELECT TOP(10)
+        product_name,
+        product_sku,
+        SUM(quantity) AS total_qty,
+        SUM(subtotal) AS total_revenue
+      FROM dbo.pedido_items
+      GROUP BY product_name, product_sku
+      ORDER BY total_qty DESC
+    `);
+
+    // Top productos más vistos
+    const topVistos = await db.query(`
+      SELECT TOP(10)
+        pv.product_id,
+        p.name AS product_name,
+        COUNT(*) AS views
+      FROM dbo.page_views pv
+      LEFT JOIN dbo.products p ON pv.product_id = p.id
+      WHERE pv.product_id IS NOT NULL
+      GROUP BY pv.product_id, p.name
+      ORDER BY views DESC
+    `);
+
+    // Top países
+    const topPaises = await db.query(`
+      SELECT TOP(10)
+        ISNULL(country, 'Desconocido') AS country,
+        COUNT(*) AS views
+      FROM dbo.page_views
+      GROUP BY country
+      ORDER BY views DESC
+    `);
+
+    // Top ciudades
+    const topCiudades = await db.query(`
+      SELECT TOP(10)
+        ISNULL(city, 'Desconocida') AS city,
+        ISNULL(country, '') AS country,
+        COUNT(*) AS views
+      FROM dbo.page_views
+      WHERE city IS NOT NULL
+      GROUP BY city, country
+      ORDER BY views DESC
+    `);
+
+    // Visitas por día (últimos 30 días)
+    const visitasPorDia = await db.query(`
+      SELECT
+        FORMAT(createdAt, 'yyyy-MM-dd') AS dia,
+        COUNT(*) AS views
+      FROM dbo.page_views
+      WHERE createdAt >= DATEADD(DAY, -30, GETUTCDATE())
+      GROUP BY FORMAT(createdAt, 'yyyy-MM-dd')
+      ORDER BY dia ASC
+    `);
+
+    // Pedidos recientes
+    const pedidosRecientes = await db.query(`
+      SELECT TOP(5) id, name, email, total_value, payment_status, createdAt
+      FROM dbo.pedidos
+      ORDER BY createdAt DESC
+    `);
+
+    res.json({
+      kpis: {
+        total_pedidos: pedidosStats?.total_pedidos || 0,
+        ingresos_totales: pedidosStats?.ingresos_totales || 0,
+        pedidos_aprobados: pedidosStats?.pedidos_aprobados || 0,
+        pedidos_pendientes: pedidosStats?.pedidos_pendientes || 0,
+        pedidos_rechazados: pedidosStats?.pedidos_rechazados || 0,
+        total_contacts: contactsStats?.total_contacts || 0,
+        total_views: viewsStats?.total_views || 0
+      },
+      ventasPorMes,
+      topVendidos,
+      topVistos,
+      topPaises,
+      topCiudades,
+      visitasPorDia,
+      pedidosRecientes
+    });
+  } catch (e) {
+    console.error('GET /api/admin/dashboard error', e);
+    res.status(500).json({ message: 'Error obteniendo dashboard' });
   }
 });
 
