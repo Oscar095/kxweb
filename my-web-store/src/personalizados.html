@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>KosXpress Personalizados</title>
+    <link rel="icon" type="image/png"
+        href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
+
+    <link rel="stylesheet" href="/styles/main.css?v=11.0">
+    <link rel="stylesheet" href="/styles/personalizados.css?v=11.0">
+</head>
+
+<body>
+    <div id="app" class="personalizados-page">
+        <header id="site-header"></header>
+        <main>
+            <!-- Hero Storytelling Section -->
+            <section id="hero-personalizados" class="hero-personalizados">
+                <!-- Fondo, Partículas y Texto Gigante -->
+                <div class="hero-bg-gradients">
+                    <div class="blob-blue"></div>
+                    <div class="blob-orange"></div>
+                </div>
+                <div class="hero-bg-text">KOSXPRESS</div>
+                <div class="hero-particles">
+                    <div class="particle p1"></div>
+                    <div class="particle p2"></div>
+                    <div class="particle p3"></div>
+                    <div class="particle p4"></div>
+                    <div class="particle p5"></div>
+                </div>
+
+                <div class="hero-content-wrapper container">
+                    <div class="hero-content">
+                        <h1>El envase hace la diferencia</h1>
+                        <p class="hero-subtext">Destaca tu marca con empaques personalizados de alta calidad. Desde tu
+                            primer pedido, te ayudamos a crear una experiencia única para tus clientes.</p>
+                        <div class="hero-actions">
+                            <button class="btn-naranja cta-pulse hero-btn"
+                                onclick="document.getElementById('cotizador-section').scrollIntoView({behavior: 'smooth'})">
+                                COTIZAR AHORA
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="btn-icon">
+                                    <path d="M5 12h14M12 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="hero-visual-center">
+                        <img src="images/fotos_kx/12.png" alt="Composición de Envases KosXpress"
+                            class="hero-main-img premium-float">
+                    </div>
+                </div>
+            </section>
+
+            <div class="p-page-content-wrap">
+                <!-- V11: Global Parallax Particles for the whole page depth -->
+                <div class="story-parallax" id="story-parallax-container">
+                    <!-- Imágenes secundarias difuminadas (Envases/Partículas) -->
+                    <img src="images/fotos_kx/1.png" class="parallax-img pi-1" data-speed="-1.5" alt="">
+                    <img src="images/fotos_kx/2.png" class="parallax-img pi-2" data-speed="2.5" alt="">
+                    <img src="images/fotos_kx/3.png" class="parallax-img pi-3" data-speed="1.2" alt="">
+                    <img src="images/fotos_kx/4.png" class="parallax-img pi-4" data-speed="-1.0" alt="">
+                    <img src="images/fotos_kx/5.png" class="parallax-img pi-5" data-speed="-1.5" alt="">
+                    <img src="images/fotos_kx/6.png" class="parallax-img pi-6" data-speed="-0.8" alt="">
+                </div>
+
+                <!-- Minimalist Flow & Copy -->
+
+
+
+
+                <div class="flow-item zigzag-left reveal-on-scroll">
+                    <!-- V11: Lateral cutouts like in the final section -->
+                    <img src="images/fotos_kx/3.png" class="flow-decor-img fd-left" alt="">
+
+                    <div class="flow-text">
+                        <h2>Personaliza tus vasos desde 2.000 unidades.</h2>
+                        <p>El volumen ideal diseñado para emprendedores y negocios en crecimiento continuo. Escala tu
+                            marca de manera inteligente, sin comprometer tu flujo de caja.</p>
+                    </div>
+                    <div class="flow-img-wrapper">
+                        <img src="images/fotos_kx/11.png" alt="Vasos de Papel" class="flow-img transparent-img">
+                    </div>
+                </div>
+                <div class="flow-item zigzag-right reveal-on-scroll">
+                    <img src="images/fotos_kx/4.png" class="flow-decor-img fd-right" alt="">
+
+                    <div class="flow-img-wrapper">
+                        <img src="images/fotos_kx/8.png" alt="Vasos Plásticos" class="flow-img transparent-img">
+                    </div>
+                    <div class="flow-text">
+                        <h2>¿No tienes un diseño? En KosXpress te ayudamos a crearlo.</h2>
+                        <p>Nuestro equipo especializado de diseño gráfico está listo para plasmar tu visión en el
+                            empaque perfecto. Nos encargamos de que tu identidad brille.</p>
+                    </div>
+                </div>
+                </section>
+
+                <!-- Calculadora Dinámica de Cotización -->
+                <section id="cotizador-section" class="cotizador-section container">
+                    <div class="cotizador-glass">
+                        <h2 class="cotizador-title">Calculadora de Inversión</h2>
+                        <p class="cotizador-subtitle">Descubre cuánto puedes ahorrar al personalizar en volumen.</p>
+
+                        <div class="cotizador-grid">
+                            <div class="cotizador-controls">
+                                <div class="input-group">
+                                    <label for="producto-select">Selecciona el Producto</label>
+                                    <select id="producto-select" class="form-control">
+                                        <option value="vaso_4oz">Vaso Papel 4oz (Bebida Caliente)</option>
+                                        <option value="vaso_7oz">Vaso Papel 7oz (Bebida Caliente)</option>
+                                        <option value="vaso_9oz">Vaso Papel 9oz (Bebida Caliente)</option>
+                                        <option value="tapa_generica">Tapa Genérica (Impresa)</option>
+                                        <option value="porta_vasos">Porta Vasos Maletero x2</option>
+                                        <option value="contenedor_16oz">Contenedor 16oz (Kraft)</option>
+                                    </select>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="cantidad-slider"
+                                        style="display: flex; justify-content: space-between; align-items: flex-end;">
+                                        <span>Cantidad de Unidades</span>
+                                        <span id="cantidad-display" class="highlight-val">2,000</span>
+                                    </label>
+                                    <!-- Chunky Slider -->
+                                    <input type="range" id="cantidad-slider" min="2000" max="50000" step="1000"
+                                        value="2000" class="styled-slider chunky">
+                                    <div class="slider-marks">
+                                        <span>2k</span>
+                                        <span>10k</span>
+                                        <span>50k+</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="cotizador-results">
+                                <div class="result-card">
+                                    <span class="result-label">Precio Unitario Estimado</span>
+                                    <div class="result-value val-azul" id="precio-unitario-display">$250 <span
+                                            class="currency">COP</span></div>
+                                    <div class="ahorro-badge badge-animate" id="ahorro-badge">Sin ahorro por volumen
+                                    </div>
+                                </div>
+
+                                <div class="result-card highlight">
+                                    <span class="result-label">Inversión Total Aproximada</span>
+                                    <div class="result-value large val-azul" id="precio-total-display">$500,000 <span
+                                            class="currency">COP</span>
+                                    </div>
+                                    <p class="disclaimer-text">*Precios referenciales sujetos a diseño final e IVA.</p>
+                                </div>
+
+                                <button id="btn-whatsapp-cotizar" class="btn-naranja full-width btn-whatsapp-nuevo">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path
+                                            d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+                                    </svg>
+                                    Cotizar este pedido por WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Conversion Banner -->
+                <section class="conversion-banner">
+                    <!-- V10: Decorative falling items for the final CTA -->
+                    <img src="images/fotos_kx/7.png" class="footer-decor-img fd-1" alt="">
+                    <img src="images/fotos_kx/9.png" class="footer-decor-img fd-2" alt="">
+
+                    <div class="container conversion-container">
+                        <h2 class="conversion-title">¿Listo para llevar tu marca al siguiente nivel?</h2>
+                        <p class="conversion-text">Comunícate por nuestro chat global o finaliza tu cotización en la
+                            calculadora para un asesoramiento personalizado en empaques.</p>
+                    </div>
+                </section>
+            </div> <!-- End of p-page-content-wrap -->
+
+        </main>
+
+        <div id="cart-drawer" class="cart-drawer"></div>
+        <footer class="site-footer"></footer>
+
+        <!-- WhatsApp Flotante (Oculto en esta vista) -->
+        <a href="https://wa.me/573215560942?text=Hola,%20quisiera%20hablar%20con%20un%20asesor%20sobre%20empaques%20personalizados"
+            class="whatsapp-float-btn hide-in-personalizados" target="_blank" aria-label="Chat en WhatsApp">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+            </svg>
+        </a>
+    </div>
+
+    <script type="module" src="./personalizados.js?v=1.0"></script>
+</body>
+
+</html>

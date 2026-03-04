@@ -234,7 +234,7 @@ async function init() {
         // Categorías solicitadas por el cliente mapeadas a imágenes y rutas id
         // Categorías solicitadas por el cliente mapeadas a imágenes
         const userCategories = [
-          { id: "Bebidas calientes", nombre: "Bebidas calientes", img: "https://datalakekos.blob.core.windows.net/images/products/1769629696360-biaota-bc.jpg" },
+          { id: "Bebidas calientes", nombre: "Bebidas calientes", img: "images/bebidashot.jpg" },
           { id: "Bebidas Frías", nombre: "Bebidas Frías", img: "https://datalakekos.blob.core.windows.net/images/products/1769629716983-obzb88-bf.jpg" },
           { id: "Contenedores", nombre: "Contenedores", img: "https://datalakekos.blob.core.windows.net/images/products/1769629736581-hmztu7-contenedores.jpg" },
           { id: "Empaques", nombre: "Empaques", img: "https://datalakekos.blob.core.windows.net/images/products/1769629749077-mg4feg-empaques.jpg" },

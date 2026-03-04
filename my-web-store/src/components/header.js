@@ -38,6 +38,7 @@ export function renderHeader(container) {
       <nav class="nav nav-animated">
         <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
         <a href="/products" class="nav-link" data-nav="productos">Productos</a>
+        <a href="/personalizados" class="nav-link" data-nav="personalizados">Personalizados</a>
         <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
         <span class="nav-rect"></span>
       </nav>
@@ -153,7 +154,9 @@ export function renderHeader(container) {
       let href = (a.getAttribute('href') || '').toLowerCase();
       if (href.endsWith('.html')) href = href.replace('.html', '');
       if (href === '/' || href === '') href = 'index';
-      if (href.endsWith(current)) a.classList.add('is-active');
+      if (href.endsWith(current) || (current === 'personalizados' && href.endsWith('personalizados'))) {
+        a.classList.add('is-active');
+      }
     });
   } catch { }
 }
