@@ -302,9 +302,22 @@ app.post('/api/pedidos', async (req, res) => {
       }
     }
 
-    // Crear tercero en backend externo (fire-and-forget, no bloquea el checkout)
+    // Crear tercero en backend externo solo si es cliente nuevo (no existe pedido previo con mismo documento)
+    let clienteExiste = false;
     try {
-      const terceroBody = {
+      const prev = await db.query(
+        `SELECT TOP 1 1 AS found FROM [${tableSchema}].[${tableName}]
+         WHERE [${mapping.tipoDocumento || 'tipo_documento'}] = @td AND [${mapping.nit}] = @nd AND [id] <> @currentId`,
+        { td: tipoDocumento, nd: nitId, currentId: id }
+      );
+      clienteExiste = prev && prev.length > 0;
+    } catch (checkErr) {
+      console.warn('Error verificando cliente existente:', checkErr.message);
+    }
+
+    if (!clienteExiste) {
+      try {
+        const terceroBody = {
         tipo_documento: tipoDocumento || null,
         numero_documento: nitId,
         digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
@@ -322,16 +335,19 @@ app.post('/api/pedidos', async (req, res) => {
         tipo_persona: tipoPersona || 'N',
         regimen: regimen || null
       };
-      fetch('https://kx-endpoints.azurewebsites.net/crear-tercero', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(terceroBody)
-      }).then(r => {
-        if (!r.ok) console.warn('crear-tercero respondió con status', r.status);
-        else console.log('Tercero creado/actualizado correctamente');
-      }).catch(err => console.warn('Error enviando a crear-tercero:', err.message));
-    } catch (terceroErr) {
-      console.warn('Error preparando crear-tercero:', terceroErr.message);
+        fetch('https://kx-endpoints.azurewebsites.net/crear-tercero', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(terceroBody)
+        }).then(r => {
+          if (!r.ok) console.warn('crear-tercero respondió con status', r.status);
+          else console.log('Tercero creado/actualizado correctamente');
+        }).catch(err => console.warn('Error enviando a crear-tercero:', err.message));
+      } catch (terceroErr) {
+        console.warn('Error preparando crear-tercero:', terceroErr.message);
+      }
+    } else {
+      console.log(`Cliente ${tipoDocumento} ${nitId} ya existe en pedidos, omitiendo crear-tercero`);
     }
 
     res.status(201).json({ ok: true, id: id ?? null });
