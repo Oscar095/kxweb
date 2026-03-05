@@ -4,7 +4,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Checkout — Kos Xpress</title>
+  <title>Checkout - KosXpress</title>
+  <meta name="robots" content="noindex">
   <link rel="icon" type="image/png"
     href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
   <link rel="stylesheet" href="styles/main.css">
@@ -224,8 +225,10 @@
                 </div>
 
                 <div class="co-field">
-                  <label for="city">Ciudad *</label>
-                  <input id="city" name="city" required placeholder="Ej: Bogotá" autocomplete="address-level2" />
+                  <label for="departamento">Departamento *</label>
+                  <select id="departamento" name="departamento" required>
+                    <option value="">Selecciona un departamento</option>
+                  </select>
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -234,8 +237,10 @@
                 </div>
 
                 <div class="co-field">
-                  <label for="departamento">Departamento</label>
-                  <input id="departamento" name="departamento" placeholder="Ej: Cundinamarca" autocomplete="address-level1" />
+                  <label for="city">Ciudad *</label>
+                  <select id="city" name="city" required disabled>
+                    <option value="">Primero selecciona departamento</option>
+                  </select>
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />

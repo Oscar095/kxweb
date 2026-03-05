@@ -664,6 +664,33 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
+// Departamentos (para dropdown cascada en checkout)
+app.get('/api/departamentos', async (req, res) => {
+  try {
+    const rows = await db.query('SELECT d.Id, d.Nombre, r.Nombre AS Regional FROM Departamentos d JOIN Regionales r ON d.RegionalId = r.Id ORDER BY d.Nombre');
+    res.json(rows.map(r => ({ id: r.Id, nombre: r.Nombre, regional: r.Regional })));
+  } catch (e) {
+    console.error('GET /api/departamentos error', e);
+    res.status(500).json({ message: 'Error listando departamentos' });
+  }
+});
+
+// Ciudades por departamento
+app.get('/api/ciudades', async (req, res) => {
+  try {
+    const deptoId = parseInt(req.query.departamento_id);
+    if (!deptoId) {
+      const rows = await db.query('SELECT c.Id, c.Nombre, c.DepartamentoId FROM Ciudades c ORDER BY c.Nombre');
+      return res.json(rows.map(r => ({ id: r.Id, nombre: r.Nombre, departamento_id: r.DepartamentoId })));
+    }
+    const rows = await db.query('SELECT c.Id, c.Nombre, c.DepartamentoId FROM Ciudades c WHERE c.DepartamentoId = @deptoId ORDER BY c.Nombre', { deptoId });
+    res.json(rows.map(r => ({ id: r.Id, nombre: r.Nombre, departamento_id: r.DepartamentoId })));
+  } catch (e) {
+    console.error('GET /api/ciudades error', e);
+    res.status(500).json({ message: 'Error listando ciudades' });
+  }
+});
+
 // Create category
 app.post('/api/categories', requireAdmin, async (req, res) => {
   try {
