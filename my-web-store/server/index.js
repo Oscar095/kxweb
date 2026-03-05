@@ -302,9 +302,22 @@ app.post('/api/pedidos', async (req, res) => {
       }
     }
 
-    // Crear tercero en backend externo (fire-and-forget, no bloquea el checkout)
+    // Crear tercero en backend externo solo si es cliente nuevo (no existe pedido previo con mismo documento)
+    let clienteExiste = false;
     try {
-      const terceroBody = {
+      const prev = await db.query(
+        `SELECT TOP 1 1 AS found FROM [${tableSchema}].[${tableName}]
+         WHERE [${mapping.tipoDocumento || 'tipo_documento'}] = @td AND [${mapping.nit}] = @nd AND [id] <> @currentId`,
+        { td: tipoDocumento, nd: nitId, currentId: id }
+      );
+      clienteExiste = prev && prev.length > 0;
+    } catch (checkErr) {
+      console.warn('Error verificando cliente existente:', checkErr.message);
+    }
+
+    if (!clienteExiste) {
+      try {
+        const terceroBody = {
         tipo_documento: tipoDocumento || null,
         numero_documento: nitId,
         digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
@@ -322,16 +335,19 @@ app.post('/api/pedidos', async (req, res) => {
         tipo_persona: tipoPersona || 'N',
         regimen: regimen || null
       };
-      fetch('https://kx-endpoints.azurewebsites.net/crear-tercero', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(terceroBody)
-      }).then(r => {
-        if (!r.ok) console.warn('crear-tercero respondió con status', r.status);
-        else console.log('Tercero creado/actualizado correctamente');
-      }).catch(err => console.warn('Error enviando a crear-tercero:', err.message));
-    } catch (terceroErr) {
-      console.warn('Error preparando crear-tercero:', terceroErr.message);
+        fetch('https://kx-endpoints.azurewebsites.net/crear-tercero', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(terceroBody)
+        }).then(r => {
+          if (!r.ok) console.warn('crear-tercero respondió con status', r.status);
+          else console.log('Tercero creado/actualizado correctamente');
+        }).catch(err => console.warn('Error enviando a crear-tercero:', err.message));
+      } catch (terceroErr) {
+        console.warn('Error preparando crear-tercero:', terceroErr.message);
+      }
+    } else {
+      console.log(`Cliente ${tipoDocumento} ${nitId} ya existe en pedidos, omitiendo crear-tercero`);
     }
 
     res.status(201).json({ ok: true, id: id ?? null });
@@ -645,6 +661,33 @@ app.get('/api/categories', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error listando categorías' });
+  }
+});
+
+// Departamentos (para dropdown cascada en checkout)
+app.get('/api/departamentos', async (req, res) => {
+  try {
+    const rows = await db.query('SELECT d.Id, d.Nombre, r.Nombre AS Regional FROM Departamentos d JOIN Regionales r ON d.RegionalId = r.Id ORDER BY d.Nombre');
+    res.json(rows.map(r => ({ id: r.Id, nombre: r.Nombre, regional: r.Regional })));
+  } catch (e) {
+    console.error('GET /api/departamentos error', e);
+    res.status(500).json({ message: 'Error listando departamentos' });
+  }
+});
+
+// Ciudades por departamento
+app.get('/api/ciudades', async (req, res) => {
+  try {
+    const deptoId = parseInt(req.query.departamento_id);
+    if (!deptoId) {
+      const rows = await db.query('SELECT c.Id, c.Nombre, c.DepartamentoId FROM Ciudades c ORDER BY c.Nombre');
+      return res.json(rows.map(r => ({ id: r.Id, nombre: r.Nombre, departamento_id: r.DepartamentoId })));
+    }
+    const rows = await db.query('SELECT c.Id, c.Nombre, c.DepartamentoId FROM Ciudades c WHERE c.DepartamentoId = @deptoId ORDER BY c.Nombre', { deptoId });
+    res.json(rows.map(r => ({ id: r.Id, nombre: r.Nombre, departamento_id: r.DepartamentoId })));
+  } catch (e) {
+    console.error('GET /api/ciudades error', e);
+    res.status(500).json({ message: 'Error listando ciudades' });
   }
 });
 

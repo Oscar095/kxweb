@@ -4,7 +4,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Checkout — Kos Xpress</title>
+  <title>Checkout - KosXpress</title>
+  <meta name="robots" content="noindex">
   <link rel="icon" type="image/png"
     href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
   <link rel="stylesheet" href="styles/main.css">
@@ -92,31 +93,31 @@
 
                 <!-- Tipo de persona -->
                 <div class="co-field">
+                  <label for="tipoPersona">Tipo de persona *</label>
                   <select id="tipoPersona" name="tipoPersona" required>
                     <option value="N">Natural</option>
                     <option value="J">Jurídica</option>
                   </select>
-                  <label for="tipoPersona">Tipo de persona *</label>
                 </div>
 
                 <!-- Tipo de documento -->
                 <div class="co-field">
+                  <label for="tipoDocumento">Tipo de documento *</label>
                   <select id="tipoDocumento" name="tipoDocumento" required>
-                    <option value="" disabled selected></option>
+                    <option value="" disabled selected>-- Seleccionar --</option>
                     <option value="CC">Cédula de Ciudadanía</option>
                     <option value="NIT">NIT</option>
                     <option value="CE">Cédula de Extranjería</option>
                     <option value="TI">Tarjeta de Identidad</option>
                     <option value="PA">Pasaporte</option>
                   </select>
-                  <label for="tipoDocumento">Tipo de documento *</label>
                 </div>
 
                 <!-- Número de documento -->
                 <div class="co-field">
-                  <input id="nitId" name="nitId" required placeholder=" " inputmode="numeric"
-                    autocomplete="off" />
                   <label for="nitId">Número de documento *</label>
+                  <input id="nitId" name="nitId" required placeholder="Ej: 1234567890" inputmode="numeric"
+                    autocomplete="off" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -126,9 +127,9 @@
 
                 <!-- Dígito de verificación (solo NIT) -->
                 <div class="co-field" id="dv-field" style="display:none;">
-                  <input id="digitoVerificacion" name="digitoVerificacion" placeholder=" " maxlength="1"
-                    inputmode="numeric" pattern="\d" autocomplete="off" />
                   <label for="digitoVerificacion">DV</label>
+                  <input id="digitoVerificacion" name="digitoVerificacion" placeholder="0" maxlength="1"
+                    inputmode="numeric" pattern="\d" autocomplete="off" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -138,8 +139,8 @@
 
                 <!-- Nombres / Razón social -->
                 <div class="co-field">
-                  <input id="nombres" name="nombres" required placeholder=" " autocomplete="given-name" />
                   <label for="nombres" id="nombres-label">Nombres *</label>
+                  <input id="nombres" name="nombres" required placeholder="Ej: Juan" autocomplete="given-name" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -149,8 +150,8 @@
 
                 <!-- Apellidos (solo persona natural) -->
                 <div class="co-field" id="apellidos-field">
-                  <input id="apellidos" name="apellidos" placeholder=" " autocomplete="family-name" />
                   <label for="apellidos">Apellidos</label>
+                  <input id="apellidos" name="apellidos" placeholder="Ej: Pérez López" autocomplete="family-name" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -160,13 +161,8 @@
 
                 <!-- Fecha de nacimiento -->
                 <div class="co-field">
-                  <input id="fechaNacimiento" name="fechaNacimiento" type="date" placeholder=" " />
                   <label for="fechaNacimiento">Fecha de nacimiento</label>
-                  <span class="co-field-check">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </span>
+                  <input id="fechaNacimiento" name="fechaNacimiento" type="date" />
                 </div>
               </div>
 
@@ -179,8 +175,8 @@
               </h3>
               <div class="co-fields-grid">
                 <div class="co-field co-field-full">
-                  <input id="email" name="email" type="email" required placeholder=" " autocomplete="email" />
                   <label for="email">Correo electrónico *</label>
+                  <input id="email" name="email" type="email" required placeholder="correo@ejemplo.com" autocomplete="email" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -189,8 +185,8 @@
                 </div>
 
                 <div class="co-field">
-                  <input id="phone" name="phone" required placeholder=" " type="tel" autocomplete="tel" />
                   <label for="phone">Celular *</label>
+                  <input id="phone" name="phone" required placeholder="Ej: 3001234567" type="tel" autocomplete="tel" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -199,8 +195,8 @@
                 </div>
 
                 <div class="co-field">
-                  <input id="telefonoFijo" name="telefonoFijo" placeholder=" " type="tel" autocomplete="tel" />
                   <label for="telefonoFijo">Teléfono fijo</label>
+                  <input id="telefonoFijo" name="telefonoFijo" placeholder="Ej: 6012345678" type="tel" autocomplete="tel" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -219,8 +215,8 @@
               </h3>
               <div class="co-fields-grid">
                 <div class="co-field co-field-full">
-                  <input id="address" name="address" required placeholder=" " autocomplete="street-address" />
                   <label for="address">Dirección *</label>
+                  <input id="address" name="address" required placeholder="Ej: Calle 123 #45-67" autocomplete="street-address" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -229,8 +225,22 @@
                 </div>
 
                 <div class="co-field">
-                  <input id="city" name="city" required placeholder=" " autocomplete="address-level2" />
+                  <label for="departamento">Departamento *</label>
+                  <select id="departamento" name="departamento" required>
+                    <option value="">Selecciona un departamento</option>
+                  </select>
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <div class="co-field">
                   <label for="city">Ciudad *</label>
+                  <select id="city" name="city" required disabled>
+                    <option value="">Primero selecciona departamento</option>
+                  </select>
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -239,18 +249,8 @@
                 </div>
 
                 <div class="co-field">
-                  <input id="departamento" name="departamento" placeholder=" " autocomplete="address-level1" />
-                  <label for="departamento">Departamento</label>
-                  <span class="co-field-check">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </span>
-                </div>
-
-                <div class="co-field">
-                  <input id="pais" name="pais" placeholder=" " value="CO" autocomplete="country" />
                   <label for="pais">País</label>
+                  <input id="pais" name="pais" placeholder="Ej: CO" value="CO" autocomplete="country" />
                   <span class="co-field-check">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
                       <polyline points="20 6 9 17 4 12" />
@@ -271,20 +271,20 @@
               </h3>
               <div class="co-fields-grid">
                 <div class="co-field">
+                  <label for="regimen">Régimen</label>
                   <select id="regimen" name="regimen">
                     <option value="">-- Seleccionar --</option>
                     <option value="Simplificado">Simplificado</option>
                     <option value="Comun">Común</option>
                   </select>
-                  <label for="regimen">Régimen</label>
                 </div>
               </div>
 
               <!-- Notas -->
               <div class="co-fields-grid" style="margin-top:1rem;">
                 <div class="co-field co-field-full">
-                  <textarea id="notes" name="notes" placeholder=" " rows="3"></textarea>
                   <label for="notes">Notas adicionales (opcional)</label>
+                  <textarea id="notes" name="notes" placeholder="Instrucciones especiales de entrega..." rows="3"></textarea>
                 </div>
               </div>
             </div>

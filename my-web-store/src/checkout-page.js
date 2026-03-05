@@ -354,7 +354,7 @@ async function openWompi(form, amountInCents, pedidoId) {
 // ── field validation visual feedback ─────────────────────────────────────────
 
 function setupFieldValidation() {
-  document.querySelectorAll('.co-field input, .co-field textarea').forEach(input => {
+  document.querySelectorAll('.co-field input, .co-field textarea, .co-field select').forEach(input => {
     const syncState = () => {
       const hasValue = !!input.value.trim();
       input.classList.toggle('has-value', hasValue);
@@ -365,6 +365,7 @@ function setupFieldValidation() {
       }
     };
     input.addEventListener('input', syncState);
+    input.addEventListener('change', syncState);
     input.addEventListener('blur', syncState);
     // Init for pre-filled values
     if (input.value.trim()) syncState();
@@ -381,6 +382,63 @@ function setStep(n) {
     if (i < n) el.classList.add('done');
     else if (i === n) el.classList.add('active');
   });
+}
+
+// ── departamento / ciudad cascading dropdowns ────────────────────────────────
+
+async function loadDepartamentos() {
+  const deptoSelect = document.getElementById('departamento');
+  const citySelect = document.getElementById('city');
+  if (!deptoSelect || !citySelect) return;
+
+  try {
+    const res = await fetch('/api/departamentos');
+    if (!res.ok) throw new Error('fetch failed');
+    const deptos = await res.json();
+
+    deptoSelect.innerHTML = '<option value="">Selecciona un departamento</option>';
+    for (const d of deptos) {
+      const opt = document.createElement('option');
+      opt.value = d.nombre;
+      opt.dataset.id = d.id;
+      opt.textContent = d.nombre;
+      deptoSelect.appendChild(opt);
+    }
+
+    deptoSelect.addEventListener('change', async () => {
+      const selected = deptoSelect.options[deptoSelect.selectedIndex];
+      const deptoId = selected?.dataset?.id;
+
+      citySelect.innerHTML = '<option value="">Cargando ciudades...</option>';
+      citySelect.disabled = true;
+
+      if (!deptoId) {
+        citySelect.innerHTML = '<option value="">Primero selecciona departamento</option>';
+        return;
+      }
+
+      try {
+        const cRes = await fetch(`/api/ciudades?departamento_id=${deptoId}`);
+        if (!cRes.ok) throw new Error('fetch failed');
+        const ciudades = await cRes.json();
+
+        citySelect.innerHTML = '<option value="">Selecciona una ciudad</option>';
+        for (const c of ciudades) {
+          const opt = document.createElement('option');
+          opt.value = c.nombre;
+          opt.textContent = c.nombre;
+          citySelect.appendChild(opt);
+        }
+        citySelect.disabled = false;
+      } catch (e) {
+        console.error('Error cargando ciudades:', e);
+        citySelect.innerHTML = '<option value="">Error cargando ciudades</option>';
+      }
+    });
+  } catch (e) {
+    console.error('Error cargando departamentos:', e);
+    deptoSelect.innerHTML = '<option value="">Error cargando departamentos</option>';
+  }
 }
 
 // ── DOMContentLoaded ──────────────────────────────────────────────────────────
@@ -401,6 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
   showReturnMessageFromWompi();
   renderRelatedProducts();
   setupFieldValidation();
+  loadDepartamentos();
 
   // Keep summary in sync with cart changes
   cartService.subscribe(() => renderOrderSummary());

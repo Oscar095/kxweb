@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /checkout
+Disallow: /cart
+Disallow: /confirmacion
+Disallow: /api/
+
+Sitemap: https://kosxpress.com/sitemap.xml
