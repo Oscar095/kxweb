@@ -238,7 +238,7 @@
 
 /* Botón Naranja */
 .btn-naranja {
-    background: var(--p-accent);
+    background: #f28c30;
     color: #ffffff;
     border: none;
     padding: 18px 40px;
@@ -249,6 +249,9 @@
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 8px 20px rgba(242, 140, 48, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .btn-naranja:hover {
@@ -433,109 +436,224 @@
     transform: translateY(0);
 }
 
-/* ZigZag Layout Logic */
-.personalizados-page .zigzag-left,
-.personalizados-page .zigzag-right {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 80px;
-    max-width: 1400px;
-    margin: 80px auto;
-    /* Increased margin for V11 */
-    width: 100%;
+/* ========================================
+   V12: Valor y Educación — Grid 50/50
+   ======================================== */
+
+.personalizados-page .ve-section {
     position: relative;
-    /* For flow-decor-img positioning */
+    padding: 80px 24px;
+    overflow: visible;
 }
 
-/* V11: Decorative cutouts for flow sections */
-.personalizados-page .flow-decor-img {
+/* Radial gradient glows — scattered pattern */
+.personalizados-page .ve-glow {
     position: absolute;
-    opacity: 0.65;
+    border-radius: 50%;
     pointer-events: none;
-    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.1));
-    animation: float 8s ease-in-out infinite alternate;
+    z-index: 0;
+    filter: blur(50px);
+    animation: veBreathe 8s ease-in-out infinite alternate;
 }
 
-.personalizados-page .fd-left {
-    left: -120px;
-    width: 180px;
+.personalizados-page .ve-glow-orange {
+    background: radial-gradient(circle, rgba(242, 140, 48, 0.32) 0%, rgba(242, 140, 48, 0.08) 55%, transparent 30%);
 }
 
-.personalizados-page .fd-right {
-    right: -120px;
-    width: 190px;
+.personalizados-page .ve-glow-blue {
+    background: radial-gradient(circle, rgba(0, 159, 227, 0.28) 0%, rgba(0, 159, 227, 0.06) 55%, transparent 30%);
 }
 
-@media (max-width: 1200px) {
-    .personalizados-page .flow-decor-img {
-        display: none;
-        /* Hide in smaller screens to avoid horizontal scroll */
+/* Individual positions — scattered like reference */
+.personalizados-page .ve-g1 {
+    width: 280px;
+    height: 280px;
+    top: -5%;
+    left: 5%;
+    animation-delay: 0s;
+}
+
+.personalizados-page .ve-g2 {
+    width: 250px;
+    height: 250px;
+    top: -8%;
+    right: 15%;
+    animation-delay: -2s;
+}
+
+.personalizados-page .ve-g3 {
+    width: 220px;
+    height: 220px;
+    top: 40%;
+    left: 30%;
+    animation-delay: -4s;
+}
+
+.personalizados-page .ve-g4 {
+    width: 300px;
+    height: 300px;
+    bottom: 5%;
+    left: -5%;
+    animation-delay: -1s;
+}
+
+.personalizados-page .ve-g5 {
+    width: 240px;
+    height: 240px;
+    bottom: -8%;
+    right: 8%;
+    animation-delay: -3s;
+}
+
+.personalizados-page .ve-g6 {
+    width: 200px;
+    height: 200px;
+    top: 15%;
+    right: 40%;
+    animation-delay: -5s;
+}
+
+@keyframes veBreathe {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(1.15);
+        opacity: 1;
     }
 }
 
-
-/* Block 1: Text Left, Image Right (HTML has Text first) */
-.personalizados-page .zigzag-left {
-    flex-direction: row;
+/* Grid container */
+.personalizados-page .ve-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
 }
 
-/* Block 2: Image Left, Text Right (HTML has Image first) */
-.personalizados-page .zigzag-right {
-    flex-direction: row;
+/* Column — levitating effect */
+.personalizados-page .ve-col {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+    animation: veFloat 4s ease-in-out infinite;
 }
 
-
-
-
-.personalizados-page .flow-text {
-    flex: 1;
-    padding: 20px;
+.personalizados-page .ve-col:nth-child(2) {
+    animation-delay: -2s;
 }
 
-.personalizados-page .flow-text h2 {
-    font-size: 3rem;
+@keyframes veFloat {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-12px);
+    }
+}
+
+/* Title hierarchy */
+.personalizados-page .ve-title {
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
     font-weight: 800;
-    margin-bottom: 24px;
-    line-height: 1.1;
+    line-height: 1.2;
+    margin-bottom: 16px;
     font-family: 'Outfit', sans-serif;
-
-    /* V10: Gradient Text */
-    background: linear-gradient(135deg, var(--kos-blue) 0%, var(--p-accent) 100%);
+    /* Dark blue gradient for legibility */
+    background: linear-gradient(160deg, #0b233a 0%, #1a5276 50%, #2980b9 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
-.personalizados-page .flow-text p {
-    font-size: 1.25rem;
-    color: #444;
-    line-height: 1.8;
+.personalizados-page .ve-line {
+    display: block;
 }
 
-.personalizados-page .flow-img-wrapper {
-    flex: 1;
+/* "2.000" — big orange */
+.personalizados-page .ve-number {
+    font-size: clamp(3.5rem, 7vw, 5rem);
+    font-weight: 900;
+    color: var(--p-accent, #f28c30);
+    -webkit-text-fill-color: var(--p-accent, #f28c30);
+    letter-spacing: -2px;
+    line-height: 1;
+    display: inline-block;
+}
+
+/* "KosXpress" — blue brand */
+.personalizados-page .ve-brand {
+    color: var(--kos-blue, #009FE3);
+    -webkit-text-fill-color: var(--kos-blue, #009FE3);
+    font-weight: 900;
+}
+
+/* Image wrapper */
+.personalizados-page .ve-img-wrap {
     display: flex;
     justify-content: center;
     align-items: center;
+    margin: 12px 0;
+    min-height: 180px;
 }
 
-.personalizados-page .flow-img {
+/* Image */
+.personalizados-page .ve-img {
+    max-width: 320px;
     width: 100%;
-    max-width: 500px;
-    /* Slightly larger image */
-    border-radius: 20px;
+    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.15));
+    transition: transform 0.4s ease;
 }
 
-.personalizados-page .transparent-img {
-    background: transparent;
-    border-radius: 0;
-    box-shadow: none;
-    filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.12));
-    /* Sombra difuminada de volumen 3D */
+.personalizados-page .ve-img:hover {
+    transform: scale(1.04) translateY(-4px);
 }
 
-/* Removed animate on load completely */
+/* Description */
+.personalizados-page .ve-desc {
+    font-size: 1.2rem;
+    color: #3a3a3a;
+    line-height: 1.75;
+    max-width: 440px;
+    margin: 0 auto;
+    font-weight: 400;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+    .personalizados-page .ve-grid {
+        grid-template-columns: 1fr;
+        gap: 50px;
+    }
+
+    .personalizados-page .ve-title {
+        font-size: clamp(1.6rem, 5vw, 2.2rem);
+    }
+
+    .personalizados-page .ve-number {
+        font-size: clamp(2.8rem, 10vw, 3.8rem);
+    }
+
+    .personalizados-page .ve-img {
+        max-width: 260px;
+    }
+
+    .personalizados-page .ve-section {
+        padding: 50px 16px;
+    }
+}
+
 
 /* Calculadora Section */
 .personalizados-page .cotizador-section {
