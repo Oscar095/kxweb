@@ -46,6 +46,26 @@
           <p id="current-category-desc" class="category-description" style="display: none;"></p>
         </div>
 
+        <!-- Filter & Sort Controls -->
+        <div class="products-filter-bar" id="filter-bar">
+          <div class="filter-group">
+            <label for="filter-disponible" class="filter-label">Filtrar</label>
+            <select id="filter-disponible" class="filter-select">
+              <option value="all">Todos</option>
+              <option value="disponible">Disponible</option>
+              <option value="no-disponible">No disponible</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="sort-precio" class="filter-label">Ordenar</label>
+            <select id="sort-precio" class="filter-select">
+              <option value="default">Por defecto</option>
+              <option value="asc">Precio: Menor a Mayor</option>
+              <option value="desc">Precio: Mayor a Menor</option>
+            </select>
+          </div>
+        </div>
+
         <section id="products" class="product-grid spacious-grid"></section>
       </div>
     </main>

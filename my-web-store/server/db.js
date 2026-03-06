@@ -308,6 +308,14 @@ async function ensureSchema() {
     END
   `);
 
+  // Ensure pedidos has flete column
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','flete') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD flete DECIMAL(18,2) NULL CONSTRAINT DF_pedidos_flete DEFAULT 0;
+    END
+  `);
+
   // pedido_items (line items for each order)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[pedido_items]') AND type in (N'U'))

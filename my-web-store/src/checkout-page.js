@@ -16,7 +16,7 @@ function readCart() {
 }
 
 function priceOf(item) {
-  const raw = item?.price ?? item?.precio ?? 0;
+  const raw = item?.price ?? item?.price_unit ?? item?.precio ?? 0;
   const num = typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw);
   return Number.isFinite(num) ? num : 0;
 }
@@ -68,6 +68,46 @@ function showToast(msg, type = 'success') {
   }, 3500);
 }
 
+// ── flete (shipping) state ────────────────────────────────────────────────────
+
+let _fleteData = { fleteTotal: 0, fletePorCaja: 0, totalCajas: 0, tarifaKilo: 0, maxKilosLiquidar: 0 };
+
+async function calcularFlete() {
+  const citySelect = document.getElementById('city');
+  const city = citySelect ? citySelect.value.trim() : '';
+  const emptyFlete = { fleteTotal: 0, fletePorCaja: 0, totalCajas: 0, tarifaKilo: 0, maxKilosLiquidar: 0 };
+
+  if (!city) { _fleteData = emptyFlete; renderOrderSummary(); return; }
+
+  const cartItems = readCart();
+  if (cartItems.length === 0) { _fleteData = emptyFlete; renderOrderSummary(); return; }
+
+  const itemsMap = new Map();
+  for (const ci of cartItems) {
+    const qty = Math.max(1, Number(ci._qty) || 1);
+    const existing = itemsMap.get(ci.id);
+    if (existing) { existing.quantity += qty; }
+    else { itemsMap.set(ci.id, { product_id: ci.id, quantity: qty }); }
+  }
+
+  try {
+    const res = await fetch('/api/flete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city, items: Array.from(itemsMap.values()) })
+    });
+    if (res.ok) {
+      _fleteData = await res.json();
+    } else {
+      _fleteData = emptyFlete;
+    }
+  } catch (e) {
+    console.warn('Error calculando flete:', e);
+    _fleteData = emptyFlete;
+  }
+  renderOrderSummary();
+}
+
 // ── order summary ─────────────────────────────────────────────────────────────
 
 function renderOrderSummary() {
@@ -105,7 +145,7 @@ function renderOrderSummary() {
         </p>
       </div>
     `;
-    return { items, amountInCents: totalInCents, subtotal: 0, iva: 0, totalValue: 0 };
+    return { items, amountInCents: totalInCents, subtotal: 0, iva: 0, flete: 0, totalValue: 0 };
   }
 
   const rows = grouped.map(it => `
@@ -141,15 +181,21 @@ function renderOrderSummary() {
           <span>IVA (19%)</span>
           <span>${fmt(iva)}</span>
         </div>
+        <div class="co-summary-line">
+          <span>Flete${_fleteData.fleteTotal > 0 ? ` (${fmt(_fleteData.fletePorCaja)} × ${_fleteData.totalCajas} cajas)` : ''}</span>
+          <span>${_fleteData.fleteTotal > 0 ? fmt(_fleteData.fleteTotal) : '<span style="color:var(--muted);font-size:.8rem;">Selecciona ciudad</span>'}</span>
+        </div>
         <div class="co-summary-total">
           <span>Total a pagar</span>
-          <span class="co-summary-total-amount">${fmt(total)}</span>
+          <span class="co-summary-total-amount">${fmt(total + _fleteData.fleteTotal)}</span>
         </div>
       </div>
     </div>
   `;
 
-  return { items, amountInCents: totalInCents, subtotal, iva, totalValue: total };
+  const flete = _fleteData.fleteTotal || 0;
+  const grandTotal = total + flete;
+  return { items, amountInCents: Math.round(grandTotal * 100), subtotal, iva, flete, totalValue: grandTotal };
 }
 
 // ── related products ──────────────────────────────────────────────────────────
@@ -193,7 +239,9 @@ async function renderRelatedProducts() {
 
     container.innerHTML = related.map(p => {
       const img = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
-      const price = priceOf(p);
+      const unitPrice = priceOf(p);
+      const cantidad = Number(p.cantidad ?? p.Cantidad ?? p.cant ?? 0) || 1;
+      const boxPrice = unitPrice * cantidad;
       return `
         <div class="co-rel-card glass-panel">
           <a href="/product?id=${p.id}" class="co-rel-img-wrap">
@@ -202,7 +250,7 @@ async function renderRelatedProducts() {
           </a>
           <div class="co-rel-body">
             <h4 class="co-rel-name">${p.name}</h4>
-            <p class="co-rel-price">${fmt(Math.round(price * 1.19))}<span style="font-size:.75rem;font-weight:400;"> / caja</span> <span style="font-size:.65rem;color:#4CAF50;font-weight:600;">IVA incl.</span></p>
+            <p class="co-rel-price">${fmt(Math.round(boxPrice * 1.19))}<span style="font-size:.75rem;font-weight:400;"> / caja</span> <span style="font-size:.65rem;color:#4CAF50;font-weight:600;">IVA incl.</span></p>
             <button class="btn-primary co-rel-add" data-id="${p.id}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -461,9 +509,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setupFieldValidation();
   loadDepartamentos();
 
-  // Keep summary in sync with cart changes
-  cartService.subscribe(() => renderOrderSummary());
-  window.addEventListener('storage', e => { if (e.key === 'cart') renderOrderSummary(); });
+  // Keep summary in sync with cart changes (recalculate flete too)
+  cartService.subscribe(() => calcularFlete());
+  window.addEventListener('storage', e => { if (e.key === 'cart') calcularFlete(); });
+
+  // Recalculate flete when city changes
+  const citySelect = document.getElementById('city');
+  citySelect?.addEventListener('change', () => calcularFlete());
 
   // Tipo documento: mostrar/ocultar DV y ajustar validación del número
   tipoDocSelect?.addEventListener('change', () => {
@@ -505,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Form submit
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    const { amountInCents, subtotal, iva, totalValue } = renderOrderSummary();
+    const { amountInCents, subtotal, iva, flete, totalValue } = renderOrderSummary();
     msgEl.className = 'co-message';
     msgEl.textContent = '';
 
@@ -587,6 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
         paymentMethod: String(form.paymentMethod?.value || '').trim(),
         subtotal,
         iva,
+        flete,
         total_value: totalValue,
         items: Array.from(itemsMap.values())
       };

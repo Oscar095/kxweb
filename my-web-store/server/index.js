@@ -145,6 +145,84 @@ app.post('/api/wompi/signature', (req, res) => {
 });
 // --- fin firma ---
 
+// --- Cálculo de flete (shipping) ---
+app.post('/api/flete', async (req, res) => {
+  try {
+    const { city, items } = req.body || {};
+    const cityName = String(city || '').trim().toUpperCase();
+    if (!cityName) return res.status(400).json({ message: 'Ciudad requerida' });
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: 'Items requeridos' });
+
+    // 1. Look up destination city ID
+    const ciudadRows = await db.query(
+      `SELECT TOP 1 Id FROM dbo.ciudades WHERE UPPER(Nombre) = @city`,
+      { city: cityName }
+    );
+    if (!ciudadRows.length) {
+      return res.json({ flete: 0, detail: 'Ciudad no encontrada en tarifas' });
+    }
+    const ciudadDestinoId = ciudadRows[0].Id;
+
+    // 2. Get TarifaKilo for this destination (prefer TERRESTRE)
+    const tarifaRows = await db.query(
+      `SELECT TOP 1 TarifaKilo FROM dbo.TarifasFlete
+       WHERE CiudadDestinoId = @destId
+       ORDER BY CASE WHEN ModoTransporte = 'TERRESTRE' THEN 0 ELSE 1 END, Anio DESC`,
+      { destId: ciudadDestinoId }
+    );
+    if (!tarifaRows.length) {
+      return res.json({ flete: 0, detail: 'No hay tarifa para esta ciudad' });
+    }
+    const tarifaKilo = tarifaRows[0].TarifaKilo;
+
+    // 3. Get product IDs from cart items
+    const productIds = items.map(i => Number(i.product_id || i.id)).filter(id => id > 0);
+    if (!productIds.length) return res.json({ flete: 0, detail: 'No hay productos válidos' });
+
+    // 4. Get kilos_liquidar for each product via row_empaque -> tipos_empaques
+    const idList = productIds.map((_, i) => `@pid${i}`).join(',');
+    const idParams = {};
+    productIds.forEach((id, i) => { idParams[`pid${i}`] = id; });
+    const prodRows = await db.query(
+      `SELECT p.id, ISNULL(te.kilos_liquidar, 11) AS kilos_liquidar
+       FROM dbo.products p
+       LEFT JOIN dbo.tipos_empaques te ON te.Id = p.row_empaque
+       WHERE p.id IN (${idList})`,
+      idParams
+    );
+
+    // 5. Find MAX kilos_liquidar across all cart products
+    let maxKilos = 0;
+    for (const row of prodRows) {
+      if (row.kilos_liquidar > maxKilos) maxKilos = row.kilos_liquidar;
+    }
+    if (maxKilos === 0) maxKilos = 11;
+
+    // 6. Calculate: flete per box = (tarifaKilo * maxKilos) + 1000 (manejo)
+    const fletePorCaja = (tarifaKilo * maxKilos) + 1000;
+
+    // 7. Total boxes = sum of quantities
+    let totalCajas = 0;
+    for (const item of items) {
+      totalCajas += Math.max(1, Number(item.quantity || item.qty || item._qty) || 1);
+    }
+
+    // 8. Total flete
+    const fleteTotal = fletePorCaja * totalCajas;
+
+    res.json({
+      tarifaKilo,
+      maxKilosLiquidar: maxKilos,
+      fletePorCaja,
+      totalCajas,
+      fleteTotal
+    });
+  } catch (e) {
+    console.error('POST /api/flete error', e);
+    res.status(500).json({ message: 'Error calculando flete', detail: e.message });
+  }
+});
+
 // --- Pedidos (checkout) ---
 app.post('/api/pedidos', async (req, res) => {
   try {
@@ -171,6 +249,7 @@ app.post('/api/pedidos', async (req, res) => {
     const paymentMethod = (b.paymentMethod == null ? '' : String(b.paymentMethod)).trim();
     const subtotal = Number(b.subtotal) || 0;
     const ivaVal = Number(b.iva) || 0;
+    const fleteVal = Number(b.flete) || 0;
     const totalValue = Number(b.total_value) || 0;
 
     if (!nitId) return res.status(400).json({ message: 'Número de documento requerido' });
@@ -220,6 +299,7 @@ app.post('/api/pedidos', async (req, res) => {
       subtotal: pick(['subtotal']),
       iva: pick(['iva']),
       totalValue: pick(['total_value', 'totalvalue', 'total_valor', 'totalvalor']),
+      flete: pick(['flete']),
       tipoDocumento: pick(['tipo_documento']),
       digitoVerificacion: pick(['digito_verificacion']),
       nombres: pick(['nombres']),
@@ -264,6 +344,7 @@ app.post('/api/pedidos', async (req, res) => {
     add(mapping.subtotal, 'subtotal', subtotal);
     add(mapping.iva, 'iva', ivaVal);
     add(mapping.totalValue, 'totalValue', totalValue);
+    add(mapping.flete, 'flete', fleteVal);
     add(mapping.tipoDocumento, 'tipoDocumento', tipoDocumento || null);
     add(mapping.digitoVerificacion, 'digitoVerificacion', digitoVerificacion || null);
     add(mapping.nombres, 'nombres', nombres || null);

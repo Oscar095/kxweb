@@ -34,6 +34,59 @@ async function init() {
     return false;
   };
   const mount = document.getElementById('products');
+
+  // ── Inventory cache for availability filter ──
+  // Shared globally so attachDynamicPriceBehavior can reuse results
+  if (!window._inventoryCache) window._inventoryCache = new Map();
+  const inventoryCache = window._inventoryCache;
+
+  async function checkAllInventory() {
+    const skus = products.map(p => ({
+      id: p.id,
+      sku: (p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '').toString().trim()
+    }));
+    await Promise.all(skus.map(async ({ id, sku }) => {
+      if (inventoryCache.has(id)) return;
+      if (!sku) { inventoryCache.set(id, 'disponible'); return; }
+      try {
+        const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
+        if (r.ok) {
+          const data = await r.json();
+          const estado = (data && (data.estado || data.status || '')).toString();
+          inventoryCache.set(id, estado === 'En Existencia' ? 'disponible' : 'no-disponible');
+        } else {
+          inventoryCache.set(id, 'no-disponible');
+        }
+      } catch {
+        inventoryCache.set(id, 'no-disponible');
+      }
+    }));
+  }
+
+  // ── Filter & sort helpers ──
+  const filterSelect = document.getElementById('filter-disponible');
+  const sortSelect = document.getElementById('sort-precio');
+
+  function applyFilterSort(list) {
+    let result = [...list];
+
+    // Filter by availability
+    const filterVal = filterSelect?.value || 'all';
+    if (filterVal !== 'all' && inventoryCache.size > 0) {
+      result = result.filter(p => inventoryCache.get(p.id) === filterVal);
+    }
+
+    // Sort by price
+    const sortVal = sortSelect?.value || 'default';
+    if (sortVal === 'asc') {
+      result.sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
+    } else if (sortVal === 'desc') {
+      result.sort((a, b) => (b.price_unit || 0) - (a.price_unit || 0));
+    }
+
+    return result;
+  }
+
   renderProducts(products, mount);
 
   // Render dynamic category buttons
@@ -71,7 +124,8 @@ async function init() {
     if (cat === 'all') {
       if (titleEl) titleEl.textContent = 'Catálogo Completo';
       if (descEl) descEl.style.display = 'none';
-      renderProducts(products, mount);
+      const sorted = applyFilterSort(products);
+      renderProducts(sorted, mount);
     } else {
       if (titleEl) titleEl.textContent = cat;
       const foundCat = categories.find(c => String(c.nombre) === String(cat));
@@ -94,7 +148,7 @@ async function init() {
           }
         }
       }
-      const filtered = products.filter(p => window.pMatcher(p, cat));
+      const filtered = applyFilterSort(products.filter(p => window.pMatcher(p, cat)));
       if (filtered.length === 0) {
         mount.innerHTML = `
           <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
@@ -104,7 +158,7 @@ async function init() {
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
             <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin disponibilidad</h3>
-            <p style="color: var(--muted); font-size: 1.1rem;">No hay productos para la Categoría Seleccionada.</p>
+            <p style="color: var(--muted); font-size: 1.1rem;">No hay productos para los filtros seleccionados.</p>
           </div>
         `;
       } else {
@@ -113,8 +167,9 @@ async function init() {
     }
   };
 
-  // Track active category to restore it when search is cleared
+  // Track active category and search query to restore on filter/sort change
   let currentCat = initialCat;
+  let currentSearch = '';
 
   // Apply initial filter
   applyCategoryFilter(initialCat);
@@ -329,6 +384,7 @@ async function init() {
 
       const cat = btn.dataset.cat;
       currentCat = cat;
+      currentSearch = '';
       applyCategoryFilter(cat);
 
       // Add small feedback class
@@ -347,17 +403,19 @@ async function init() {
     const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
     const descEl = document.getElementById('current-category-desc');
 
+    currentSearch = q;
     if (!q) {
       applyCategoryFilter(currentCat);
       return;
     }
 
-    const filtered = products.filter(p => {
+    const searchMatches = products.filter(p => {
       const pName = (p.name || '').toLowerCase();
       const pDesc = (p.description || '').toLowerCase();
       const pCat = String(p.category_name || p.category_nombre || p.category_desc || p.category || '').toLowerCase();
       return pName.includes(q) || pDesc.includes(q) || pCat.includes(q);
     });
+    const filtered = applyFilterSort(searchMatches);
 
     if (titleEl) titleEl.textContent = `Resultados: "${e.detail}"`;
     if (descEl) descEl.style.display = 'none';
@@ -378,6 +436,23 @@ async function init() {
     } else {
       renderProducts(filtered, mount);
     }
+  });
+
+  // Filter & sort change listeners
+  const reapply = () => {
+    if (currentSearch) {
+      window.dispatchEvent(new CustomEvent('search', { detail: currentSearch }));
+    } else {
+      applyCategoryFilter(currentCat);
+    }
+  };
+  sortSelect?.addEventListener('change', reapply);
+  filterSelect?.addEventListener('change', reapply);
+
+  // Batch-check inventory for availability filter
+  checkAllInventory().then(() => {
+    // Reapply current view if availability filter is active
+    if (filterSelect?.value !== 'all') reapply();
   });
 }
 

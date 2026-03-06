@@ -857,6 +857,51 @@ h6 {
 	padding: 0 48px;
 }
 
+.products-filter-bar {
+	display: flex;
+	gap: 16px;
+	padding: 0 48px;
+	margin-bottom: 24px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.filter-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.filter-label {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--text-main, #333);
+	white-space: nowrap;
+}
+
+.filter-select {
+	padding: 6px 12px;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.7);
+	backdrop-filter: blur(8px);
+	font-size: 0.85rem;
+	color: var(--text-main, #333);
+	cursor: pointer;
+	outline: none;
+	transition: border-color 0.2s;
+}
+
+.filter-select:focus {
+	border-color: var(--primary, #009FE3);
+}
+
+@media (max-width: 900px) {
+	.products-filter-bar {
+		padding: 0 24px;
+	}
+}
+
 @media (max-width: 900px) {
 	.products-layout-wrapper {
 		flex-direction: column;

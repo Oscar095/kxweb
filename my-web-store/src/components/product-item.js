@@ -63,58 +63,50 @@ export function attachDynamicPriceBehavior(rootEl) {
   if (skuAttr) {
     // Timeout de seguridad: si la API no responde en 6s, revelar de todas formas
     const safetyTimer = setTimeout(revealProduct, 6000);
+    const productId = Number(rootEl.dataset.id);
+
+    const applyOutOfStock = () => {
+      const badge = rootEl.querySelector('.out-of-stock-badge');
+      const img = rootEl.querySelector('.product-img');
+      const btn = rootEl.querySelector('.add-to-cart');
+      if (badge) badge.style.setProperty('display', 'block', 'important');
+      if (img) {
+        img.style.setProperty('filter', 'grayscale(1)', 'important');
+        img.style.setProperty('opacity', '0.5', 'important');
+      }
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'No disponible';
+        btn.title = 'No disponible';
+        btn.style.backgroundColor = '#ccc';
+        btn.style.borderColor = '#ccc';
+        btn.style.color = '#777';
+        btn.style.cursor = 'not-allowed';
+        btn.classList.add('disabled');
+      }
+    };
 
     const checkStock = async () => {
       try {
-        let estado = 'Agotado'; // fallback in case of error
-        const r = await fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`, { cache: 'no-store' });
-
-        if (r.ok) {
-          const data = await r.json();
-          estado = (data && (data.estado || data.status || '')).toString();
+        // Reuse cached inventory if available (populated by products-page.js)
+        const cache = window._inventoryCache;
+        let estado;
+        if (cache && cache.has(productId)) {
+          estado = cache.get(productId) === 'disponible' ? 'En Existencia' : 'Agotado';
+        } else {
+          estado = 'Agotado';
+          const r = await fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`, { cache: 'no-store' });
+          if (r.ok) {
+            const data = await r.json();
+            estado = (data && (data.estado || data.status || '')).toString();
+          }
         }
-
-        const badge = rootEl.querySelector('.out-of-stock-badge');
-        const img = rootEl.querySelector('.product-img');
-        const btn = rootEl.querySelector('.add-to-cart');
 
         if (estado !== 'En Existencia') {
-          if (badge) {
-            badge.style.setProperty('display', 'block', 'important');
-          }
-          if (img) {
-            img.style.setProperty('filter', 'grayscale(1)', 'important');
-            img.style.setProperty('opacity', '0.5', 'important');
-          }
-          if (btn) {
-            btn.disabled = true;
-            btn.textContent = 'No disponible';
-            btn.title = 'No disponible';
-            btn.style.backgroundColor = '#ccc';
-            btn.style.borderColor = '#ccc';
-            btn.style.color = '#777';
-            btn.style.cursor = 'not-allowed';
-            btn.classList.add('disabled');
-          }
+          applyOutOfStock();
         }
       } catch (e) {
-        // Fallback to out-of-stock UI if network error
-        const badge = rootEl.querySelector('.out-of-stock-badge');
-        const img = rootEl.querySelector('.product-img');
-        const btn = rootEl.querySelector('.add-to-cart');
-        if (badge) badge.style.setProperty('display', 'block', 'important');
-        if (img) {
-          img.style.setProperty('filter', 'grayscale(1)', 'important');
-          img.style.setProperty('opacity', '0.5', 'important');
-        }
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = 'No disponible';
-          btn.style.backgroundColor = '#ccc';
-          btn.style.borderColor = '#ccc';
-          btn.style.color = '#777';
-          btn.style.cursor = 'not-allowed';
-        }
+        applyOutOfStock();
       } finally {
         clearTimeout(safetyTimer);
         revealProduct();
