@@ -154,7 +154,7 @@ function initScrollAnimations() {
 
 // Parallax Native Animation for the Story Flow Background
 function initParallax() {
-    const parallaxElements = document.querySelectorAll('.parallax-shape, .parallax-dot, .parallax-img');
+    const parallaxElements = document.querySelectorAll('.parallax-shape, .parallax-dot, .parallax-img, .cta-blob[data-speed]');
 
     window.addEventListener('scroll', () => {
         const scrollY = window.scrollY;
