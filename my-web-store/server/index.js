@@ -22,8 +22,10 @@ const upload = multer({
 });
 
 const crypto = require('crypto');
+const compression = require('compression');
 
 const app = express();
+app.use(compression());
 app.use(express.json());
 
 // helper: detectar MIME por firma
@@ -583,7 +585,15 @@ app.post('/api/chatbot', async (req, res) => {
 
 // Servir frontend estático
 const staticDir = path.resolve(__dirname, '..', 'src');
-app.use(express.static(staticDir, { extensions: ['html'] }));
+app.use(express.static(staticDir, {
+  extensions: ['html'],
+  maxAge: '7d',
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // Inicializar esquema SQL y conexión
 db.ensureSchema().then(() => console.log('SQL Server schema ensured')).catch(err => console.error('Error asegurando esquema SQL', err));

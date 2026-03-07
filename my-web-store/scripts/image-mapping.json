@@ -1,0 +1,192 @@
+[
+  {
+    "original": "4oz.png",
+    "blobName": "site-assets/4oz.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/4oz.webp",
+    "format": "webp",
+    "originalSize": 19818,
+    "optimizedSize": 5202
+  },
+  {
+    "original": "7oz.png",
+    "blobName": "site-assets/7oz.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/7oz.webp",
+    "format": "webp",
+    "originalSize": 20040,
+    "optimizedSize": 5762
+  },
+  {
+    "original": "9onza.png",
+    "blobName": "site-assets/9onza.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/9onza.webp",
+    "format": "webp",
+    "originalSize": 24988,
+    "optimizedSize": 6914
+  },
+  {
+    "original": "bebidashot.jpg",
+    "blobName": "site-assets/bebidashot.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/bebidashot.webp",
+    "format": "webp",
+    "originalSize": 165201,
+    "optimizedSize": 63918
+  },
+  {
+    "original": "fotos_kx/1.png",
+    "blobName": "site-assets/fotos_kx/1.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/1.webp",
+    "format": "webp",
+    "originalSize": 54773,
+    "optimizedSize": 8632
+  },
+  {
+    "original": "fotos_kx/10.png",
+    "blobName": "site-assets/fotos_kx/10.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/10.webp",
+    "format": "webp",
+    "originalSize": 731507,
+    "optimizedSize": 51158
+  },
+  {
+    "original": "fotos_kx/11.png",
+    "blobName": "site-assets/fotos_kx/11.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/11.webp",
+    "format": "webp",
+    "originalSize": 485046,
+    "optimizedSize": 36054
+  },
+  {
+    "original": "fotos_kx/13.png",
+    "blobName": "site-assets/fotos_kx/13.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/13.webp",
+    "format": "webp",
+    "originalSize": 631451,
+    "optimizedSize": 114276
+  },
+  {
+    "original": "fotos_kx/14.png",
+    "blobName": "site-assets/fotos_kx/14.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/14.webp",
+    "format": "webp",
+    "originalSize": 2569943,
+    "optimizedSize": 100328
+  },
+  {
+    "original": "fotos_kx/2.png",
+    "blobName": "site-assets/fotos_kx/2.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/2.webp",
+    "format": "webp",
+    "originalSize": 45157,
+    "optimizedSize": 7292
+  },
+  {
+    "original": "fotos_kx/3.png",
+    "blobName": "site-assets/fotos_kx/3.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/3.webp",
+    "format": "webp",
+    "originalSize": 74644,
+    "optimizedSize": 9592
+  },
+  {
+    "original": "fotos_kx/4.png",
+    "blobName": "site-assets/fotos_kx/4.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/4.webp",
+    "format": "webp",
+    "originalSize": 63037,
+    "optimizedSize": 10542
+  },
+  {
+    "original": "fotos_kx/5.png",
+    "blobName": "site-assets/fotos_kx/5.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/5.webp",
+    "format": "webp",
+    "originalSize": 45293,
+    "optimizedSize": 6612
+  },
+  {
+    "original": "fotos_kx/6.png",
+    "blobName": "site-assets/fotos_kx/6.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/6.webp",
+    "format": "webp",
+    "originalSize": 73349,
+    "optimizedSize": 8588
+  },
+  {
+    "original": "fotos_kx/7.png",
+    "blobName": "site-assets/fotos_kx/7.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/7.webp",
+    "format": "webp",
+    "originalSize": 542405,
+    "optimizedSize": 42670
+  },
+  {
+    "original": "fotos_kx/8.png",
+    "blobName": "site-assets/fotos_kx/8.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/8.webp",
+    "format": "webp",
+    "originalSize": 482387,
+    "optimizedSize": 38468
+  },
+  {
+    "original": "fotos_kx/9.png",
+    "blobName": "site-assets/fotos_kx/9.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/fotos_kx/9.webp",
+    "format": "webp",
+    "originalSize": 608763,
+    "optimizedSize": 45866
+  },
+  {
+    "original": "LogoKos2.png",
+    "blobName": "site-assets/LogoKos2.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/LogoKos2.webp",
+    "format": "webp",
+    "originalSize": 3822,
+    "optimizedSize": 3102
+  },
+  {
+    "original": "placeholder.svg",
+    "blobName": "site-assets/placeholder.svg",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/placeholder.svg",
+    "format": "svg"
+  },
+  {
+    "original": "portahamburguesa.png",
+    "blobName": "site-assets/portahamburguesa.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/portahamburguesa.webp",
+    "format": "webp",
+    "originalSize": 35421,
+    "optimizedSize": 6520
+  },
+  {
+    "original": "PortaPAPA.png",
+    "blobName": "site-assets/PortaPAPA.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/PortaPAPA.webp",
+    "format": "webp",
+    "originalSize": 29917,
+    "optimizedSize": 8556
+  },
+  {
+    "original": "portaperro.png",
+    "blobName": "site-assets/portaperro.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/portaperro.webp",
+    "format": "webp",
+    "originalSize": 36447,
+    "optimizedSize": 6366
+  },
+  {
+    "original": "Productos.png",
+    "blobName": "site-assets/Productos.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/Productos.webp",
+    "format": "webp",
+    "originalSize": 136791,
+    "optimizedSize": 59388
+  },
+  {
+    "original": "vaso4oz.png",
+    "blobName": "site-assets/vaso4oz.webp",
+    "url": "https://datalakekos.blob.core.windows.net/images/site-assets/vaso4oz.webp",
+    "format": "webp",
+    "originalSize": 1819800,
+    "optimizedSize": 42982
+  }
+]

@@ -1,7 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "mcp__claude_ai_n8n__search_workflows"
+      "mcp__claude_ai_n8n__search_workflows",
+      "Bash(python -c \":*)",
+      "Bash(python:*)",
+      "Bash(node -e \":*)",
+      "Bash(node _test_flete.js)",
+      "Bash(grep -l \"chatbot\\\\|typing\" /d/VScode/kxweb/my-web-store/src/styles/*.css)",
+      "Bash(wc -l /d/VScode/kxweb/my-web-store/src/styles/*.css)",
+      "Bash(wc -l /d/VScode/kxweb/my-web-store/src/utils/*.js)",
+      "Bash(wc -l /d/VScode/kxweb/my-web-store/src/**/*.js)",
+      "Bash(npm install sharp --save-dev)",
+      "Bash(node scripts/upload-images-to-azure.js)",
+      "Bash(npm install compression)"
     ]
   }
 }

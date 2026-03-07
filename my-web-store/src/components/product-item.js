@@ -32,7 +32,7 @@ export function productItemTemplate(p) {
         <div class="product-img-wrap" data-index="0" style="position:relative;">
           <div class="out-of-stock-badge" style="display: none; position: absolute; top: 12px; left: 12px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
           <a href="/product?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
-            <img class="product-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='images/placeholder.svg'">
+            <img class="product-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
           </a>
           ${Array.isArray(p.images) && p.images.length > 1 ? `
             <button class="img-prev" aria-label="Imagen anterior">‹</button>

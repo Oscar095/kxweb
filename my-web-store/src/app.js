@@ -36,7 +36,7 @@ function renderBestSellers(products, mount) {
         <div class="bs-card-visual" style="position:relative; cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
           <div class="out-of-stock-badge" style="display: none; position: absolute; top: 8px; left: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.70rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
           <span class="bs-card-rank">#${idx + 1}</span>
-          <img class="bs-card-img" src="${imgSrc}" alt="${p.name}" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
+          <img class="bs-card-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
           <span class="bs-card-flame">🔥</span>
         </div>
         <div class="bs-card-body">
@@ -234,7 +234,7 @@ async function init() {
         // Categorías solicitadas por el cliente mapeadas a imágenes y rutas id
         // Categorías solicitadas por el cliente mapeadas a imágenes
         const userCategories = [
-          { id: "Bebidas calientes", nombre: "Bebidas calientes", img: "images/bebidashot.jpg" },
+          { id: "Bebidas calientes", nombre: "Bebidas calientes", img: "https://datalakekos.blob.core.windows.net/images/site-assets/bebidashot.webp" },
           { id: "Bebidas Frías", nombre: "Bebidas Frías", img: "https://datalakekos.blob.core.windows.net/images/products/1769629716983-obzb88-bf.jpg" },
           { id: "Contenedores", nombre: "Contenedores", img: "https://datalakekos.blob.core.windows.net/images/products/1769629736581-hmztu7-contenedores.jpg" },
           { id: "Empaques", nombre: "Empaques", img: "https://datalakekos.blob.core.windows.net/images/products/1769629749077-mg4feg-empaques.jpg" },
