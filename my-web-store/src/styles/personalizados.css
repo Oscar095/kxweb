@@ -873,11 +873,15 @@
 
 .personalizados-page .cta-final-section {
     position: relative;
-    min-height: 92vh;
+    min-height: 100vh;
+    /* Increased to accommodate button comfortably */
     display: flex;
+    flex-direction: column;
+    /* Stack layout and button vertically */
     align-items: center;
     justify-content: center;
-    padding: 40px 24px;
+    padding: 80px 24px;
+    /* More padding top/bottom */
     overflow: hidden;
     background: #ffffff;
 }
@@ -1211,15 +1215,15 @@
 
 /* --- BUTTON CONTAINER --- */
 .personalizados-page .cta-btn-container {
-    margin-top: -20px;
-    /* Pull up slightly to overlap with the section content area */
+    margin-top: 40px;
+    /* Space below the cup/text layout */
     display: flex;
     justify-content: center;
     width: 100%;
     position: relative;
     z-index: 20;
     /* Ensure it stays above blobs and cup shadow */
-    padding-bottom: 40px;
+    padding-bottom: 20px;
 }
 
 .personalizados-page .cta-whatsapp-btn {
