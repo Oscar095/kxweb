@@ -1334,28 +1334,52 @@
         max-width: 250px;
     }
 
+    .personalizados-page .cta-text-layer {
+        padding-left: 0;
+        align-items: center;
+        text-align: center;
+        line-height: 1.3;
+    }
+
     .personalizados-page .cta-qm-open {
-        font-size: 4.5rem;
-        margin-left: 0;
-        margin-bottom: -15px;
+        font-size: 2.2rem !important;
+        margin-right: 8px !important;
+        margin-bottom: 0 !important;
+        margin-top: 0 !important;
+        display: inline-block !important;
+        vertical-align: middle !important;
     }
 
     .personalizados-page .cta-line-small {
-        font-size: 1.5rem;
+        font-size: 1.4rem !important;
+        line-height: 1.2 !important;
+        display: block !important;
+        margin-bottom: 2px !important;
     }
 
     .personalizados-page .cta-line-large {
-        font-size: 2.2rem;
-        letter-spacing: 1.5px;
+        font-size: 2.1rem !important;
+        letter-spacing: 1px !important;
+        line-height: 1.1 !important;
+        white-space: normal !important;
+        margin-top: 5px !important;
+        margin-bottom: 2px !important;
+        display: block !important;
     }
 
     .personalizados-page .cta-line-huge {
-        font-size: 4rem;
-        letter-spacing: 2px;
+        font-size: 3.5rem !important;
+        letter-spacing: 1.5px !important;
+        line-height: 1.1 !important;
+        margin-top: 8px !important;
+        display: block !important;
     }
 
     .personalizados-page .cta-qm-close {
-        font-size: 3.5rem;
+        font-size: 3.5rem !important;
+        display: inline-block !important;
+        vertical-align: middle !important;
+        margin-left: 5px !important;
     }
 
     .personalizados-page .cta-blob-1 {
