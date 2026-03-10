@@ -23,17 +23,23 @@ jobs:
         with:
           node-version: '22.x'
 
-      - name: npm install, build, and test
+      - name: Install dependencies and build client
+        working-directory: my-web-store
         run: |
           npm install
-          npm run build --if-present
+          cd client && npm install && npm run build
+          cd ..
+
+      - name: Run tests (if present)
+        working-directory: my-web-store
+        run: |
           npm run test --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: my-web-store/  # Solo sube la carpeta principal del proyecto
 
   deploy:
     runs-on: ubuntu-latest
@@ -62,4 +68,3 @@ jobs:
           app-name: 'pruebas-ecommerce'
           slot-name: 'Production'
           package: .
-          
