@@ -12,7 +12,11 @@
       "Bash(wc -l /d/VScode/kxweb/my-web-store/src/**/*.js)",
       "Bash(npm install sharp --save-dev)",
       "Bash(node scripts/upload-images-to-azure.js)",
-      "Bash(npm install compression)"
+      "Bash(npm install compression)",
+      "Bash(npm create vite@latest client -- --template react)",
+      "Bash(npm install)",
+      "Bash(npm install react-router-dom framer-motion zustand @tanstack/react-query react-helmet-async @radix-ui/react-toast @radix-ui/react-dialog @radix-ui/react-select)",
+      "Bash(npm run:*)"
     ]
   }
 }

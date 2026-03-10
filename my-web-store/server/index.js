@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const fetch = require('node-fetch');
 const dotenv = require('dotenv');
 
@@ -583,17 +584,36 @@ app.post('/api/chatbot', async (req, res) => {
   }
 });
 
-// Servir frontend estático
-const staticDir = path.resolve(__dirname, '..', 'src');
-app.use(express.static(staticDir, {
-  extensions: ['html'],
-  maxAge: '7d',
-  setHeaders(res, filePath) {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
+// Servir frontend: React build (client/dist) si existe, sino legacy (src/)
+const clientDist = path.resolve(__dirname, '..', 'client', 'dist');
+const legacyDir = path.resolve(__dirname, '..', 'src');
+
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist, {
+    maxAge: '7d',
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
     }
-  }
-}));
+  }));
+  // SPA catch-all: todas las rutas no-API devuelven index.html
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+} else {
+  // Fallback al frontend legacy
+  app.use(express.static(legacyDir, {
+    extensions: ['html'],
+    maxAge: '7d',
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    }
+  }));
+}
 
 // Inicializar esquema SQL y conexión
 db.ensureSchema().then(() => console.log('SQL Server schema ensured')).catch(err => console.error('Error asegurando esquema SQL', err));
