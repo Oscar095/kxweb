@@ -85,10 +85,9 @@ const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY;
 const WOMPI_INTEGRITY_SECRET = process.env.WOMPI_INTEGRITY_SECRET;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS;
-const ADMIN_SECRET = process.env.ADMIN_SECRET;
-if (!ADMIN_SECRET) {
-  console.error('FATAL: ADMIN_SECRET no está configurado en las variables de entorno.');
-  if (IS_PRODUCTION) process.exit(1);
+const ADMIN_SECRET = process.env.ADMIN_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.ADMIN_SECRET) {
+  console.warn('ADVERTENCIA: ADMIN_SECRET no está configurado. Se generó uno aleatorio temporal. El login admin NO persistirá entre reinicios. Configura ADMIN_SECRET en las variables de entorno.');
 }
 
 // --- Auth helpers (cookie token HMAC) ---
