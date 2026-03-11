@@ -11,7 +11,8 @@ async function init() {
     fetch('/api/products'),
     fetch('/api/categories')
   ]);
-  const products = await res.json();
+  const allProducts = await res.json();
+  const products = allProducts.filter(p => p.habilitado !== false && p.habilitado !== 0);
   const categories = resCats.ok ? await resCats.json() : [];
 
   // Helper: find DB category by nombre or descripcion (case-insensitive)

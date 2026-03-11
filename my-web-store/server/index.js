@@ -688,6 +688,7 @@ app.get('/api/products', async (req, res) => {
         row_empaque: d.row_empaque != null ? d.row_empaque : null,
         empaque_descripcion: d.empaque_descripcion || '',
         description: d.description || '',
+        habilitado: d.habilitado != null ? !!d.habilitado : true,
         images: imgs,
         image: imgs[0] || '/images/placeholder.svg',
         image2: d.image2 || '',
@@ -726,6 +727,7 @@ app.get('/api/products/:id', async (req, res) => {
       row_empaque: d.row_empaque != null ? d.row_empaque : null,
       empaque_descripcion: d.empaque_descripcion || '',
       description: d.description || '',
+      habilitado: d.habilitado != null ? !!d.habilitado : true,
       image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
       images: imgs,
       image2: d.image2 || '',
@@ -1280,6 +1282,25 @@ app.delete('/api/products/:id', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error eliminando producto' });
+  }
+});
+
+// Toggle product habilitado/deshabilitado
+app.patch('/api/products/:id/toggle', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    // Check product exists
+    const check = await db.query('SELECT habilitado FROM dbo.products WHERE id = @id', { id });
+    if (!check || !check.length) return res.status(404).json({ message: 'Producto no encontrado' });
+    const currentVal = check[0].habilitado;
+    const newVal = currentVal ? 0 : 1;
+    // Update
+    await db.query('UPDATE dbo.products SET habilitado = @val WHERE id = @id', { id, val: newVal });
+    res.json({ ok: true, habilitado: !!newVal });
+  } catch (e) {
+    console.error('PATCH /api/products/:id/toggle error', e);
+    res.status(500).json({ message: 'Error actualizando estado del producto' });
   }
 });
 

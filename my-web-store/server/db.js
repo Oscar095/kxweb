@@ -199,6 +199,14 @@ async function ensureSchema() {
     END
   `);
 
+  // Ensure habilitado column exists on products (toggle visibility on storefront)
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.products','habilitado') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD habilitado BIT NOT NULL CONSTRAINT DF_products_habilitado DEFAULT (1);
+    END
+  `);
+
   // logos (header/footer)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[logos]') AND type in (N'U'))

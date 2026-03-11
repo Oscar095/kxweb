@@ -162,7 +162,8 @@ async function init() {
     ]);
 
     if (!resProd.ok) throw new Error(`Error al cargar productos: ${resProd.status}`);
-    const products = await resProd.json();
+    const allProducts = await resProd.json();
+    const products = allProducts.filter(p => p.habilitado !== false && p.habilitado !== 0);
     const categories = resCat.ok ? await resCat.json() : [];
 
     const productsMount = document.getElementById('products');

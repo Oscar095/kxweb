@@ -192,7 +192,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             initCotizador();
             initScrollAnimations();
             initParallax();
-        });        // initChatbot(); // Se solicitó ocultar la burbuja global en esta sección
+        });
+        initChatbot();
 
     } catch (error) {
         console.error('Error inicializando personalizados.js:', error);

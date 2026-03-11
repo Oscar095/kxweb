@@ -401,14 +401,14 @@ export function initChatbot() {
       .kos-chatbot-window {
         width: 100vw;
         height: 100vh;
+        height: 100dvh;
         max-height: 100vh;
-        bottom: 0;
+        max-height: 100dvh;
+        top: 0;
+        bottom: auto;
         right: 0;
         border-radius: 0;
         max-width: 100vw;
-      }
-      .kos-chatbot-window.open ~ .kos-chatbot-btn {
-        display: none;
       }
     }
   `;
@@ -478,7 +478,13 @@ export function initChatbot() {
 
   const toggleWindow = () => {
     windowEl.classList.toggle('open');
-    if (windowEl.classList.contains('open')) input.focus();
+    const isOpen = windowEl.classList.contains('open');
+    if (isOpen) {
+      input.focus();
+      btnOpen.style.display = 'none';
+    } else {
+      btnOpen.style.display = '';
+    }
   };
 
   // Welcome bubble logic

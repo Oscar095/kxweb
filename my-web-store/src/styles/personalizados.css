@@ -1391,6 +1391,23 @@
         width: 200px;
         height: 200px;
     }
+
+    /* Botón WhatsApp más compacto en móvil */
+    .personalizados-page .cta-whatsapp-btn {
+        font-size: 1.1rem !important;
+        padding: 14px 28px !important;
+        gap: 8px !important;
+    }
+
+    .personalizados-page .cta-whatsapp-btn::before {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    .personalizados-page .cta-btn-container {
+        margin-top: 25px !important;
+        padding-bottom: 15px !important;
+    }
 }
 
 
