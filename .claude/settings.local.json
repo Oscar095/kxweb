@@ -16,7 +16,16 @@
       "Bash(npm create vite@latest client -- --template react)",
       "Bash(npm install)",
       "Bash(npm install react-router-dom framer-motion zustand @tanstack/react-query react-helmet-async @radix-ui/react-toast @radix-ui/react-dialog @radix-ui/react-select)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "WebFetch(domain:pruebas-ecommerce.azurewebsites.net)",
+      "Bash(curl -sI https://pruebas-ecommerce.azurewebsites.net/)",
+      "Bash(curl -s https://pruebas-ecommerce.azurewebsites.net/)",
+      "Bash(curl -s https://pruebas-ecommerce.azurewebsites.net/assets/index-C0V-H2yU.css)",
+      "Bash(curl -s https://pruebas-ecommerce.azurewebsites.net/assets/index-DNGnHJUe.js)",
+      "Bash(curl -s \"https://pruebas-ecommerce.azurewebsites.net/robots.txt\")",
+      "Bash(curl -s https://pruebas-ecommerce.azurewebsites.net/sitemap.xml)",
+      "Bash(npm install:*)",
+      "Bash(node -c server/index.js)"
     ]
   }
 }

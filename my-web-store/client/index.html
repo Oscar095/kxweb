@@ -25,7 +25,31 @@
     <script src="https://checkout.wompi.co/widget.js" defer></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading skeleton mientras React carga -->
+      <div id="app-skeleton" style="font-family:'Outfit',system-ui,sans-serif;max-width:1200px;margin:0 auto;padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 32px;background:rgba(255,255,255,0.7);border-radius:60px;margin-bottom:40px;">
+          <div style="width:120px;height:40px;background:linear-gradient(90deg,#e0e7ef 25%,#f0f4f8 50%,#e0e7ef 75%);background-size:200%;border-radius:8px;animation:shimmer 1.5s infinite;"></div>
+          <div style="display:flex;gap:16px;">
+            <div style="width:70px;height:16px;background:linear-gradient(90deg,#e0e7ef 25%,#f0f4f8 50%,#e0e7ef 75%);background-size:200%;border-radius:8px;animation:shimmer 1.5s infinite;"></div>
+            <div style="width:70px;height:16px;background:linear-gradient(90deg,#e0e7ef 25%,#f0f4f8 50%,#e0e7ef 75%);background-size:200%;border-radius:8px;animation:shimmer 1.5s infinite;"></div>
+            <div style="width:70px;height:16px;background:linear-gradient(90deg,#e0e7ef 25%,#f0f4f8 50%,#e0e7ef 75%);background-size:200%;border-radius:8px;animation:shimmer 1.5s infinite;"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:40px;min-height:50vh;padding:40px;">
+          <div style="flex:1;">
+            <div style="width:80%;height:36px;background:linear-gradient(90deg,#e0e7ef 25%,#f0f4f8 50%,#e0e7ef 75%);background-size:200%;border-radius:8px;margin-bottom:16px;animation:shimmer 1.5s infinite;"></div>
+            <div style="width:60%;height:16px;background:linear-gradient(90deg,#e0e7ef 25%,#f0f4f8 50%,#e0e7ef 75%);background-size:200%;border-radius:8px;margin-bottom:10px;animation:shimmer 1.5s infinite;"></div>
+            <div style="width:50%;height:16px;background:linear-gradient(90deg,#e0e7ef 25%,#f0f4f8 50%,#e0e7ef 75%);background-size:200%;border-radius:8px;margin-bottom:24px;animation:shimmer 1.5s infinite;"></div>
+            <div style="width:180px;height:48px;background:linear-gradient(90deg,#009FE3 25%,#33b5ea 50%,#009FE3 75%);background-size:200%;border-radius:12px;animation:shimmer 1.5s infinite;"></div>
+          </div>
+          <div style="flex:1;display:flex;justify-content:center;">
+            <div style="width:280px;height:280px;background:linear-gradient(90deg,#e0e7ef 25%,#f0f4f8 50%,#e0e7ef 75%);background-size:200%;border-radius:24px;animation:shimmer 1.5s infinite;"></div>
+          </div>
+        </div>
+        <style>@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}</style>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -60,6 +60,7 @@ function HeroRotator() {
             <motion.img
               src={ROTATOR_ITEMS[current].img}
               alt={ROTATOR_ITEMS[current].label}
+              loading={current === 0 ? 'eager' : 'lazy'}
               animate={{ y: [0, -8, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
             />
@@ -189,18 +190,21 @@ export default function HomePage() {
               marca y conservar la calidad de tus productos.
             </p>
             <div className={styles.heroActions}>
-              <motion.button
+              <motion.a
+                href="/products"
                 className="btn-primary"
-                style={{ fontSize: '1.3rem', padding: '18px 48px', textTransform: 'uppercase', letterSpacing: '1px' }}
-                onClick={() => navigate('/products')}
+                style={{ fontSize: '1.3rem', padding: '18px 48px', textTransform: 'uppercase', letterSpacing: '1px', textDecoration: 'none', display: 'inline-block' }}
+                onClick={(e) => { e.preventDefault(); navigate('/products'); }}
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
               >
                 Compra ahora
-              </motion.button>
-              <motion.button
+              </motion.a>
+              <motion.a
+                href="/personalizados"
                 className={styles.btnNaranja}
-                onClick={() => navigate('/personalizados')}
+                style={{ textDecoration: 'none' }}
+                onClick={(e) => { e.preventDefault(); navigate('/personalizados'); }}
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
               >
@@ -208,7 +212,7 @@ export default function HomePage() {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
-              </motion.button>
+              </motion.a>
             </div>
           </motion.div>
           <HeroRotator />

@@ -24,8 +24,35 @@ const upload = multer({
 
 const crypto = require('crypto');
 const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !!process.env.WEBSITE_SITE_NAME;
 
 const app = express();
+
+// --- Security ---
+app.disable('x-powered-by');
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://checkout.wompi.co", "'unsafe-inline'"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https://datalakekos.blob.core.windows.net", "https://*.blob.core.windows.net"],
+      frameSrc: ["https://checkout.wompi.co", "https://www.google.com"],
+      connectSrc: ["'self'", "https://datalakekos.blob.core.windows.net", "https://checkout.wompi.co"],
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
+// --- Rate Limiting ---
+const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { message: 'Demasiados intentos, intenta de nuevo en 1 minuto' } });
+const pedidosLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { message: 'Demasiadas solicitudes, intenta de nuevo en 1 minuto' } });
+const contactsLimiter = rateLimit({ windowMs: 60 * 1000, max: 3, message: { message: 'Demasiados mensajes, intenta de nuevo en 1 minuto' } });
+
 app.use(compression());
 app.use(express.json());
 
@@ -58,7 +85,11 @@ const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY;
 const WOMPI_INTEGRITY_SECRET = process.env.WOMPI_INTEGRITY_SECRET;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || process.env.ADMIN_PASS;
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'change-this-in-env';
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
+if (!ADMIN_SECRET) {
+  console.error('FATAL: ADMIN_SECRET no está configurado en las variables de entorno.');
+  if (IS_PRODUCTION) process.exit(1);
+}
 
 // --- Auth helpers (cookie token HMAC) ---
 function signToken(payload) {
@@ -222,12 +253,12 @@ app.post('/api/flete', async (req, res) => {
     });
   } catch (e) {
     console.error('POST /api/flete error', e);
-    res.status(500).json({ message: 'Error calculando flete', detail: e.message });
+    res.status(500).json({ message: 'Error calculando flete', ...(IS_PRODUCTION ? {} : { detail: e.message }) });
   }
 });
 
 // --- Pedidos (checkout) ---
-app.post('/api/pedidos', async (req, res) => {
+app.post('/api/pedidos', pedidosLimiter, async (req, res) => {
   try {
     const b = req.body || {};
     const tipoDocumento = String(b.tipo_documento || '').trim();
@@ -439,7 +470,7 @@ app.post('/api/pedidos', async (req, res) => {
     console.error('POST /api/pedidos error', e);
     res.status(500).json({
       message: 'Error guardando pedido',
-      detail: (e && e.message) ? String(e.message).slice(0, 300) : undefined
+      ...(IS_PRODUCTION ? {} : { detail: (e && e.message) ? String(e.message).slice(0, 300) : undefined })
     });
   }
 });
@@ -454,7 +485,7 @@ const contactUpload = multer({
   }
 });
 
-app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res) => {
+app.post('/api/contacts', contactsLimiter, contactUpload.array('attachments', 6), async (req, res) => {
   try {
     const { name, email, phone, message } = req.body || {};
     if (!name || !email || !message) {
@@ -528,12 +559,12 @@ app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res
   } catch (e) {
     console.error('[contacts] Error:', e);
     const detail = e && e.message ? String(e.message).slice(0, 600) : String(e);
-    res.status(500).json({ message: 'Error guardando contacto', detail });
+    res.status(500).json({ message: 'Error guardando contacto', ...(IS_PRODUCTION ? {} : { detail }) });
   }
 });
 
 // --- Admin Auth API ---
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', loginLimiter, (req, res) => {
   try {
     const { username, password } = req.body || {};
     if (!ADMIN_PASSWORD) return res.status(500).json({ message: 'ADMIN_PASSWORD no configurada' });
@@ -541,7 +572,7 @@ app.post('/api/admin/login', (req, res) => {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
     const token = signToken({ sub: 'admin', user: ADMIN_USER, iat: Date.now() });
-    setCookie(res, 'adminToken', token, { httpOnly: true, sameSite: 'Lax' });
+    setCookie(res, 'adminToken', token, { httpOnly: true, sameSite: 'Lax', secure: IS_PRODUCTION });
     res.json({ ok: true, user: ADMIN_USER });
   } catch (e) {
     console.error(e);
@@ -584,16 +615,31 @@ app.post('/api/chatbot', async (req, res) => {
   }
 });
 
+// --- Servir robots.txt y sitemap.xml antes del SPA fallback ---
+const seoDir = path.resolve(__dirname, '..', 'src');
+app.get('/robots.txt', (req, res) => {
+  const file = path.join(seoDir, 'robots.txt');
+  if (fs.existsSync(file)) return res.type('text/plain').sendFile(file);
+  res.status(404).end();
+});
+app.get('/sitemap.xml', (req, res) => {
+  const file = path.join(seoDir, 'sitemap.xml');
+  if (fs.existsSync(file)) return res.type('application/xml').sendFile(file);
+  res.status(404).end();
+});
+
 // Servir frontend: React build (client/dist) si existe, sino legacy (src/)
 const clientDist = path.resolve(__dirname, '..', 'client', 'dist');
-const legacyDir = path.resolve(__dirname, '..', 'src');
+const legacyDir = seoDir;
 
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist, {
-    maxAge: '7d',
     setHeaders(res, filePath) {
       if (filePath.endsWith('.html')) {
         res.setHeader('Cache-Control', 'no-cache');
+      } else if (/\.(js|css|woff2?|ttf|eot|svg|png|jpg|webp|ico)$/.test(filePath)) {
+        // Assets con hash de Vite: cache inmutable de largo plazo
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       }
     }
   }));
@@ -933,7 +979,7 @@ app.post('/api/biblioteca', requireAdmin, libUpload.single('imagen'), async (req
       console.log('[POST /api/biblioteca] uploaded blob', { blobName, contentLength: props.contentLength, contentType: props.contentType });
     } catch (errUpload) {
       console.error('[POST /api/biblioteca] upload error', errUpload);
-      return res.status(500).json({ message: 'Error subiendo a Blob Storage', detail: errUpload.message || String(errUpload) });
+      return res.status(500).json({ message: 'Error subiendo a Blob Storage', ...(IS_PRODUCTION ? {} : { detail: errUpload.message || String(errUpload) }) });
     }
 
     const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
@@ -956,7 +1002,7 @@ app.post('/api/biblioteca', requireAdmin, libUpload.single('imagen'), async (req
       return res.status(201).json({ ok: true, id: bancoId, url: blobUrl });
     } catch (errBanco) {
       console.error('[POST /api/biblioteca] DB insert error (banco_imagenes)', errBanco && (errBanco.message || errBanco));
-      return res.status(500).json({ message: 'Error guardando metadata en DB', detail: errBanco && (errBanco.message || String(errBanco)) });
+      return res.status(500).json({ message: 'Error guardando metadata en DB', ...(IS_PRODUCTION ? {} : { detail: errBanco && (errBanco.message || String(errBanco)) }) });
     }
   } catch (e) {
     console.error(e);
@@ -2006,7 +2052,7 @@ app.post('/api/pedidos/:pedidoId/confirmar-pago', async (req, res) => {
     });
   } catch (e) {
     console.error('confirmar-pago error', e);
-    res.status(500).json({ message: 'Error confirmando pago', detail: e?.message ? String(e.message).slice(0, 300) : undefined });
+    res.status(500).json({ message: 'Error confirmando pago', ...(IS_PRODUCTION ? {} : { detail: e?.message ? String(e.message).slice(0, 300) : undefined }) });
   }
 });
 
