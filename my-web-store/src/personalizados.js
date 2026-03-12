@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             initScrollAnimations();
             initParallax();
         });
-        initChatbot();
+
 
     } catch (error) {
         console.error('Error inicializando personalizados.js:', error);

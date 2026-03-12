@@ -62,6 +62,10 @@ export function initChatbot() {
       pointer-events: auto;
       transform: translateY(0) scale(1);
     }
+    .kos-chatbot-window.open + .kos-chatbot-btn {
+      display: none !important;
+    }
+
 
     /* ===== HEADER ===== */
     .kos-chatbot-header {
@@ -399,16 +403,16 @@ export function initChatbot() {
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 480px) {
       .kos-chatbot-window {
-        width: 100vw;
-        height: 100vh;
-        height: 100dvh;
-        max-height: 100vh;
-        max-height: 100dvh;
-        top: 0;
-        bottom: auto;
-        right: 0;
-        border-radius: 0;
-        max-width: 100vw;
+        width: calc(100vw - 32px);
+        height: auto;
+        min-height: 400px;
+        max-height: calc(100dvh - 120px);
+        bottom: 90px;
+        top: auto;
+        right: 16px;
+        left: 16px;
+        border-radius: 20px;
+        max-width: none;
       }
     }
   `;
@@ -420,11 +424,6 @@ export function initChatbot() {
     <div class="kos-welcome-bubble" id="kos-welcome-bubble">
       Hola, soy Koski, tu Asistente Personal
     </div>
-
-    <!-- Floating Button -->
-    <button class="kos-chatbot-btn" aria-label="Abrir chat">
-      <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.03 2 11c0 2.82 1.494 5.334 3.824 6.953C5.617 19.344 5.166 21 5.166 21s1.777-.113 3.655-1.121C9.696 20.301 10.82 20.5 12 20.5c5.523 0 10-4.03 10-9s-4.477-9-10-9z"/></svg>
-    </button>
 
     <!-- Chat Window -->
     <div class="kos-chatbot-window">
@@ -463,6 +462,12 @@ export function initChatbot() {
         </button>
       </form>
     </div>
+
+    <!-- Floating Button (Moved after window for CSS sibling selector) -->
+    <button class="kos-chatbot-btn" aria-label="Abrir chat">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.03 2 11c0 2.82 1.494 5.334 3.824 6.953C5.617 19.344 5.166 21 5.166 21s1.777-.113 3.655-1.121C9.696 20.301 10.82 20.5 12 20.5c5.523 0 10-4.03 10-9s-4.477-9-10-9z"/></svg>
+    </button>
+
   `;
   document.body.appendChild(container);
 
