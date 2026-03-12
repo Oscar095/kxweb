@@ -1,164 +1,236 @@
+/* ═══════════════════════════════════════════
+   FOOTER — Dark Theme
+   ═══════════════════════════════════════════ */
+
 .footer {
-  margin-top: 80px;
+  background: var(--dark-bg);
+  color: var(--dark-text);
+  margin-top: 0;
 }
 
-.grid {
+.footerInner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 64px 32px 40px;
   display: grid;
-  grid-template-columns: 1fr 0.8fr 1.3fr;
+  grid-template-columns: 1.4fr 0.8fr 1fr 1.2fr;
   gap: 48px;
-  padding-top: 48px;
-  padding-bottom: 36px;
   align-items: start;
 }
 
+/* Brand column */
 .logo {
-  height: 72px;
+  height: 60px;
   width: auto;
   display: block;
-  margin-bottom: 14px;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12));
+  margin-bottom: 16px;
+  filter: brightness(1.1);
 }
 
 .tagline {
-  font-size: 0.92rem;
-  color: var(--muted);
-  line-height: 1.65;
-  margin: 0 0 24px;
-  max-width: 270px;
-}
-
-.socialPills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 18px;
-  border-radius: 24px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-decoration: none;
-  color: #fff;
-  letter-spacing: 0.3px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
-}
-
-.pill:hover {
-  transform: translateY(-3px);
-  filter: brightness(1.1);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-}
-
-.pill svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  fill: currentColor;
-}
-
-.pillIg {
-  background: linear-gradient(135deg, #f77737 0%, #c13584 50%, #833ab4 100%);
-}
-
-.pillFb {
-  background: #1877F2;
-}
-
-.pillWa {
-  background: #25D366;
-}
-
-.locationTitle {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-main);
-  margin: 0 0 8px;
-}
-
-.addressRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
   font-size: 0.88rem;
-  color: var(--muted);
-  margin: 0 0 16px;
-  line-height: 1.5;
+  color: var(--dark-text);
+  line-height: 1.65;
+  margin: 0 0 20px;
+  max-width: 280px;
 }
 
-.addressRow svg {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-  margin-top: 2px;
-  stroke: var(--primary);
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.mapWrap iframe {
-  width: 100%;
-  height: 255px;
-  border: 0;
-  border-radius: 14px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.09);
-  display: block;
-}
-
-.bottomBar {
-  border-top: 1px solid rgba(0, 0, 0, 0.07);
-  padding: 18px 24px;
-  max-width: var(--max-width);
-  margin: 0 auto;
+.socialRow {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
-  font-size: 0.83rem;
-  color: var(--muted);
 }
 
-.footerLinks {
+.socialLink {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dark-text);
+  transition: all 0.3s ease;
+}
+
+.socialLink:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.socialLink svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Column titles */
+.colTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dark-text-bright);
+  margin: 0 0 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Nav links */
+.links {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.footerLinks a {
-  color: var(--muted);
+.links a {
+  color: var(--dark-text);
   font-size: 0.88rem;
   text-decoration: none;
-  transition: color 0.2s;
   font-weight: 500;
+  transition: color 0.2s;
 }
 
-.footerLinks a:hover {
+.links a:hover {
   color: var(--primary);
 }
 
-@media (max-width: 700px) {
-  .grid {
+/* Contact list */
+.contactList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.contactList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.contactList svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--primary);
+}
+
+.contactList a {
+  color: var(--dark-text);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.contactList a:hover {
+  color: var(--primary);
+}
+
+/* Map */
+.mapWrap iframe {
+  width: 100%;
+  height: 180px;
+  border: 0;
+  border-radius: 12px;
+  display: block;
+  opacity: 0.85;
+  transition: opacity 0.3s;
+}
+
+.mapWrap iframe:hover {
+  opacity: 1;
+}
+
+/* Bottom bar */
+.bottomBar {
+  border-top: 1px solid var(--dark-border);
+}
+
+.bottomInner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 20px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.copyright {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.payMethods {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payLabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-right: 4px;
+}
+
+.payBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  background: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.03em;
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .footerInner {
+    grid-template-columns: 1fr 1fr;
+    gap: 36px;
+    padding: 48px 20px 32px;
+  }
+
+  .brand {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .footerInner {
     grid-template-columns: 1fr;
     gap: 32px;
-    padding-top: 36px;
+    padding: 40px 16px 28px;
+  }
+
+  .brand {
+    grid-column: span 1;
   }
 
   .tagline {
     max-width: 100%;
   }
 
-  .bottomBar {
+  .bottomInner {
     flex-direction: column;
     text-align: center;
+    padding: 16px;
+  }
+
+  .payMethods {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
