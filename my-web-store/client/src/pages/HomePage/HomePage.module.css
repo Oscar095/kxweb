@@ -33,7 +33,7 @@
 }
 
 .heroContent h1 {
-  font-size: 4rem;
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
   line-height: 1.15;
   margin-bottom: 24px;
   background: linear-gradient(135deg, #1e293b, var(--primary));
@@ -43,10 +43,11 @@
 }
 
 .heroContent p {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   color: var(--muted);
   margin-bottom: 40px;
   line-height: 1.6;
+  max-width: 480px;
 }
 
 .heroActions {
@@ -80,7 +81,8 @@
 .carouselWrap {
   flex: 1;
   position: relative;
-  height: 620px;
+  height: 420px;
+  max-height: 50vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -456,6 +458,69 @@
   opacity: 0.5;
 }
 
+/* Carousel Dots */
+.dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 159, 227, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.dot:hover {
+  background: rgba(0, 159, 227, 0.4);
+}
+
+.dotActive {
+  background: var(--primary);
+  width: 28px;
+  border-radius: 5px;
+}
+
+/* Trust Signals */
+.trust {
+  padding: 40px 0;
+}
+
+.trustGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  text-align: center;
+}
+
+.trustItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trustItem strong {
+  font-size: 1.8rem;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.trustItem span {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .heroGlass {
@@ -473,7 +538,12 @@
   }
 
   .carouselWrap {
-    height: 350px;
+    height: 300px;
+    max-height: none;
+  }
+
+  .trustGrid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .benefitsGrid {

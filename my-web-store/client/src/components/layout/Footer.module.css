@@ -4,7 +4,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1.3fr;
+  grid-template-columns: 1fr 0.8fr 1.3fr;
   gap: 48px;
   padding-top: 48px;
   padding-bottom: 36px;
@@ -123,6 +123,27 @@
   gap: 8px;
   font-size: 0.83rem;
   color: var(--muted);
+}
+
+.footerLinks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footerLinks a {
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-decoration: none;
+  transition: color 0.2s;
+  font-weight: 500;
+}
+
+.footerLinks a:hover {
+  color: var(--primary);
 }
 
 @media (max-width: 700px) {

@@ -75,6 +75,16 @@ function HeroRotator() {
           </motion.div>
         </AnimatePresence>
       </div>
+      <div className={styles.dots}>
+        {ROTATOR_ITEMS.map((_, i) => (
+          <button
+            key={i}
+            className={`${styles.dot} ${i === current ? styles.dotActive : ''}`}
+            onClick={() => setCurrent(i)}
+            aria-label={`Ir a slide ${i + 1}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -183,11 +193,10 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, ease: 'easeOut' }}
           >
-            <h1>Soluciones Ideales en Empaques</h1>
+            <h1>Empaques Premium para tu Negocio</h1>
             <p>
-              Descubre nuestra linea de envases premium: vasos de distintos tamanos,
-              contenedores genericos y ediciones especiales disenadas para destacar tu
-              marca y conservar la calidad de tus productos.
+              Vasos, contenedores y empaques biodegradables con envío a toda Colombia.
+              Precios por caja con IVA incluido.
             </p>
             <div className={styles.heroActions}>
               <motion.a
@@ -222,13 +231,13 @@ export default function HomePage() {
       {/* Benefits */}
       <section className={`${styles.benefits} container`}>
         <ScrollReveal>
-          <h2 className={styles.benefitsTitle}>Por que elegirnos?</h2>
+          <h2 className={styles.benefitsTitle}>¿Por qué elegirnos?</h2>
         </ScrollReveal>
         <div className={styles.benefitsGrid}>
           {[
-            { icon: 'check', title: 'Calidad premium', desc: 'Seleccionamos cuidadosamente cada envase para garantizar los mejores acabados y presentacion.' },
-            { icon: 'shield', title: 'Materiales resistentes', desc: 'Nuestros productos estan fabricados con materiales de alta durabilidad.' },
-            { icon: 'truck', title: 'Entrega agil', desc: 'Optimizamos nuestros procesos logisticos para que recibas tus empaques en el menor tiempo posible.' },
+            { icon: 'check', title: 'Calidad premium', desc: 'Seleccionamos cuidadosamente cada envase para garantizar los mejores acabados y presentación.' },
+            { icon: 'shield', title: 'Materiales resistentes', desc: 'Nuestros productos están fabricados con materiales de alta durabilidad.' },
+            { icon: 'truck', title: 'Entrega ágil', desc: 'Optimizamos nuestros procesos logísticos para que recibas tus empaques en el menor tiempo posible.' },
           ].map((b, i) => (
             <ScrollReveal key={b.title} delay={i * 0.1}>
               <div className={styles.benefitCard}>
@@ -258,12 +267,36 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Trust Signals */}
+      <section className={`${styles.trust} container`}>
+        <ScrollReveal>
+          <div className={styles.trustGrid}>
+            <div className={styles.trustItem}>
+              <strong>500+</strong>
+              <span>Negocios confían en nosotros</span>
+            </div>
+            <div className={styles.trustItem}>
+              <strong>100%</strong>
+              <span>Pago seguro con Wompi</span>
+            </div>
+            <div className={styles.trustItem}>
+              <strong>24-72h</strong>
+              <span>Tiempo de entrega</span>
+            </div>
+            <div className={styles.trustItem}>
+              <strong>Certificado</strong>
+              <span>Material biodegradable</span>
+            </div>
+          </div>
+        </ScrollReveal>
+      </section>
+
       {/* Categories */}
       <section className={`${styles.catalog} container`}>
         <ScrollReveal>
           <div className={styles.catalogHeader}>
-            <h2>Explora por Categoria</h2>
-            <p>Selecciona la linea de productos que mejor se adapte a tu negocio.</p>
+            <h2>Explora por Categoría</h2>
+            <p>Selecciona la línea de productos que mejor se adapte a tu negocio.</p>
           </div>
         </ScrollReveal>
         <div className={styles.categoryGrid}>
@@ -295,11 +328,11 @@ export default function HomePage() {
             <div className={styles.bsHeader}>
               <div>
                 <span className={styles.bsTag}>&#x1F525; Populares</span>
-                <h2>Mas vendidos</h2>
+                <h2>Más vendidos</h2>
                 <p>Los productos preferidos por nuestros clientes.</p>
               </div>
               <Link to="/products" className={styles.bsViewAll}>
-                Ver catalogo completo &rarr;
+                Ver catálogo completo &rarr;
               </Link>
             </div>
           </ScrollReveal>

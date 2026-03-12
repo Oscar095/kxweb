@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import styles from './Footer.module.css';
 
 export default function Footer() {
@@ -26,7 +27,7 @@ export default function Footer() {
           />
           <p className={styles.tagline}>
             Soluciones ideales en empaques para tu negocio. Calidad premium,
-            entrega agil.
+            entrega ágil.
           </p>
           <div className={styles.socialPills}>
             <a
@@ -68,7 +69,16 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className={styles.locationTitle}>Donde estamos ubicados?</h4>
+          <h4 className={styles.locationTitle}>Información</h4>
+          <ul className={styles.footerLinks}>
+            <li><Link to="/products">Catálogo de productos</Link></li>
+            <li><Link to="/personalizados">Personalizados</Link></li>
+            <li><Link to="/contact">Contacto</Link></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className={styles.locationTitle}>¿Dónde estamos ubicados?</h4>
           <p className={styles.addressRow}>
             <svg viewBox="0 0 24 24">
               <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
@@ -89,7 +99,7 @@ export default function Footer() {
       </div>
 
       <div className={styles.bottomBar}>
-        <span>&copy; 2025 Kos Xpress — Todos los derechos reservados</span>
+        <span>&copy; {new Date().getFullYear()} Kos Xpress — Todos los derechos reservados</span>
         <span>Yumbo, Valle del Cauca, Colombia</span>
       </div>
     </footer>

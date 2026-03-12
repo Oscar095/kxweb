@@ -17,10 +17,10 @@ const s = {
   card: {
     maxWidth: 520,
     width: '100%',
-    background: 'rgba(255,255,255,0.04)',
+    background: 'rgba(255,255,255,0.65)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    border: '1px solid rgba(0,0,0,0.08)',
     borderRadius: 20,
     padding: '2.5rem 2rem',
     textAlign: 'center',
@@ -44,7 +44,7 @@ const s = {
   }),
   subtitle: {
     fontSize: '0.9rem',
-    color: 'rgba(255,255,255,0.6)',
+    color: '#64748b',
     lineHeight: 1.6,
     marginBottom: '1.5rem',
     maxWidth: 400,
@@ -56,16 +56,16 @@ const s = {
     gap: '0.5rem',
     padding: '0.5rem 1.25rem',
     borderRadius: 999,
-    background: 'rgba(99,102,241,0.1)',
-    border: '1px solid rgba(99,102,241,0.2)',
-    color: '#a5b4fc',
+    background: 'rgba(0,159,227,0.1)',
+    border: '1px solid rgba(0,159,227,0.2)',
+    color: '#009FE3',
     fontWeight: 700,
     fontSize: '0.95rem',
     marginBottom: '1.25rem',
   },
   detailsBox: {
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.06)',
+    background: 'rgba(0,0,0,0.02)',
+    border: '1px solid rgba(0,0,0,0.06)',
     borderRadius: 12,
     padding: '1rem 1.25rem',
     marginBottom: '1.5rem',
@@ -76,15 +76,15 @@ const s = {
     justifyContent: 'space-between',
     padding: '0.4rem 0',
     fontSize: '0.85rem',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
+    borderBottom: '1px solid rgba(0,0,0,0.05)',
   },
   detailLabel: {
-    color: 'rgba(255,255,255,0.45)',
+    color: '#64748b',
     fontWeight: 500,
   },
   detailValue: {
     fontWeight: 600,
-    color: 'rgba(255,255,255,0.85)',
+    color: '#1e293b',
   },
   statusChip: (type) => ({
     display: 'inline-flex',
@@ -99,9 +99,9 @@ const s = {
       type === 'pending' ? 'rgba(217,119,6,0.12)' :
       'rgba(220,38,38,0.12)',
     color:
-      type === 'success' ? '#34d399' :
-      type === 'pending' ? '#fbbf24' :
-      '#f87171',
+      type === 'success' ? '#16a34a' :
+      type === 'pending' ? '#d97706' :
+      '#dc2626',
     border: `1px solid ${
       type === 'success' ? 'rgba(16,185,129,0.2)' :
       type === 'pending' ? 'rgba(217,119,6,0.2)' :
@@ -122,7 +122,7 @@ const s = {
     padding: '0.7rem 1.5rem',
     borderRadius: 10,
     border: 'none',
-    background: 'linear-gradient(135deg,#6366f1,#818cf8)',
+    background: 'linear-gradient(135deg,#009FE3,#007bb5)',
     color: '#fff',
     fontWeight: 700,
     fontSize: '0.9rem',
@@ -136,9 +136,9 @@ const s = {
     gap: '0.5rem',
     padding: '0.7rem 1.5rem',
     borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.15)',
+    border: '1px solid rgba(0,0,0,0.12)',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.7)',
+    color: '#475569',
     fontWeight: 600,
     fontSize: '0.9rem',
     cursor: 'pointer',
@@ -148,14 +148,14 @@ const s = {
   note: {
     marginTop: '1.25rem',
     fontSize: '0.78rem',
-    color: 'rgba(255,255,255,0.35)',
+    color: '#94a3b8',
     lineHeight: 1.5,
   },
   spinner: {
     width: 44,
     height: 44,
-    border: '3px solid rgba(255,255,255,0.1)',
-    borderTopColor: '#818cf8',
+    border: '3px solid rgba(0,159,227,0.15)',
+    borderTopColor: '#009FE3',
     borderRadius: '50%',
     animation: 'conf-spin 0.8s linear infinite',
     margin: '0 auto 1.5rem',
@@ -217,22 +217,22 @@ const STATES = {
   success: {
     color: '#16a34a',
     Icon: SuccessIcon,
-    title: 'Pago confirmado!',
-    subtitle: 'Tu pedido ha sido recibido y esta siendo procesado.',
+    title: '¡Pago confirmado!',
+    subtitle: 'Tu pedido ha sido recibido y está siendo procesado.',
     clearCart: true,
   },
   pending: {
     color: '#d97706',
     Icon: PendingIcon,
     title: 'Pago en proceso',
-    subtitle: 'Tu transaccion esta siendo verificada. Recibiras una notificacion pronto.',
+    subtitle: 'Tu transacción está siendo verificada. Recibirás una notificación pronto.',
     clearCart: false,
   },
   failed: {
     color: '#dc2626',
     Icon: FailedIcon,
     title: 'Pago no completado',
-    subtitle: 'No se pudo procesar el pago. Por favor intenta de nuevo o contactanos.',
+    subtitle: 'No se pudo procesar el pago. Por favor intenta de nuevo o contáctanos.',
     clearCart: false,
   },
 };
@@ -266,7 +266,7 @@ export default function ConfirmationPage() {
           pedidoId: null,
           transactionId: null,
           estado: null,
-          reason: 'No se encontro el identificador del pedido en la URL.',
+          reason: 'No se encontró el identificador del pedido en la URL.',
         });
         setLoading(false);
         return;
@@ -282,8 +282,8 @@ export default function ConfirmationPage() {
           transactionId: null,
           estado: upper || null,
           reason: isBad
-            ? 'La transaccion fue rechazada o cancelada.'
-            : 'No se recibio el ID de transaccion. Si realizaste el pago, contactanos.',
+            ? 'La transacción fue rechazada o cancelada.'
+            : 'No se recibió el ID de transacción. Si realizaste el pago, contáctanos.',
         });
         setLoading(false);
         return;
@@ -309,7 +309,7 @@ export default function ConfirmationPage() {
               pedidoId,
               transactionId,
               estado: statusFromRedirect,
-              reason: 'No se pudo verificar el pago con el servidor.',
+              reason: 'No se pudo verificar el pago con el servidor. Contáctanos si realizaste el pago.',
             });
           }
           setLoading(false);
@@ -344,7 +344,7 @@ export default function ConfirmationPage() {
             pedidoId,
             transactionId,
             estado: statusFromRedirect,
-            reason: `Error de conexion: ${err?.message || err}`,
+            reason: `Error de conexión: ${err?.message || err}`,
           });
         }
       }
@@ -364,7 +364,7 @@ export default function ConfirmationPage() {
   return (
     <AnimatedPage>
       <Helmet>
-        <title>Confirmacion | KosXpress</title>
+        <title>Confirmación | KosXpress</title>
         <meta name="description" content="Estado de tu pedido en KosXpress" />
       </Helmet>
 
@@ -380,10 +380,10 @@ export default function ConfirmationPage() {
           {loading ? (
             <>
               <div style={s.spinner} />
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#1e293b' }}>
                 Verificando tu pago...
               </h2>
-              <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>
+              <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
                 Esto solo tomara un momento.
               </p>
             </>
@@ -446,7 +446,7 @@ export default function ConfirmationPage() {
                 >
                   {result.transactionId && (
                     <div style={s.detailRow}>
-                      <span style={s.detailLabel}>Transaccion</span>
+                      <span style={s.detailLabel}>Transacción</span>
                       <span style={s.detailValue}>{result.transactionId}</span>
                     </div>
                   )}
@@ -500,7 +500,7 @@ export default function ConfirmationPage() {
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.6 }}
                 >
-                  Recibiras un correo de confirmacion con los detalles de tu pedido.
+                  Recibirás un correo de confirmación con los detalles de tu pedido.
                   Si tienes alguna pregunta, no dudes en contactarnos.
                 </motion.p>
               )}

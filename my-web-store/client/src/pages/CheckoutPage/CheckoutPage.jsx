@@ -13,13 +13,13 @@ const IVA_RATE = 0.19;
 
 const PERSON_TYPES = [
   { value: 'N', label: 'Persona Natural' },
-  { value: 'J', label: 'Persona Juridica' },
+  { value: 'J', label: 'Persona Jurídica' },
 ];
 
 const DOC_TYPES = [
-  { value: 'CC', label: 'Cedula de Ciudadania' },
+  { value: 'CC', label: 'Cédula de Ciudadanía' },
   { value: 'NIT', label: 'NIT' },
-  { value: 'CE', label: 'Cedula de Extranjeria' },
+  { value: 'CE', label: 'Cédula de Extranjería' },
   { value: 'TI', label: 'Tarjeta de Identidad' },
   { value: 'PA', label: 'Pasaporte' },
 ];
@@ -57,6 +57,7 @@ const s = {
     fontWeight: 700,
     textAlign: 'center',
     marginBottom: '1.5rem',
+    color: '#1e293b',
   },
   /* step indicator */
   steps: {
@@ -74,9 +75,9 @@ const s = {
     borderRadius: 999,
     fontSize: '0.85rem',
     fontWeight: 600,
-    background: done ? 'rgba(16,185,129,0.15)' : active ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.06)',
-    color: done ? '#10b981' : active ? '#818cf8' : 'rgba(255,255,255,0.4)',
-    border: `1.5px solid ${done ? '#10b981' : active ? '#818cf8' : 'rgba(255,255,255,0.1)'}`,
+    background: done ? 'rgba(16,185,129,0.15)' : active ? 'rgba(0,159,227,0.12)' : 'rgba(0,0,0,0.03)',
+    color: done ? '#10b981' : active ? '#009FE3' : '#94a3b8',
+    border: `1.5px solid ${done ? '#10b981' : active ? '#009FE3' : 'rgba(0,0,0,0.08)'}`,
     transition: 'all .3s',
   }),
   stepCircle: (active, done) => ({
@@ -88,13 +89,13 @@ const s = {
     justifyContent: 'center',
     fontSize: '0.75rem',
     fontWeight: 700,
-    background: done ? '#10b981' : active ? '#818cf8' : 'transparent',
-    color: done || active ? '#fff' : 'rgba(255,255,255,0.4)',
+    background: done ? '#10b981' : active ? '#009FE3' : 'transparent',
+    color: done || active ? '#fff' : '#94a3b8',
   }),
   connector: {
     width: 32,
     height: 2,
-    background: 'rgba(255,255,255,0.1)',
+    background: 'rgba(0,0,0,0.08)',
     alignSelf: 'center',
     borderRadius: 1,
   },
@@ -112,10 +113,10 @@ const s = {
   },
   /* glass panel */
   panel: {
-    background: 'rgba(255,255,255,0.04)',
+    background: 'rgba(255,255,255,0.65)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    border: '1px solid rgba(0,0,0,0.08)',
     borderRadius: 16,
     padding: '1.5rem',
   },
@@ -126,6 +127,7 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
+    color: '#1e293b',
   },
   /* form fields */
   fieldGroup: {
@@ -142,14 +144,14 @@ const s = {
   label: {
     fontSize: '0.8rem',
     fontWeight: 600,
-    color: 'rgba(255,255,255,0.6)',
+    color: '#64748b',
   },
   input: {
     padding: '0.6rem 0.75rem',
     borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.06)',
-    color: '#fff',
+    border: '1px solid rgba(0,0,0,0.1)',
+    background: 'rgba(255,255,255,0.7)',
+    color: '#1e293b',
     fontSize: '0.9rem',
     outline: 'none',
     transition: 'border-color .2s',
@@ -157,9 +159,9 @@ const s = {
   select: {
     padding: '0.6rem 0.75rem',
     borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.06)',
-    color: '#fff',
+    border: '1px solid rgba(0,0,0,0.1)',
+    background: 'rgba(255,255,255,0.7)',
+    color: '#1e293b',
     fontSize: '0.9rem',
     outline: 'none',
     cursor: 'pointer',
@@ -170,7 +172,7 @@ const s = {
     gap: '0.75rem',
     alignItems: 'center',
     padding: '0.6rem 0',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    borderBottom: '1px solid rgba(0,0,0,0.06)',
   },
   summaryImg: {
     width: 52,
@@ -184,10 +186,11 @@ const s = {
     fontSize: '0.85rem',
     fontWeight: 600,
     lineHeight: 1.3,
+    color: '#1e293b',
   },
   summarySub: {
     fontSize: '0.78rem',
-    color: 'rgba(255,255,255,0.5)',
+    color: '#64748b',
     marginTop: 2,
   },
   totalLine: {
@@ -195,16 +198,17 @@ const s = {
     justifyContent: 'space-between',
     padding: '0.35rem 0',
     fontSize: '0.85rem',
-    color: 'rgba(255,255,255,0.7)',
+    color: '#475569',
   },
   grandTotal: {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '0.75rem 0 0',
     marginTop: '0.5rem',
-    borderTop: '2px solid rgba(255,255,255,0.12)',
+    borderTop: '2px solid rgba(0,0,0,0.08)',
     fontSize: '1.1rem',
     fontWeight: 700,
+    color: '#1e293b',
   },
   /* buttons */
   btnPrimary: {
@@ -215,7 +219,7 @@ const s = {
     padding: '0.75rem 1.5rem',
     borderRadius: 10,
     border: 'none',
-    background: 'linear-gradient(135deg,#6366f1,#818cf8)',
+    background: 'linear-gradient(135deg,#009FE3,#007bb5)',
     color: '#fff',
     fontWeight: 700,
     fontSize: '0.95rem',
@@ -230,9 +234,9 @@ const s = {
     gap: '0.5rem',
     padding: '0.65rem 1.25rem',
     borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.15)',
+    border: '1px solid rgba(0,0,0,0.12)',
     background: 'transparent',
-    color: 'rgba(255,255,255,0.7)',
+    color: '#475569',
     fontWeight: 600,
     fontSize: '0.9rem',
     cursor: 'pointer',
@@ -252,9 +256,9 @@ const s = {
     fontSize: '0.88rem',
     fontWeight: 600,
     display: type ? 'block' : 'none',
-    background: type === 'error' ? 'rgba(239,68,68,0.12)' : type === 'info' ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.12)',
-    color: type === 'error' ? '#f87171' : type === 'info' ? '#a5b4fc' : '#34d399',
-    border: `1px solid ${type === 'error' ? 'rgba(239,68,68,0.2)' : type === 'info' ? 'rgba(99,102,241,0.2)' : 'rgba(16,185,129,0.2)'}`,
+    background: type === 'error' ? 'rgba(239,68,68,0.12)' : type === 'info' ? 'rgba(0,159,227,0.12)' : 'rgba(16,185,129,0.12)',
+    color: type === 'error' ? '#dc2626' : type === 'info' ? '#009FE3' : '#16a34a',
+    border: `1px solid ${type === 'error' ? 'rgba(239,68,68,0.2)' : type === 'info' ? 'rgba(0,159,227,0.2)' : 'rgba(16,185,129,0.2)'}`,
   }),
   qtyBadge: {
     position: 'absolute',
@@ -263,7 +267,7 @@ const s = {
     width: 20,
     height: 20,
     borderRadius: '50%',
-    background: '#6366f1',
+    background: '#009FE3',
     color: '#fff',
     fontSize: '0.65rem',
     fontWeight: 700,
@@ -274,7 +278,7 @@ const s = {
   emptyCart: {
     textAlign: 'center',
     padding: '2rem 0',
-    color: 'rgba(255,255,255,0.5)',
+    color: '#64748b',
     fontSize: '0.9rem',
     lineHeight: 1.6,
   },
@@ -286,28 +290,29 @@ const s = {
   },
   fleteHint: {
     fontSize: '0.78rem',
-    color: 'rgba(255,255,255,0.35)',
+    color: '#94a3b8',
   },
   reviewRow: {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '0.4rem 0',
     fontSize: '0.88rem',
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    borderBottom: '1px solid rgba(0,0,0,0.05)',
   },
   reviewLabel: {
-    color: 'rgba(255,255,255,0.5)',
+    color: '#64748b',
     fontWeight: 500,
   },
   reviewValue: {
     fontWeight: 600,
+    color: '#1e293b',
   },
   spinner: {
     display: 'inline-block',
     width: 20,
     height: 20,
-    border: '2.5px solid rgba(255,255,255,0.2)',
-    borderTopColor: '#fff',
+    border: '2.5px solid rgba(0,159,227,0.2)',
+    borderTopColor: '#009FE3',
     borderRadius: '50%',
     animation: 'co-spin 0.7s linear infinite',
   },
@@ -515,11 +520,11 @@ export default function CheckoutPage() {
 
   const validateStep1 = () => {
     if (!form.tipoDocumento) return 'Selecciona un tipo de documento.';
-    if (!form.nitId.trim()) return 'El numero de documento es obligatorio.';
-    if (!form.nombres.trim()) return isJuridica ? 'La razon social es obligatoria.' : 'Los nombres son obligatorios.';
+    if (!form.nitId.trim()) return 'El número de documento es obligatorio.';
+    if (!form.nombres.trim()) return isJuridica ? 'La razón social es obligatoria.' : 'Los nombres son obligatorios.';
     if (!isJuridica && !form.apellidos.trim()) return 'Los apellidos son obligatorios.';
-    if (!form.email.trim()) return 'El correo electronico es obligatorio.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return 'El correo electronico no es valido.';
+    if (!form.email.trim()) return 'El correo electrónico es obligatorio.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return 'El correo electrónico no es válido.';
     if (!form.phone.trim()) return 'El celular es obligatorio.';
     if (!form.departamento) return 'Selecciona un departamento.';
     if (!form.city) return 'Selecciona una ciudad.';
@@ -547,7 +552,7 @@ export default function CheckoutPage() {
 
   const handleSubmit = async () => {
     if (grandTotalCents <= 0) {
-      setMsg({ text: 'Tu carrito esta vacio.', type: 'error' });
+      setMsg({ text: 'Tu carrito está vacío.', type: 'error' });
       return;
     }
 
@@ -604,7 +609,7 @@ export default function CheckoutPage() {
       const pedidoId = saved?.id;
       if (!pedidoId) throw new Error('No se pudo obtener el id del pedido.');
 
-      setMsg({ text: 'Pedido registrado. Abriendo pasarela de pago...', type: 'info' });
+      setMsg({ text: 'Pedido registrado. Abriendo la pasarela de pago...', type: 'info' });
 
       await openWompi(pedidoId, grandTotalCents, form.email.trim());
     } catch (err) {
@@ -659,7 +664,7 @@ export default function CheckoutPage() {
         </svg>
         Resumen del pedido
         {grouped.length > 0 && (
-          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 400, marginLeft: 'auto' }}>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 400, marginLeft: 'auto' }}>
             {grouped.length} {grouped.length === 1 ? 'producto' : 'productos'}
           </span>
         )}
@@ -667,8 +672,8 @@ export default function CheckoutPage() {
 
       {grouped.length === 0 ? (
         <div style={s.emptyCart}>
-          Tu carrito esta vacio.<br />
-          <a href="/products" style={{ color: '#818cf8', fontWeight: 600, textDecoration: 'none' }}>
+          Tu carrito está vacío.<br />
+          <a href="/products" style={{ color: '#009FE3', fontWeight: 600, textDecoration: 'none' }}>
             Explorar productos &rarr;
           </a>
         </div>
@@ -711,7 +716,7 @@ export default function CheckoutPage() {
               <span>
                 Flete
                 {flete.fleteTotal > 0 && (
-                  <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                     {' '}(${formatMoney(flete.fletePorCaja)} x {flete.totalCajas} cajas)
                   </span>
                 )}
@@ -724,7 +729,7 @@ export default function CheckoutPage() {
             </div>
             <div style={s.grandTotal}>
               <span>Total a pagar</span>
-              <span style={{ color: '#818cf8' }}>${formatMoney(grandTotal)}</span>
+              <span style={{ color: '#009FE3' }}>${formatMoney(grandTotal)}</span>
             </div>
           </div>
         </>
@@ -742,7 +747,7 @@ export default function CheckoutPage() {
           <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
-        Identificacion
+        Identificación
       </h3>
       <div style={s.fieldGroup}>
         <div style={s.field}>
@@ -762,7 +767,7 @@ export default function CheckoutPage() {
           </select>
         </div>
         <div style={s.field}>
-          <label style={s.label}>Numero de documento *</label>
+          <label style={s.label}>Número de documento *</label>
           <input
             style={s.input}
             type="text"
@@ -786,13 +791,13 @@ export default function CheckoutPage() {
           </div>
         )}
         <div style={s.field}>
-          <label style={s.label}>{isJuridica ? 'Razon social *' : 'Nombres *'}</label>
+          <label style={s.label}>{isJuridica ? 'Razón social *' : 'Nombres *'}</label>
           <input
             style={s.input}
             type="text"
             value={form.nombres}
             onChange={set('nombres')}
-            placeholder={isJuridica ? 'Razon social' : 'Nombres'}
+            placeholder={isJuridica ? 'Razón social' : 'Nombres'}
           />
         </div>
         {!isJuridica && (
@@ -818,7 +823,7 @@ export default function CheckoutPage() {
       </h3>
       <div style={s.fieldGroup}>
         <div style={s.field}>
-          <label style={s.label}>Correo electronico *</label>
+          <label style={s.label}>Correo electrónico *</label>
           <input
             style={s.input}
             type="email"
@@ -839,7 +844,7 @@ export default function CheckoutPage() {
           />
         </div>
         <div style={s.field}>
-          <label style={s.label}>Telefono fijo</label>
+          <label style={s.label}>Teléfono fijo</label>
           <input
             style={s.input}
             type="tel"
@@ -856,7 +861,7 @@ export default function CheckoutPage() {
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
           <circle cx="12" cy="10" r="3" />
         </svg>
-        Direccion de envio
+        Dirección de envío
       </h3>
       <div style={s.fieldGroup}>
         <div style={s.field}>
@@ -893,7 +898,7 @@ export default function CheckoutPage() {
           </select>
         </div>
         <div style={{ ...s.field, gridColumn: '1 / -1' }}>
-          <label style={s.label}>Direccion *</label>
+          <label style={s.label}>Dirección *</label>
           <input
             style={s.input}
             type="text"
@@ -947,7 +952,7 @@ export default function CheckoutPage() {
         <div style={{ marginBottom: '1.25rem' }}>
           <div style={s.reviewRow}>
             <span style={s.reviewLabel}>Tipo persona</span>
-            <span style={s.reviewValue}>{isJuridica ? 'Juridica' : 'Natural'}</span>
+            <span style={s.reviewValue}>{isJuridica ? 'Jurídica' : 'Natural'}</span>
           </div>
           <div style={s.reviewRow}>
             <span style={s.reviewLabel}>Documento</span>
@@ -967,7 +972,7 @@ export default function CheckoutPage() {
           </div>
           {form.telefonoFijo && (
             <div style={s.reviewRow}>
-              <span style={s.reviewLabel}>Telefono fijo</span>
+              <span style={s.reviewLabel}>Teléfono fijo</span>
               <span style={s.reviewValue}>{form.telefonoFijo}</span>
             </div>
           )}
@@ -980,7 +985,7 @@ export default function CheckoutPage() {
             <span style={s.reviewValue}>{form.city}</span>
           </div>
           <div style={s.reviewRow}>
-            <span style={s.reviewLabel}>Direccion</span>
+            <span style={s.reviewLabel}>Dirección</span>
             <span style={s.reviewValue}>{form.address}</span>
           </div>
           {form.notes && (
@@ -991,7 +996,7 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: '1rem' }}>
           <div style={s.totalLine}><span>Subtotal</span><span>${formatMoney(subtotal)}</span></div>
           <div style={s.totalLine}><span>IVA (19%)</span><span>${formatMoney(iva)}</span></div>
           <div style={s.totalLine}>
@@ -1000,7 +1005,7 @@ export default function CheckoutPage() {
           </div>
           <div style={s.grandTotal}>
             <span>Total</span>
-            <span style={{ color: '#818cf8' }}>${formatMoney(grandTotal)}</span>
+            <span style={{ color: '#009FE3' }}>${formatMoney(grandTotal)}</span>
           </div>
         </div>
 
@@ -1029,11 +1034,11 @@ export default function CheckoutPage() {
       </h3>
 
       <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-        <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem', lineHeight: 1.6 }}>
-          Al hacer clic en <strong>"Realizar Pedido"</strong> se registrara tu pedido y se abrira
+        <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '0.75rem', lineHeight: 1.6 }}>
+          Al hacer clic en <strong>"Realizar Pedido"</strong> se registrará tu pedido y se abrirá
           la pasarela de pago segura de Wompi.
         </p>
-        <p style={{ fontSize: '1.3rem', fontWeight: 700, color: '#818cf8', marginBottom: '1.5rem' }}>
+        <p style={{ fontSize: '1.3rem', fontWeight: 700, color: '#009FE3', marginBottom: '1.5rem' }}>
           Total: ${formatMoney(grandTotal)} COP
         </p>
         <button
@@ -1061,7 +1066,7 @@ export default function CheckoutPage() {
 
       <div style={s.navRow}>
         <button type="button" style={s.btnSecondary} onClick={goBack}>
-          &larr; Volver a revision
+          &larr; Volver a revisión
         </button>
       </div>
     </div>
