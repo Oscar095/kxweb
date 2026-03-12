@@ -69,14 +69,14 @@
 }
 
 .logoImg {
-  height: 56px;
+  height: 72px;
   width: auto;
   display: block;
   transition: height 0.3s ease;
 }
 
 .scrolled .logoImg {
-  height: 44px;
+  height: 52px;
 }
 
 /* Navigation */

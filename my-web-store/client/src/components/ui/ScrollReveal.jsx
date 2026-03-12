@@ -10,6 +10,7 @@ export default function ScrollReveal({
   delay = 0,
   duration = 0.6,
   className,
+  style,
   variants = defaultVariants,
 }) {
   return (
@@ -24,6 +25,7 @@ export default function ScrollReveal({
         ease: [0.2, 0.8, 0.2, 1],
       }}
       className={className}
+      style={style}
     >
       {children}
     </motion.div>

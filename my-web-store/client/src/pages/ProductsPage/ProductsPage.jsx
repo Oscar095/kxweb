@@ -43,16 +43,16 @@ function ProductCard({ product, inventoryStatus }) {
 
   return (
     <motion.div
-      className={styles.productCard}
+      className={styles.card}
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className={styles.imgWrap} onClick={() => navigate(`/product?id=${product.id}`)}>
-        {outOfStock && <span className={styles.stockBadge}>No disponible</span>}
+      <div className={styles.cardVisual} onClick={() => navigate(`/product?id=${product.id}`)}>
+        {outOfStock && <span className={styles.stockBadge}>Agotado</span>}
         <img
-          className={`${styles.productImg} ${outOfStock ? styles.imgGrayscale : ''}`}
+          className={`${styles.cardImg} ${outOfStock ? styles.imgGray : ''}`}
           src={imgs[imgIdx]}
           alt={product.name}
           loading="lazy"
@@ -61,44 +61,43 @@ function ProductCard({ product, inventoryStatus }) {
         {imgs.length > 1 && (
           <>
             <button
-              className={styles.imgPrev}
+              className={`${styles.imgNav} ${styles.imgPrev}`}
               onClick={(e) => { e.stopPropagation(); setImgIdx((i) => (i - 1 + imgs.length) % imgs.length); }}
             >
               &#8249;
             </button>
             <button
-              className={styles.imgNext}
+              className={`${styles.imgNav} ${styles.imgNext}`}
               onClick={(e) => { e.stopPropagation(); setImgIdx((i) => (i + 1) % imgs.length); }}
             >
               &#8250;
             </button>
           </>
         )}
+        <div className={styles.cardQuickView}>Ver detalle</div>
       </div>
       <div className={styles.cardBody}>
-        <Link to={`/product?id=${product.id}`} className={styles.productName}>
+        <Link to={`/product?id=${product.id}`} className={styles.cardName}>
           {product.name}
         </Link>
-        <p className={styles.productPrice}>
-          ${formatMoney(totalConIva)}
-          <span className={styles.perBox}> / caja</span>{' '}
-          <span style={{ fontSize: '0.65rem', color: '#4CAF50', fontWeight: 600 }}>IVA incluido</span>
-        </p>
+        <div className={styles.cardPricing}>
+          <span className={styles.cardPrice}>${formatMoney(totalConIva)}</span>
+          <span className={styles.cardUnit}>/caja</span>
+          <span className={styles.cardIva}>IVA incl.</span>
+        </div>
         <div className={styles.cardActions}>
-          <input
-            type="number"
-            className={styles.qtyInput}
-            min="1"
-            value={qty}
-            onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-          />
+          <div className={styles.qtyControl}>
+            <button onClick={() => setQty(Math.max(1, qty - 1))} className={styles.qtyBtn}>-</button>
+            <span className={styles.qtyVal}>{qty}</span>
+            <button onClick={() => setQty(qty + 1)} className={styles.qtyBtn}>+</button>
+          </div>
           <motion.button
-            className={`btn-primary ${styles.addBtn}`}
+            className={styles.addBtn}
             disabled={outOfStock || adding}
             onClick={handleAdd}
             whileTap={{ scale: 0.95 }}
           >
-            {outOfStock ? 'No disponible' : adding ? '...' : 'Agregar'}
+            {outOfStock ? 'Agotado' : adding ? 'Listo!' : 'Agregar'}
           </motion.button>
         </div>
       </div>
@@ -118,7 +117,6 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState('default');
   const [inventoryMap, setInventoryMap] = useState({});
 
-  // Batch inventory check
   useEffect(() => {
     if (!products.length) return;
     const checkAll = async () => {
@@ -137,7 +135,6 @@ export default function ProductsPage() {
     checkAll();
   }, [products]);
 
-  // Match product to category
   const matchCategory = useCallback((product, cat) => {
     if (cat === 'all') return true;
     const catLower = cat.toLowerCase();
@@ -149,24 +146,19 @@ export default function ProductsPage() {
     return false;
   }, [categories]);
 
-  // Filtered + sorted products
   const filteredProducts = useMemo(() => {
     let result = products.filter((p) => matchCategory(p, activeCat));
-
     if (availability !== 'all' && Object.keys(inventoryMap).length > 0) {
       result = result.filter((p) => inventoryMap[p.id] === availability);
     }
-
     if (sortBy === 'asc') {
       result = [...result].sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
     } else if (sortBy === 'desc') {
       result = [...result].sort((a, b) => (b.price_unit || 0) - (a.price_unit || 0));
     }
-
     return result;
   }, [products, activeCat, availability, sortBy, inventoryMap, matchCategory]);
 
-  // Category description
   const catDescription = useMemo(() => {
     if (activeCat === 'all') return '';
     const dbCat = categories.find(
@@ -190,85 +182,103 @@ export default function ProductsPage() {
   return (
     <AnimatedPage>
       <Helmet>
-        <title>{activeCat === 'all' ? 'Catalogo Completo' : activeCat} - KosXpress</title>
+        <title>{activeCat === 'all' ? 'Catalogo Completo' : activeCat} - KOS Colombia</title>
       </Helmet>
 
-      <div className={`${styles.page} container`}>
+      <div className="container">
+        {/* Page header */}
         <ScrollReveal>
-          <div className={styles.glassHeader}>
-            <h1>{activeCat === 'all' ? 'Catalogo Completo' : activeCat}</h1>
-            {catDescription && <p className={styles.catDesc}>{catDescription}</p>}
+          <div className={styles.pageHeader}>
+            <div className={styles.breadcrumb}>
+              <Link to="/">Inicio</Link>
+              <span>/</span>
+              <span>{activeCat === 'all' ? 'Catalogo' : activeCat}</span>
+            </div>
+            <h1 className={styles.pageTitle}>
+              {activeCat === 'all' ? 'Catalogo Completo' : activeCat}
+            </h1>
+            {catDescription && <p className={styles.pageDesc}>{catDescription}</p>}
           </div>
         </ScrollReveal>
 
-        {/* Category buttons */}
-        <div className={styles.catButtons}>
-          <button
-            className={`${styles.catBtn} ${activeCat === 'all' ? styles.active : ''}`}
-            onClick={() => handleCatClick('all')}
-          >
-            Todos
-          </button>
-          {categories.map((c) => {
-            const name = c.nombre || c.descripcion || 'Sin Nombre';
-            return (
-              <button
-                key={c.id}
-                className={`${styles.catBtn} ${activeCat === name ? styles.active : ''}`}
-                onClick={() => handleCatClick(name)}
-              >
-                {name}
-              </button>
-            );
-          })}
+        {/* Category tabs */}
+        <div className={styles.catScroll}>
+          <div className={styles.catTabs}>
+            <button
+              className={`${styles.catTab} ${activeCat === 'all' ? styles.catTabActive : ''}`}
+              onClick={() => handleCatClick('all')}
+            >
+              Todos
+            </button>
+            {categories.map((c) => {
+              const name = c.nombre || c.descripcion || 'Sin Nombre';
+              return (
+                <button
+                  key={c.id}
+                  className={`${styles.catTab} ${activeCat === name ? styles.catTabActive : ''}`}
+                  onClick={() => handleCatClick(name)}
+                >
+                  {name}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Filter bar */}
         <div className={styles.filterBar}>
-          <select
-            className={styles.filterSelect}
-            value={availability}
-            onChange={(e) => setAvailability(e.target.value)}
-          >
-            <option value="all">Disponibilidad: Todos</option>
-            <option value="disponible">Disponibles</option>
-            <option value="no-disponible">Agotados</option>
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="default">Ordenar por</option>
-            <option value="asc">Precio: Menor a Mayor</option>
-            <option value="desc">Precio: Mayor a Menor</option>
-          </select>
+          <span className={styles.resultCount}>
+            {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''}
+          </span>
+          <div className={styles.filterControls}>
+            <select
+              className={styles.filterSelect}
+              value={availability}
+              onChange={(e) => setAvailability(e.target.value)}
+            >
+              <option value="all">Disponibilidad</option>
+              <option value="disponible">Disponibles</option>
+              <option value="no-disponible">Agotados</option>
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="default">Ordenar por</option>
+              <option value="asc">Precio: Menor a Mayor</option>
+              <option value="desc">Precio: Mayor a Menor</option>
+            </select>
+          </div>
         </div>
 
         {/* Product grid */}
         {isLoading ? (
-          <div className={styles.productGrid}>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div className={styles.grid}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <div key={i} className={styles.skeleton} />
             ))}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className={styles.productGrid}>
+          <div className={styles.grid}>
             {filteredProducts.map((p, i) => (
-              <ScrollReveal key={p.id} delay={Math.min(i * 0.05, 0.3)}>
+              <ScrollReveal key={p.id} delay={Math.min(i * 0.04, 0.25)}>
                 <ProductCard product={p} inventoryStatus={inventoryMap[p.id]} />
               </ScrollReveal>
             ))}
           </div>
         ) : (
-          <div className={styles.emptyState}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
+          <div className={styles.empty}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+              <path d="M8 11h6" />
             </svg>
-            <h3>Sin disponibilidad</h3>
+            <h3>Sin resultados</h3>
             <p>No hay productos para los filtros seleccionados.</p>
+            <button className="btn-primary" onClick={() => { setActiveCat('all'); setAvailability('all'); }}>
+              Ver todos los productos
+            </button>
           </div>
         )}
       </div>
