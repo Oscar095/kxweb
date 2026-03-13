@@ -302,7 +302,7 @@ async function init() {
 
     try {
       btn.disabled = true; btn.textContent = '...';
-      const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
+      const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
       if (!r.ok) throw new Error('err');
       const data = await r.json();
       if ((data.estado || data.status || '') !== 'En Existencia') {

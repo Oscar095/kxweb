@@ -32,7 +32,7 @@ function renderBestSellers(products, mount) {
     const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
     const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
     return `
-      <article class="bs-card" data-id="${p.id}" data-sku="${skuAttr}" style="opacity:0;transition:opacity 0.3s ease;">
+      <article class="bs-card" data-id="${p.id}" data-sku="${skuAttr}" style="opacity:1;">
         <div class="bs-card-visual" style="position:relative; cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
           <div class="out-of-stock-badge" style="display: none; position: absolute; top: 8px; left: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.70rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
           <span class="bs-card-rank">#${idx + 1}</span>
@@ -55,69 +55,21 @@ function renderBestSellers(products, mount) {
     `;
   }).join('');
 
-  // Loader para best sellers mientras consulta inventario
-  const bsLoader = document.createElement('div');
-  bsLoader.className = 'bs-loader';
-  bsLoader.innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;grid-column:1/-1;gap:12px;">
-      <div style="width:32px;height:32px;border:3px solid #e0e0e0;border-top-color:var(--primary,#009FE3);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-      <p style="color:var(--muted,#888);font-size:0.95rem;margin:0;">Cargando productos...</p>
-    </div>
-  `;
-  if (!document.getElementById('loader-spin-style')) {
-    const style = document.createElement('style');
-    style.id = 'loader-spin-style';
-    style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
-    document.head.appendChild(style);
-  }
-  mount.prepend(bsLoader);
-
   const items = Array.from(mount.querySelectorAll('.bs-card'));
-  let bsPending = items.length;
-  const onBsRevealed = () => {
-    bsPending--;
-    if (bsPending <= 0 && bsLoader.parentNode) bsLoader.remove();
-  };
 
-  items.forEach(it => {
-    attachDynamicPriceBehavior(it);
-
-    // Check stock for best sellers — consultar ANTES de mostrar
-    const sku = it.getAttribute('data-sku');
-    let revealed = false;
-    const revealCard = () => { if (revealed) return; revealed = true; it.style.opacity = '1'; onBsRevealed(); };
-    if (sku) {
-      const safetyTimer = setTimeout(revealCard, 6000);
-      (async () => {
-        try {
-          let estado = 'Agotado';
-          const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
-          if (r.ok) {
-            const data = await r.json();
-            estado = (data && (data.estado || data.status || '')).toString();
-          }
-
-          const badge = it.querySelector('.out-of-stock-badge');
-          const img = it.querySelector('.bs-card-img');
-          const btn = it.querySelector('.add-to-cart');
-
-          if (estado !== 'En Existencia') {
-            if (badge) badge.style.setProperty('display', 'block', 'important');
-            if (img) {
-              img.style.setProperty('filter', 'grayscale(1)', 'important');
-              img.style.setProperty('opacity', '0.5', 'important');
-            }
-            if (btn) {
-              btn.disabled = true;
-              btn.textContent = 'No disponible';
-              btn.title = 'No disponible';
-              btn.style.backgroundColor = '#ccc';
-              btn.style.borderColor = '#ccc';
-              btn.style.color = '#777';
-              btn.style.cursor = 'not-allowed';
-            }
-          }
-        } catch (e) {
+  // Bulk inventory check for best sellers (non-blocking)
+  const bsSkus = items.map(it => it.getAttribute('data-sku')).filter(Boolean);
+  if (bsSkus.length > 0) {
+    fetch('/api/inventario-bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skus: [...new Set(bsSkus)] })
+    }).then(r => r.ok ? r.json() : {}).then(data => {
+      items.forEach(it => {
+        const sku = it.getAttribute('data-sku');
+        if (!sku) return;
+        const inv = data[sku];
+        if (!inv || inv.estado !== 'En Existencia') {
           const badge = it.querySelector('.out-of-stock-badge');
           const img = it.querySelector('.bs-card-img');
           const btn = it.querySelector('.add-to-cart');
@@ -129,19 +81,19 @@ function renderBestSellers(products, mount) {
           if (btn) {
             btn.disabled = true;
             btn.textContent = 'No disponible';
+            btn.title = 'No disponible';
             btn.style.backgroundColor = '#ccc';
             btn.style.borderColor = '#ccc';
             btn.style.color = '#777';
             btn.style.cursor = 'not-allowed';
           }
-        } finally {
-          clearTimeout(safetyTimer);
-          revealCard();
         }
-      })();
-    } else {
-      revealCard();
-    }
+      });
+    }).catch(() => {});
+  }
+
+  items.forEach(it => {
+    attachDynamicPriceBehavior(it);
   });
 }
 
@@ -157,8 +109,8 @@ async function init() {
 
     console.log('Fetch: cargando ./data/products.json ... desde', location.href);
     const [resProd, resCat] = await Promise.all([
-      fetch('/api/products', { cache: 'no-store' }),
-      fetch('/api/categories', { cache: 'no-store' })
+      fetch('/api/products'),
+      fetch('/api/categories')
     ]);
 
     if (!resProd.ok) throw new Error(`Error al cargar productos: ${resProd.status}`);
@@ -396,7 +348,7 @@ async function init() {
 
       try {
         setBtnLoading(true);
-        const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
+        const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
         if (!r.ok) throw new Error('inventario_error');
         const data = await r.json();
         const estado = (data && (data.estado || data.status || '')).toString();

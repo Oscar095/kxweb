@@ -27,7 +27,7 @@ export function productItemTemplate(p) {
   const qtyInputId = `qty-${p.id}`;
   const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
   return /* html */`
-    <article class="product" data-id="${p.id}" data-sku="${skuAttr}" style="cursor: pointer; opacity: 0; transition: opacity 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions')) { window.location.href='/product?id=${p.id}'; }">
+    <article class="product" data-id="${p.id}" data-sku="${skuAttr}" style="cursor: pointer; opacity: 1; transition: transform 0.2s ease, box-shadow 0.2s ease;" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions')) { window.location.href='/product?id=${p.id}'; }">
       <div class="product-media">
         <div class="product-img-wrap" data-index="0" style="position:relative;">
           <div class="out-of-stock-badge" style="display: none; position: absolute; top: 12px; left: 12px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
@@ -56,13 +56,10 @@ export function productItemTemplate(p) {
 // Listener helper para ser llamado tras insertar en el DOM (desde product list renderer)
 export function attachDynamicPriceBehavior(rootEl) {
   if (!rootEl) return;
-  // --- Dynamic Stock Check ---
+  // --- Dynamic Stock Check (non-blocking) ---
   const skuAttr = rootEl.getAttribute('data-sku');
-  const revealProduct = () => { rootEl.style.opacity = '1'; };
 
   if (skuAttr) {
-    // Timeout de seguridad: si la API no responde en 6s, revelar de todas formas
-    const safetyTimer = setTimeout(revealProduct, 6000);
     const productId = Number(rootEl.dataset.id);
 
     const applyOutOfStock = () => {
@@ -86,16 +83,16 @@ export function attachDynamicPriceBehavior(rootEl) {
       }
     };
 
+    // Check stock in background — product is already visible
     const checkStock = async () => {
       try {
-        // Reuse cached inventory if available (populated by products-page.js)
         const cache = window._inventoryCache;
         let estado;
         if (cache && cache.has(productId)) {
           estado = cache.get(productId) === 'disponible' ? 'En Existencia' : 'Agotado';
         } else {
           estado = 'Agotado';
-          const r = await fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`, { cache: 'no-store' });
+          const r = await fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`);
           if (r.ok) {
             const data = await r.json();
             estado = (data && (data.estado || data.status || '')).toString();
@@ -107,14 +104,9 @@ export function attachDynamicPriceBehavior(rootEl) {
         }
       } catch (e) {
         applyOutOfStock();
-      } finally {
-        clearTimeout(safetyTimer);
-        revealProduct();
       }
     };
     checkStock();
-  } else {
-    revealProduct();
   }
 
   const qtyInput = rootEl.querySelector('.qty-input[data-dynamic-price]');
@@ -179,7 +171,7 @@ export function attachDynamicPriceBehavior(rootEl) {
       priceEl.classList.add('loading');
       const r = await fetch(`/api/precio?codigo=${encodeURIComponent(codigo)}&n=${encodeURIComponent(mult)}`, {
         signal: controller.signal,
-        cache: 'no-store'
+        cache: 'default'
       });
       const base = priceEl.getAttribute('data-base-price') || '0';
       if (!r.ok) {

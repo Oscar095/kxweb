@@ -187,11 +187,11 @@ function getIdFromQuery() {
 async function loadProduct(id) {
   // Intenta endpoint de detalle
   try {
-    const r = await fetch(`/api/products/${id}`, { cache: 'no-store' });
+    const r = await fetch(`/api/products/${id}`);
     if (r.ok) return r.json();
   } catch (_) { /* fallback abajo */ }
   // Fallback: carga listado y busca por id (útil si el server no se reinició aún)
-  const list = await fetch('/api/products', { cache: 'no-store' });
+  const list = await fetch('/api/products');
   if (!list.ok) throw new Error('No se pudo cargar el producto');
   const products = await list.json();
   const p = products.find(x => Number(x.id) === Number(id));
@@ -331,7 +331,7 @@ function renderProduct(p) {
       upstreamEstado = null;
       inventarioExistencia = null;
       setCartEnabled(false, 'Consultando inventario...');
-      fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' })
+      fetch(`/api/inventario/${encodeURIComponent(sku)}`)
         .then(async (r) => {
           if (!r.ok) throw new Error('inventario_error');
           return r.json();
@@ -396,7 +396,7 @@ function renderProduct(p) {
     if (!Number.isFinite(mult) || mult <= 0) return;
     try {
       price.classList.add('loading');
-      const r = await fetch(`/api/precio?codigo=${encodeURIComponent(codigo)}&n=${encodeURIComponent(mult)}`, { cache: 'no-store' });
+      const r = await fetch(`/api/precio?codigo=${encodeURIComponent(codigo)}&n=${encodeURIComponent(mult)}`);
       if (!r.ok) {
         try { const e = await r.json(); console.warn('Detalle precio dinámico error', e); } catch { }
         price.classList.remove('loading');
@@ -477,7 +477,7 @@ async function renderComplementaryProducts(currentProduct) {
   if (!container) return;
 
   try {
-    const res = await fetch('/api/products', { cache: 'no-store' });
+    const res = await fetch('/api/products');
     if (!res.ok) return;
     const allProducts = await res.json();
 

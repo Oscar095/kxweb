@@ -11,6 +11,7 @@ async function init() {
     fetch('/api/products'),
     fetch('/api/categories')
   ]);
+  // NOTE: removed cache:'no-store' — browser can cache briefly
   const allProducts = await res.json();
   const products = allProducts.filter(p => p.habilitado !== false && p.habilitado !== 0);
   const categories = resCats.ok ? await resCats.json() : [];
@@ -42,15 +43,44 @@ async function init() {
   const inventoryCache = window._inventoryCache;
 
   async function checkAllInventory() {
-    const skus = products.map(p => ({
-      id: p.id,
-      sku: (p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '').toString().trim()
-    }));
-    await Promise.all(skus.map(async ({ id, sku }) => {
+    const skuMap = []; // { id, sku }
+    for (const p of products) {
+      const sku = (p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '').toString().trim();
+      if (inventoryCache.has(p.id)) continue;
+      if (!sku) { inventoryCache.set(p.id, 'disponible'); continue; }
+      skuMap.push({ id: p.id, sku });
+    }
+    if (skuMap.length === 0) return;
+
+    // Usar endpoint bulk en vez de N llamadas individuales
+    try {
+      const uniqueSkus = [...new Set(skuMap.map(s => s.sku))];
+      const r = await fetch('/api/inventario-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skus: uniqueSkus })
+      });
+      if (r.ok) {
+        const data = await r.json();
+        for (const { id, sku } of skuMap) {
+          const inv = data[sku];
+          if (inv && inv.estado === 'En Existencia') {
+            inventoryCache.set(id, 'disponible');
+          } else {
+            inventoryCache.set(id, 'no-disponible');
+          }
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn('Bulk inventory failed, falling back to individual checks', e);
+    }
+
+    // Fallback: llamadas individuales si el bulk falla
+    await Promise.all(skuMap.map(async ({ id, sku }) => {
       if (inventoryCache.has(id)) return;
-      if (!sku) { inventoryCache.set(id, 'disponible'); return; }
       try {
-        const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
+        const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
         if (r.ok) {
           const data = await r.json();
           const estado = (data && (data.estado || data.status || '')).toString();
@@ -230,7 +260,7 @@ async function init() {
 
     try {
       setBtnLoading(true);
-      const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`, { cache: 'no-store' });
+      const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
       if (!r.ok) throw new Error('inventario_error');
       const data = await r.json();
       const estado = (data && (data.estado || data.status || '')).toString();

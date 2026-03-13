@@ -86,7 +86,7 @@ export function renderHeader(container) {
     try {
       const img = document.getElementById('site-logo-img');
       if (!img) return;
-      const r = await fetch('/api/logos?primary=true', { cache: 'no-store' });
+      const r = await fetch('/api/logos?primary=true');
       if (!r.ok) return;
       const list = await r.json();
       const first = Array.isArray(list) ? list[0] : null;

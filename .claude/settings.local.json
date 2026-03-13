@@ -12,7 +12,11 @@
       "Bash(wc -l /d/VScode/kxweb/my-web-store/src/**/*.js)",
       "Bash(npm install sharp --save-dev)",
       "Bash(node scripts/upload-images-to-azure.js)",
-      "Bash(npm install compression)"
+      "Bash(npm install compression)",
+      "Bash(node -c server/index.js)",
+      "Bash(node -c src/app.js)",
+      "Bash(node -c src/products-page.js)",
+      "Bash(node -c src/components/product-item.js)"
     ]
   }
 }

@@ -28,6 +28,13 @@ const app = express();
 app.use(compression());
 app.use(express.json());
 
+// ── In-memory caches ──
+const productsCache = { data: null, ts: 0 };
+const PRODUCTS_CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+
+const inventoryCache = new Map(); // sku -> { data, ts }
+const INVENTORY_CACHE_TTL = 3 * 60 * 1000; // 3 minutos
+
 // helper: detectar MIME por firma
 function detectImageMime(buf) {
   if (!buf || buf.length < 12) return null;
@@ -666,36 +673,44 @@ app.get('/api/upload-sas', async (req, res) => {
 
 // API Products
 // GET listado: incluye array images y mantiene 'image' como la primera
+// Helper: transforma row de DB a objeto de producto
+function mapProductRow(d) {
+  const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
+  if (d.image2) { const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+  if (d.image3) { const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+  if (d.image4) { const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+  return {
+    id: d.id,
+    codigo_siesa: d.codigo_siesa || '',
+    name: d.name || '',
+    price_unit: d.price_unit != null ? d.price_unit : null,
+    cantidad: d.cantidad != null ? d.cantidad : null,
+    category: d.category != null ? d.category : null,
+    category_name: d.category_name || '',
+    category_desc: d.category_desc || '',
+    row_empaque: d.row_empaque != null ? d.row_empaque : null,
+    empaque_descripcion: d.empaque_descripcion || '',
+    description: d.description || '',
+    habilitado: d.habilitado != null ? !!d.habilitado : true,
+    images: imgs,
+    image: imgs[0] || '/images/placeholder.svg',
+    image2: d.image2 || '',
+    image3: d.image3 || '',
+    image4: d.image4 || ''
+  };
+}
+
 app.get('/api/products', async (req, res) => {
   try {
-    // JOIN para obtener el nombre de la categoría
+    const now = Date.now();
+    if (productsCache.data && (now - productsCache.ts) < PRODUCTS_CACHE_TTL) {
+      return res.json(productsCache.data);
+    }
     const sqlQuery = `SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id ORDER BY p.id`;
     const rows = await db.query(sqlQuery);
-    const out = rows.map(d => {
-      const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
-      if (d.image2) { const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
-      if (d.image3) { const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
-      if (d.image4) { const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
-      return {
-        id: d.id,
-        codigo_siesa: d.codigo_siesa || '',
-        name: d.name || '',
-        price_unit: d.price_unit != null ? d.price_unit : null,
-        cantidad: d.cantidad != null ? d.cantidad : null,
-        category: d.category != null ? d.category : null,
-        category_name: d.category_name || '',
-        category_desc: d.category_desc || '',
-        row_empaque: d.row_empaque != null ? d.row_empaque : null,
-        empaque_descripcion: d.empaque_descripcion || '',
-        description: d.description || '',
-        habilitado: d.habilitado != null ? !!d.habilitado : true,
-        images: imgs,
-        image: imgs[0] || '/images/placeholder.svg',
-        image2: d.image2 || '',
-        image3: d.image3 || '',
-        image4: d.image4 || ''
-      };
-    });
+    const out = rows.map(mapProductRow);
+    productsCache.data = out;
+    productsCache.ts = now;
     res.json(out);
   } catch (e) {
     console.error(e);
@@ -1260,6 +1275,7 @@ app.post('/api/products', requireAdmin, async (req, res) => {
       codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque
     });
     const newId = resIns[0] && resIns[0].id;
+    productsCache.data = null; // invalidar caché
     res.status(201).json({ ok: true, id: newId });
   } catch (e) {
     console.error('POST /api/products error', e);
@@ -1278,6 +1294,7 @@ app.delete('/api/products/:id', async (req, res) => {
     const r = await db.query('DELETE FROM dbo.products WHERE id = @id; SELECT @@ROWCOUNT AS affected;', { id });
     const affected = r[0] && r[0].affected ? Number(r[0].affected) : 0;
     if (affected === 0) return res.status(404).json({ message: 'Producto no encontrado' });
+    productsCache.data = null; // invalidar caché
     res.json({ ok: true });
   } catch (e) {
     console.error(e);
@@ -1297,6 +1314,7 @@ app.patch('/api/products/:id/toggle', requireAdmin, async (req, res) => {
     const newVal = currentVal ? 0 : 1;
     // Update
     await db.query('UPDATE dbo.products SET habilitado = @val WHERE id = @id', { id, val: newVal });
+    productsCache.data = null; // invalidar caché
     res.json({ ok: true, habilitado: !!newVal });
   } catch (e) {
     console.error('PATCH /api/products/:id/toggle error', e);
@@ -1412,23 +1430,50 @@ app.get('/api/precio', async (req, res) => {
   }
 });
 
-// --- Inventario por SKU (proxy hacia Azure Webservice) ---
-// GET /api/inventario/:sku
-// Lógica:
-//  - consulta https://kx-endpoints.azurewebsites.net/inventario/{sku}
-//  - si inventario > 1000 => "En Existencia"
-//  - si inventario <= 1000 => "Agotado"
-app.get('/api/inventario/:sku', async (req, res) => {
+// --- Helper: consulta inventario upstream con caché ---
+const tryExtractNumber = (val) => {
+  if (val == null) return null;
+  if (typeof val === 'number') return Number.isFinite(val) ? val : null;
+  if (typeof val === 'string') {
+    const n = Number(val.replace(/[^\d.-]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+  if (Array.isArray(val)) {
+    for (const item of val) {
+      const n = tryExtractNumber(item);
+      if (Number.isFinite(n)) return n;
+    }
+    return null;
+  }
+  if (typeof val === 'object') {
+    for (const k of ['inventario', 'inventory', 'stock', 'cantidad', 'qty', 'existencia', 'available']) {
+      if (k in val) {
+        const n = tryExtractNumber(val[k]);
+        if (Number.isFinite(n)) return n;
+      }
+    }
+    for (const k of Object.keys(val)) {
+      const n = tryExtractNumber(val[k]);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+};
+
+async function fetchInventarioForSku(skuRaw) {
+  // Check cache first
+  const cached = inventoryCache.get(skuRaw);
+  if (cached && (Date.now() - cached.ts) < INVENTORY_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const baseUrl = 'https://kx-endpoints.azurewebsites.net';
+  const url = `${baseUrl}/inventario/${encodeURIComponent(skuRaw)}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
   try {
-    const skuRaw = (req.params.sku || '').toString().trim();
-    if (!skuRaw) return res.status(400).json({ message: 'sku requerido' });
-
-    const baseUrl = 'https://kx-endpoints.azurewebsites.net';
-    const url = `${baseUrl}/inventario/${encodeURIComponent(skuRaw)}`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-
     const r = await fetch(url, {
       method: 'GET',
       headers: { 'accept': 'application/json,text/plain;q=0.9,*/*;q=0.8' },
@@ -1437,43 +1482,13 @@ app.get('/api/inventario/:sku', async (req, res) => {
     clearTimeout(timeout);
 
     if (!r.ok) {
-      const text = await r.text().catch(() => '');
-      return res.status(502).json({ message: 'inventario_upstream_error', sku: skuRaw, status: r.status, body: text.slice(0, 500) });
+      const result = { sku: skuRaw, inventario: 0, estado: 'Agotado', error: 'upstream_error' };
+      inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
+      return result;
     }
 
     const contentType = (r.headers.get('content-type') || '').toLowerCase();
     const bodyText = await r.text();
-
-    const tryExtractNumber = (val) => {
-      if (val == null) return null;
-      if (typeof val === 'number') return Number.isFinite(val) ? val : null;
-      if (typeof val === 'string') {
-        const n = Number(val.replace(/[^\d.-]/g, ''));
-        return Number.isFinite(n) ? n : null;
-      }
-      if (Array.isArray(val)) {
-        for (const item of val) {
-          const n = tryExtractNumber(item);
-          if (Number.isFinite(n)) return n;
-        }
-        return null;
-      }
-      if (typeof val === 'object') {
-        // intentar claves típicas primero
-        for (const k of ['inventario', 'inventory', 'stock', 'cantidad', 'qty', 'existencia', 'available']) {
-          if (k in val) {
-            const n = tryExtractNumber(val[k]);
-            if (Number.isFinite(n)) return n;
-          }
-        }
-        // fallback: primer número encontrable
-        for (const k of Object.keys(val)) {
-          const n = tryExtractNumber(val[k]);
-          if (Number.isFinite(n)) return n;
-        }
-      }
-      return null;
-    };
 
     let inventario = null;
     if (contentType.includes('application/json')) {
@@ -1484,22 +1499,64 @@ app.get('/api/inventario/:sku', async (req, res) => {
         inventario = tryExtractNumber(bodyText);
       }
     } else {
-      // texto plano (ej: "1234")
       inventario = tryExtractNumber(bodyText);
     }
 
     if (!Number.isFinite(inventario)) {
-      return res.status(502).json({ message: 'inventario_parse_error', sku: skuRaw, raw: bodyText.slice(0, 500) });
+      const result = { sku: skuRaw, inventario: 0, estado: 'Agotado', error: 'parse_error' };
+      inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
+      return result;
     }
 
     const statusText = inventario > 1000 ? 'En Existencia' : 'Agotado';
-    res.json({ sku: skuRaw, inventario, estado: statusText });
+    const result = { sku: skuRaw, inventario, estado: statusText };
+    inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
+    return result;
   } catch (e) {
-    if (e && e.name === 'AbortError') {
-      return res.status(504).json({ message: 'inventario_timeout' });
-    }
+    clearTimeout(timeout);
+    const result = { sku: skuRaw, inventario: 0, estado: 'Agotado', error: e.name === 'AbortError' ? 'timeout' : 'network_error' };
+    inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
+    return result;
+  }
+}
+
+// GET /api/inventario/:sku — individual con caché
+app.get('/api/inventario/:sku', async (req, res) => {
+  try {
+    const skuRaw = (req.params.sku || '').toString().trim();
+    if (!skuRaw) return res.status(400).json({ message: 'sku requerido' });
+    const result = await fetchInventarioForSku(skuRaw);
+    if (result.error === 'upstream_error') return res.status(502).json(result);
+    if (result.error === 'parse_error') return res.status(502).json(result);
+    if (result.error === 'timeout') return res.status(504).json({ message: 'inventario_timeout' });
+    res.json(result);
+  } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error consultando inventario' });
+  }
+});
+
+// POST /api/inventario-bulk — consulta múltiples SKUs en paralelo (max 50)
+app.post('/api/inventario-bulk', async (req, res) => {
+  try {
+    const { skus } = req.body;
+    if (!Array.isArray(skus) || skus.length === 0) {
+      return res.status(400).json({ message: 'skus[] requerido' });
+    }
+    // Limitar a 50 SKUs por request
+    const uniqueSkus = [...new Set(skus.map(s => String(s).trim()).filter(Boolean))].slice(0, 50);
+    // Consultar en paralelo con concurrencia limitada a 10
+    const CONCURRENCY = 10;
+    const results = {};
+    for (let i = 0; i < uniqueSkus.length; i += CONCURRENCY) {
+      const batch = uniqueSkus.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(sku => fetchInventarioForSku(sku)));
+      batch.forEach((sku, idx) => { results[sku] = batchResults[idx]; });
+    }
+    res.json(results);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error consultando inventario bulk' });
   }
 });
 
@@ -1825,6 +1882,7 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     const r = await db.query(sql, params);
     const affected = r[0] && r[0].affected ? Number(r[0].affected) : 0;
     if (affected === 0) return res.status(404).json({ message: 'Producto no encontrado' });
+    productsCache.data = null; // invalidar caché
     res.json({ ok: true });
   } catch (e) {
     console.error('PUT /api/products/:id error', e);
