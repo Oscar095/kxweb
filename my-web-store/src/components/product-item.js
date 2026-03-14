@@ -1,18 +1,16 @@
 import { formatMoney } from '../utils/format.js';
+
 export function productItemTemplate(p) {
-  // Normaliza precio desde price o precio (precio total del escalón o fallback)
   const priceNum = (() => {
     const raw = p.price ?? p.precio ?? 0;
     const num = typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw);
     return Number.isFinite(num) ? num : 0;
   })();
-  // cantidad asociada al producto (escalón)
   const cantidadNum = (() => {
     const raw = p.cantidad ?? p.Cantidad ?? p.cant ?? null;
     const n = raw == null ? null : (typeof raw === 'string' ? Number(raw.replace(/[^\d.-]/g, '')) : Number(raw));
     return Number.isFinite(n) ? n : null;
   })();
-  // precio unitario preferente: price_unit / precio_unitario, fallback a priceNum/cantidad
   const unitPrice = (() => {
     const uRaw = p.price_unit ?? p.precio_unitario ?? null;
     const u = uRaw == null ? null : (typeof uRaw === 'string' ? Number(uRaw.replace(/[^\d.-]/g, '')) : Number(uRaw));
@@ -22,7 +20,6 @@ export function productItemTemplate(p) {
   })();
   const totalPerBox = cantidadNum ? (unitPrice * cantidadNum) : unitPrice;
   const totalConIva = Math.round(totalPerBox * 1.19);
-  // Use placeholder.svg by default and fallback on image load error (use absolute path)
   const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
   const qtyInputId = `qty-${p.id}`;
   const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
@@ -53,10 +50,8 @@ export function productItemTemplate(p) {
   `;
 }
 
-// Listener helper para ser llamado tras insertar en el DOM (desde product list renderer)
 export function attachDynamicPriceBehavior(rootEl) {
   if (!rootEl) return;
-  // --- Dynamic Stock Check (non-blocking) ---
   const skuAttr = rootEl.getAttribute('data-sku');
 
   if (skuAttr) {
@@ -83,7 +78,7 @@ export function attachDynamicPriceBehavior(rootEl) {
       }
     };
 
-    // Check stock in background — product is already visible
+    // Non-blocking stock check
     const checkStock = async () => {
       try {
         const cache = window._inventoryCache;
@@ -98,10 +93,7 @@ export function attachDynamicPriceBehavior(rootEl) {
             estado = (data && (data.estado || data.status || '')).toString();
           }
         }
-
-        if (estado !== 'En Existencia') {
-          applyOutOfStock();
-        }
+        if (estado !== 'En Existencia') applyOutOfStock();
       } catch (e) {
         applyOutOfStock();
       }
@@ -116,10 +108,9 @@ export function attachDynamicPriceBehavior(rootEl) {
   if (!codigo) return;
 
   let controller = null;
-  const BOX_SIZE = 1000; // unidades por caja
+  const BOX_SIZE = 1000;
   const fmt = (n) => new Intl.NumberFormat('es-CO').format(Math.round(n));
 
-  // Bloquear decimales y notación científica
   qtyInput.addEventListener('keydown', (e) => {
     const blocked = ['.', ',', 'e', 'E', '+', '-'];
     if (blocked.includes(e.key)) e.preventDefault();
@@ -140,14 +131,11 @@ export function attachDynamicPriceBehavior(rootEl) {
   }
 
   function renderUnitBoxPrice(data, fallbackBase) {
-    // precioUnitario viene por unidad; convertir a precio por caja
     let unitario = Number(data?.precioUnitario);
     if (!Number.isFinite(unitario) || unitario <= 0) {
-      // derivar de precio total del escalón si falta
       const totalEscalon = Number(data?.precio);
       const escalon = Number(data?.escalonUsado);
       if (Number.isFinite(totalEscalon) && Number.isFinite(escalon) && escalon > 0) {
-        // precio por caja = (total escalón / escalón unidades) * BOX_SIZE
         unitario = (totalEscalon / escalon);
       } else {
         unitario = Number(fallbackBase) / BOX_SIZE;
@@ -170,8 +158,7 @@ export function attachDynamicPriceBehavior(rootEl) {
       controller = new AbortController();
       priceEl.classList.add('loading');
       const r = await fetch(`/api/precio?codigo=${encodeURIComponent(codigo)}&n=${encodeURIComponent(mult)}`, {
-        signal: controller.signal,
-        cache: 'default'
+        signal: controller.signal
       });
       const base = priceEl.getAttribute('data-base-price') || '0';
       if (!r.ok) {
@@ -191,14 +178,11 @@ export function attachDynamicPriceBehavior(rootEl) {
     }
   }
 
-  // Recalcular con debounce al cambiar la cantidad (solo enteros)
   qtyInput.addEventListener('input', () => {
     sanitizeToInteger();
     clearTimeout(qtyInput._t);
     qtyInput._t = setTimeout(recalc, 160);
   });
 
-  // Cálculo inicial
   recalc();
-
 }

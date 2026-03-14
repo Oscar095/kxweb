@@ -325,8 +325,9 @@ async function init() {
       const id = Number(btn.dataset.id);
       const product = products.find(p => p.id === id);
       if (!product) return;
-      const card = btn.closest('.product');
-      const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
+      const card = btn.closest('.product') || btn.closest('.bs-card');
+      const qtyInput = card?.querySelector('.qty-input');
+      const qty = Math.max(1, Number(qtyInput?.value) || 1);
 
       const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
 
@@ -388,7 +389,7 @@ async function init() {
       const nav = prev || next;
       if (!nav) return;
       e.preventDefault();
-      e.stopPropagation(); // evita navegar al link de la imagen
+      e.stopPropagation();
       const card = nav.closest('.product');
       const id = Number(card?.dataset.id);
       const product = products.find(p => p.id === id);

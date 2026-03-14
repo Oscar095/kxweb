@@ -11,7 +11,6 @@ async function init() {
     fetch('/api/products'),
     fetch('/api/categories')
   ]);
-  // NOTE: removed cache:'no-store' — browser can cache briefly
   const allProducts = await res.json();
   const products = allProducts.filter(p => p.habilitado !== false && p.habilitado !== 0);
   const categories = resCats.ok ? await resCats.json() : [];
@@ -28,9 +27,7 @@ async function init() {
   // Reusable matcher: filters products by DB category ID
   window.pMatcher = (p, cQuery) => {
     const catNameLower = String(cQuery || '').trim().toLowerCase();
-    // Exact match by category_name (c.descripcion from DB)
     if (String(p.category_name || '').toLowerCase() === catNameLower) return true;
-    // Match via DB category ID
     const matchedCat = findCategory(cQuery);
     if (matchedCat && String(p.category) === String(matchedCat.id)) return true;
     return false;
@@ -38,12 +35,11 @@ async function init() {
   const mount = document.getElementById('products');
 
   // ── Inventory cache for availability filter ──
-  // Shared globally so attachDynamicPriceBehavior can reuse results
   if (!window._inventoryCache) window._inventoryCache = new Map();
   const inventoryCache = window._inventoryCache;
 
   async function checkAllInventory() {
-    const skuMap = []; // { id, sku }
+    const skuMap = [];
     for (const p of products) {
       const sku = (p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '').toString().trim();
       if (inventoryCache.has(p.id)) continue;
@@ -52,7 +48,6 @@ async function init() {
     }
     if (skuMap.length === 0) return;
 
-    // Usar endpoint bulk en vez de N llamadas individuales
     try {
       const uniqueSkus = [...new Set(skuMap.map(s => s.sku))];
       const r = await fetch('/api/inventario-bulk', {
@@ -76,7 +71,7 @@ async function init() {
       console.warn('Bulk inventory failed, falling back to individual checks', e);
     }
 
-    // Fallback: llamadas individuales si el bulk falla
+    // Fallback individual
     await Promise.all(skuMap.map(async ({ id, sku }) => {
       if (inventoryCache.has(id)) return;
       try {
@@ -101,13 +96,11 @@ async function init() {
   function applyFilterSort(list) {
     let result = [...list];
 
-    // Filter by availability
     const filterVal = filterSelect?.value || 'all';
     if (filterVal !== 'all' && inventoryCache.size > 0) {
       result = result.filter(p => inventoryCache.get(p.id) === filterVal);
     }
 
-    // Sort by price
     const sortVal = sortSelect?.value || 'default';
     if (sortVal === 'asc') {
       result.sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
@@ -124,7 +117,6 @@ async function init() {
   const catWrap = document.getElementById('cat-btn-group');
   if (catWrap) {
     const existing = Array.from(catWrap.querySelectorAll('.cat-btn'));
-    // keep the first 'Todos' and add others dynamically
     const toKeep = existing.find(b => b.dataset.cat === 'all');
     catWrap.innerHTML = '';
     if (toKeep) catWrap.appendChild(toKeep);
@@ -147,7 +139,6 @@ async function init() {
     const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
     const descEl = document.getElementById('current-category-desc');
 
-    // Update active button state
     document.querySelectorAll('.cat-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.cat === cat);
     });
@@ -166,7 +157,6 @@ async function init() {
           descEl.textContent = foundCat.descripcion;
           descEl.style.display = 'block';
         } else {
-          // Dynamic text generation
           const catProducts = products.filter(p => window.pMatcher(p, cat));
           if (catProducts.length > 0) {
             const names = Array.from(new Set(catProducts.map(p => p.name).filter(Boolean))).slice(0, 4);
@@ -198,11 +188,9 @@ async function init() {
     }
   };
 
-  // Track active category and search query to restore on filter/sort change
   let currentCat = initialCat;
   let currentSearch = '';
 
-  // Apply initial filter
   applyCategoryFilter(initialCat);
 
   // Toast notification system
@@ -216,19 +204,15 @@ async function init() {
     const toast = document.createElement('div');
     toast.className = type === 'error' ? 'toast-error' : 'toast-success';
     toast.textContent = msg;
-
     root.appendChild(toast);
-
-    // Trigger animation
     setTimeout(() => toast.classList.add('visible'), 10);
-
     setTimeout(() => {
       toast.classList.remove('visible');
       setTimeout(() => toast.remove(), 400);
     }, 3500);
   };
 
-  // Delegado: manejar clicks "Agregar" y leer cantidad del input
+  // Delegado: manejar clicks "Agregar"
   mount.addEventListener('click', async (e) => {
     const btn = e.target.closest('.add-to-cart');
     if (!btn || !mount.contains(btn)) return;
@@ -253,7 +237,6 @@ async function init() {
     };
 
     if (!sku) {
-      // No sku means we can't check inventory, just allow it
       onAddSuccess();
       return;
     }
@@ -271,7 +254,6 @@ async function init() {
         return;
       }
 
-      // Validate units
       const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
       const unitsPerBox = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
       const requestedUnits = qty * unitsPerBox;
@@ -284,7 +266,6 @@ async function init() {
       onAddSuccess();
     } catch (err) {
       console.error('Error checando inventario', err);
-      // Fallback if network issue
       showToast('Producto Agotado', 'error');
     } finally {
       setBtnLoading(false);
@@ -311,7 +292,6 @@ async function init() {
     if (next) idx = (idx + 1) % imgs.length;
     wrap.dataset.index = String(idx);
     if (imgEl) imgEl.src = imgs[idx] || '/images/placeholder.svg';
-    // Sync lens background with current image if visible
     const lens = wrap?.querySelector('.img-lens');
     if (lens && imgEl) {
       lens.style.backgroundImage = `url("${imgEl.src}")`;
@@ -344,13 +324,11 @@ async function init() {
 
     let left = clientX - wrapRect.left - lw / 2;
     let top = clientY - wrapRect.top - lh / 2;
-    // clamp within wrapper bounds
     left = Math.max(0, Math.min(left, wrapRect.width - lw));
     top = Math.max(0, Math.min(top, wrapRect.height - lh));
     lens.style.left = left + 'px';
     lens.style.top = top + 'px';
 
-    // background position based on position relative to the image itself
     let relX = clientX - imgRect.left;
     let relY = clientY - imgRect.top;
     relX = Math.max(0, Math.min(relX, imgRect.width));
@@ -360,7 +338,6 @@ async function init() {
     lens.style.backgroundPosition = pctX + '% ' + pctY + '%';
   };
 
-  // Mouse over to show lens (use mouseover/mouseout because mouseenter/leave don't bubble)
   mount.addEventListener('mouseover', (e) => {
     const wrap = e.target.closest('.product-img-wrap');
     if (!wrap || !mount.contains(wrap)) return;
@@ -370,7 +347,6 @@ async function init() {
   mount.addEventListener('mouseout', (e) => {
     const wrap = e.target.closest('.product-img-wrap');
     if (!wrap || !mount.contains(wrap)) return;
-    // if moving within the same wrapper, ignore
     if (wrap.contains(e.relatedTarget)) return;
     hideLens(wrap);
   });
@@ -381,7 +357,6 @@ async function init() {
     moveLens(wrap, e.clientX, e.clientY);
   });
 
-  // Touch support
   mount.addEventListener('touchstart', (e) => {
     if (e.target.closest('button') || e.target.closest('a')) return;
     const touch = e.touches[0];
@@ -407,7 +382,7 @@ async function init() {
     hideLens(wrap);
   });
 
-  // category buttons (delegate to container for dynamic elements)
+  // category buttons
   if (catWrap) {
     catWrap.addEventListener('click', (e) => {
       const btn = e.target.closest('.cat-btn');
@@ -422,17 +397,15 @@ async function init() {
 
       applyCategoryFilter(cat);
 
-      // Add small feedback class
       btn.classList.add('added');
       setTimeout(() => btn.classList.remove('added'), 350);
 
-      // Update URL without reloading
       const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + (cat === 'all' ? '' : '?cat=' + encodeURIComponent(cat));
       window.history.pushState({ path: newurl }, '', newurl);
     });
   }
 
-  // Search filter (global event dispatched from header)
+  // Search filter
   window.addEventListener('search', (e) => {
     const q = (e.detail || '').trim().toLowerCase();
     const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
@@ -484,9 +457,8 @@ async function init() {
   sortSelect?.addEventListener('change', reapply);
   filterSelect?.addEventListener('change', reapply);
 
-  // Batch-check inventory for availability filter
+  // Batch-check inventory in background
   checkAllInventory().then(() => {
-    // Reapply current view if availability filter is active
     if (filterSelect?.value !== 'all') reapply();
   });
 }
