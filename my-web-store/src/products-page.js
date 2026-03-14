@@ -1,24 +1,12 @@
 import { renderHeader } from './components/header.js';
-import { renderProducts, showSkeletons } from './components/product-list.js';
+import { renderProducts } from './components/product-list.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
-
 async function init() {
   renderHeader(document.getElementById('site-header'));
   renderCartDrawer(document.getElementById('cart-drawer'));
 
-  const mount = document.getElementById('v2-products');
-  const catList = document.getElementById('v2-cat-list');
-  const titleEl = document.getElementById('v2-page-title');
-  const countEl = document.getElementById('v2-product-count');
-  const filterSelect = document.getElementById('v2-filter');
-  const sortSelect = document.getElementById('v2-sort');
-  const scrollTopBtn = document.getElementById('v2-scroll-top');
-
-  // ── 1. Show skeletons immediately ──
-  showSkeletons(mount, 6);
-
-  // ── 2. Fetch data in parallel ──
+  // Load products and categories
   const [res, resCats] = await Promise.all([
     fetch('/api/products'),
     fetch('/api/categories')
@@ -27,7 +15,7 @@ async function init() {
   const products = allProducts.filter(p => p.habilitado !== false && p.habilitado !== 0);
   const categories = resCats.ok ? await resCats.json() : [];
 
-  // ── 3. Category matcher ──
+  // Helper: find DB category by nombre or descripcion (case-insensitive)
   const findCategory = (name) => {
     const q = String(name || '').trim().toLowerCase();
     return categories.find(c =>
@@ -36,6 +24,7 @@ async function init() {
     ) || null;
   };
 
+  // Reusable matcher: filters products by DB category ID
   window.pMatcher = (p, cQuery) => {
     const catNameLower = String(cQuery || '').trim().toLowerCase();
     if (String(p.category_name || '').toLowerCase() === catNameLower) return true;
@@ -43,33 +32,9 @@ async function init() {
     if (matchedCat && String(p.category) === String(matchedCat.id)) return true;
     return false;
   };
+  const mount = document.getElementById('products');
 
-  // ── 4. Build category sidebar with counts ──
-  const catCounts = new Map();
-  catCounts.set('all', products.length);
-  for (const p of products) {
-    const cn = (p.category_name || '').trim();
-    if (cn) catCounts.set(cn, (catCounts.get(cn) || 0) + 1);
-  }
-
-  // Update "Todos" count
-  const allCountEl = document.getElementById('v2-count-all');
-  if (allCountEl) allCountEl.textContent = String(products.length);
-
-  // Add category buttons
-  if (catList) {
-    for (const c of categories) {
-      const catName = c.nombre || c.descripcion || 'Sin Nombre';
-      const count = catCounts.get(catName) || 0;
-      const btn = document.createElement('button');
-      btn.className = 'v2-cat-btn';
-      btn.dataset.cat = catName;
-      btn.innerHTML = `${catName} <span class="v2-cat-count">${count}</span>`;
-      catList.appendChild(btn);
-    }
-  }
-
-  // ── 5. Inventory cache ──
+  // ── Inventory cache for availability filter ──
   if (!window._inventoryCache) window._inventoryCache = new Map();
   const inventoryCache = window._inventoryCache;
 
@@ -94,12 +59,16 @@ async function init() {
         const data = await r.json();
         for (const { id, sku } of skuMap) {
           const inv = data[sku];
-          inventoryCache.set(id, inv && inv.estado === 'En Existencia' ? 'disponible' : 'no-disponible');
+          if (inv && inv.estado === 'En Existencia') {
+            inventoryCache.set(id, 'disponible');
+          } else {
+            inventoryCache.set(id, 'no-disponible');
+          }
         }
         return;
       }
     } catch (e) {
-      console.warn('Bulk inventory failed, falling back', e);
+      console.warn('Bulk inventory failed, falling back to individual checks', e);
     }
 
     // Fallback individual
@@ -120,69 +89,111 @@ async function init() {
     }));
   }
 
-  // ── 6. Filter & sort ──
+  // ── Filter & sort helpers ──
+  const filterSelect = document.getElementById('filter-disponible');
+  const sortSelect = document.getElementById('sort-precio');
+
   function applyFilterSort(list) {
     let result = [...list];
+
     const filterVal = filterSelect?.value || 'all';
     if (filterVal !== 'all' && inventoryCache.size > 0) {
       result = result.filter(p => inventoryCache.get(p.id) === filterVal);
     }
+
     const sortVal = sortSelect?.value || 'default';
-    if (sortVal === 'asc') result.sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
-    else if (sortVal === 'desc') result.sort((a, b) => (b.price_unit || 0) - (a.price_unit || 0));
+    if (sortVal === 'asc') {
+      result.sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
+    } else if (sortVal === 'desc') {
+      result.sort((a, b) => (b.price_unit || 0) - (a.price_unit || 0));
+    }
+
     return result;
   }
 
-  // ── 7. Render products immediately (replaces skeletons) ──
-  let currentCat = 'all';
-  let currentSearch = '';
+  renderProducts(products, mount);
 
-  function updateCountLabel(n) {
-    if (countEl) countEl.textContent = `${n} producto${n !== 1 ? 's' : ''}`;
-  }
-
-  function applyCategoryFilter(cat) {
-    // Update active button
-    if (catList) {
-      catList.querySelectorAll('.v2-cat-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.cat === cat);
-      });
-    }
-
-    let filtered;
-    if (cat === 'all') {
-      if (titleEl) titleEl.textContent = 'Catalogo';
-      filtered = applyFilterSort(products);
-    } else {
-      if (titleEl) titleEl.textContent = cat;
-      filtered = applyFilterSort(products.filter(p => window.pMatcher(p, cat)));
-    }
-
-    updateCountLabel(filtered.length);
-
-    if (filtered.length === 0) {
-      mount.innerHTML = `
-        <div class="v2-empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          <h3>Sin disponibilidad</h3>
-          <p>No hay productos para los filtros seleccionados.</p>
-        </div>`;
-    } else {
-      renderProducts(filtered, mount);
+  // Render dynamic category buttons
+  const catWrap = document.getElementById('cat-btn-group');
+  if (catWrap) {
+    const existing = Array.from(catWrap.querySelectorAll('.cat-btn'));
+    const toKeep = existing.find(b => b.dataset.cat === 'all');
+    catWrap.innerHTML = '';
+    if (toKeep) catWrap.appendChild(toKeep);
+    for (const c of categories) {
+      const btn = document.createElement('button');
+      btn.className = 'cat-btn';
+      const catName = c.nombre || c.descripcion || 'Sin Nombre';
+      btn.dataset.cat = catName;
+      btn.textContent = catName;
+      catWrap.appendChild(btn);
     }
   }
 
-  // Parse initial category from URL
+  // Parse URL parameter
   const params = new URLSearchParams(window.location.search);
   const initialCat = params.get('cat') || 'all';
-  currentCat = initialCat;
+
+  // Create a function to filter and update the UI
+  const applyCategoryFilter = (cat) => {
+    const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
+    const descEl = document.getElementById('current-category-desc');
+
+    document.querySelectorAll('.cat-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.cat === cat);
+    });
+
+    if (cat === 'all') {
+      if (titleEl) titleEl.textContent = 'Catálogo Completo';
+      if (descEl) descEl.style.display = 'none';
+      const sorted = applyFilterSort(products);
+      renderProducts(sorted, mount);
+    } else {
+      if (titleEl) titleEl.textContent = cat;
+      const foundCat = categories.find(c => String(c.nombre) === String(cat));
+
+      if (descEl) {
+        if (foundCat && foundCat.descripcion) {
+          descEl.textContent = foundCat.descripcion;
+          descEl.style.display = 'block';
+        } else {
+          const catProducts = products.filter(p => window.pMatcher(p, cat));
+          if (catProducts.length > 0) {
+            const names = Array.from(new Set(catProducts.map(p => p.name).filter(Boolean))).slice(0, 4);
+            const last = names.pop();
+            const listStr = names.length > 0 ? names.join(', ') + ' y ' + last : last || '';
+            descEl.textContent = `Explora nuestra variedad de ${cat}, incluyendo: ${listStr} y mucho más.`;
+            descEl.style.display = 'block';
+          } else {
+            descEl.style.display = 'none';
+          }
+        }
+      }
+      const filtered = applyFilterSort(products.filter(p => window.pMatcher(p, cat)));
+      if (filtered.length === 0) {
+        mount.innerHTML = `
+          <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: var(--muted); margin-bottom: 16px; margin: 0 auto; display: block;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin disponibilidad</h3>
+            <p style="color: var(--muted); font-size: 1.1rem;">No hay productos para los filtros seleccionados.</p>
+          </div>
+        `;
+      } else {
+        renderProducts(filtered, mount);
+      }
+    }
+  };
+
+  let currentCat = initialCat;
+  let currentSearch = '';
+
   applyCategoryFilter(initialCat);
 
-  // ── 8. Toast system ──
+  // Toast notification system
   const showToast = (msg, type = 'success') => {
     let root = document.getElementById('toast-root');
     if (!root) {
@@ -201,29 +212,37 @@ async function init() {
     }, 3500);
   };
 
-  // ── 9. Event delegation: Add to cart ──
+  // Delegado: manejar clicks "Agregar"
   mount.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.v2-add-btn');
+    const btn = e.target.closest('.add-to-cart');
     if (!btn || !mount.contains(btn)) return;
     const id = Number(btn.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
-    const card = btn.closest('.v2-card');
-    const qty = Math.max(1, Number(card?.querySelector('.v2-qty-input')?.value) || 1);
+    const card = btn.closest('.product');
+    const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
+
     const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
 
     const onAddSuccess = () => {
       cartService.add(product, qty);
       btn.classList.add('added');
-      btn.textContent = 'Agregado';
       showToast('Agregado Exitosamente');
-      setTimeout(() => { btn.classList.remove('added'); btn.textContent = 'Agregar'; }, 600);
+      setTimeout(() => btn.classList.remove('added'), 350);
     };
 
-    if (!sku) { onAddSuccess(); return; }
+    const setBtnLoading = (loading) => {
+      btn.disabled = loading;
+      btn.textContent = loading ? '...' : 'Agregar';
+    };
+
+    if (!sku) {
+      onAddSuccess();
+      return;
+    }
 
     try {
-      btn.disabled = true; btn.textContent = '...';
+      setBtnLoading(true);
       const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
       if (!r.ok) throw new Error('inventario_error');
       const data = await r.json();
@@ -245,61 +264,154 @@ async function init() {
       }
 
       onAddSuccess();
-    } catch {
+    } catch (err) {
+      console.error('Error checando inventario', err);
       showToast('Producto Agotado', 'error');
     } finally {
-      btn.disabled = false;
-      if (btn.textContent === '...') btn.textContent = 'Agregar';
+      setBtnLoading(false);
     }
   });
 
-  // ── 10. Image navigation ──
+  // Delegado: navegación de imágenes (prev/next)
   mount.addEventListener('click', (e) => {
-    const nav = e.target.closest('.v2-img-nav');
+    const prev = e.target.closest('.img-prev');
+    const next = e.target.closest('.img-next');
+    const nav = prev || next;
     if (!nav || !mount.contains(nav)) return;
     e.preventDefault();
     e.stopPropagation();
-    const card = nav.closest('.v2-card');
+    const card = nav.closest('.product');
     const id = Number(card?.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
     const imgs = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
-    const wrap = card.querySelector('.v2-card-img-wrap');
-    const imgEl = wrap?.querySelector('img');
+    const wrap = card.querySelector('.product-img-wrap');
+    const imgEl = card.querySelector('.product-img');
     let idx = Number(wrap?.dataset.index || 0);
-    if (nav.classList.contains('prev')) idx = (idx - 1 + imgs.length) % imgs.length;
-    else idx = (idx + 1) % imgs.length;
+    if (prev) idx = (idx - 1 + imgs.length) % imgs.length;
+    if (next) idx = (idx + 1) % imgs.length;
     wrap.dataset.index = String(idx);
-    if (imgEl) {
-      imgEl.classList.remove('loaded');
-      imgEl.src = imgs[idx] || '/images/placeholder.svg';
+    if (imgEl) imgEl.src = imgs[idx] || '/images/placeholder.svg';
+    const lens = wrap?.querySelector('.img-lens');
+    if (lens && imgEl) {
+      lens.style.backgroundImage = `url("${imgEl.src}")`;
     }
-    // Update dots
-    const dots = wrap.querySelectorAll('.v2-img-dot');
-    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
   });
 
-  // ── 11. Category button clicks ──
-  if (catList) {
-    catList.addEventListener('click', (e) => {
-      const btn = e.target.closest('.v2-cat-btn');
-      if (!btn || !catList.contains(btn)) return;
+  // --- LENS MAGNIFIER EFFECT ---
+  const showLens = (wrap) => {
+    const lens = wrap.querySelector('.img-lens');
+    const img = wrap.querySelector('.product-img');
+    if (!lens || !img) return;
+    lens.style.display = 'block';
+    lens.style.backgroundImage = `url("${img.src}")`;
+  };
+
+  const hideLens = (wrap) => {
+    const lens = wrap.querySelector('.img-lens');
+    if (!lens) return;
+    lens.style.display = 'none';
+  };
+
+  const moveLens = (wrap, clientX, clientY) => {
+    const lens = wrap.querySelector('.img-lens');
+    const img = wrap.querySelector('.product-img');
+    if (!lens || !img) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const imgRect = img.getBoundingClientRect();
+    const lw = lens.offsetWidth;
+    const lh = lens.offsetHeight;
+
+    let left = clientX - wrapRect.left - lw / 2;
+    let top = clientY - wrapRect.top - lh / 2;
+    left = Math.max(0, Math.min(left, wrapRect.width - lw));
+    top = Math.max(0, Math.min(top, wrapRect.height - lh));
+    lens.style.left = left + 'px';
+    lens.style.top = top + 'px';
+
+    let relX = clientX - imgRect.left;
+    let relY = clientY - imgRect.top;
+    relX = Math.max(0, Math.min(relX, imgRect.width));
+    relY = Math.max(0, Math.min(relY, imgRect.height));
+    const pctX = (relX / imgRect.width) * 100;
+    const pctY = (relY / imgRect.height) * 100;
+    lens.style.backgroundPosition = pctX + '% ' + pctY + '%';
+  };
+
+  mount.addEventListener('mouseover', (e) => {
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap)) return;
+    showLens(wrap);
+  });
+
+  mount.addEventListener('mouseout', (e) => {
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap)) return;
+    if (wrap.contains(e.relatedTarget)) return;
+    hideLens(wrap);
+  });
+
+  mount.addEventListener('mousemove', (e) => {
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap)) return;
+    moveLens(wrap, e.clientX, e.clientY);
+  });
+
+  mount.addEventListener('touchstart', (e) => {
+    if (e.target.closest('button') || e.target.closest('a')) return;
+    const touch = e.touches[0];
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap) || !touch) return;
+    e.preventDefault();
+    showLens(wrap);
+    moveLens(wrap, touch.clientX, touch.clientY);
+  }, { passive: false });
+
+  mount.addEventListener('touchmove', (e) => {
+    if (e.target.closest('button') || e.target.closest('a')) return;
+    const touch = e.touches[0];
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap) || !touch) return;
+    e.preventDefault();
+    moveLens(wrap, touch.clientX, touch.clientY);
+  }, { passive: false });
+
+  mount.addEventListener('touchend', (e) => {
+    const wrap = e.target.closest('.product-img-wrap');
+    if (!wrap || !mount.contains(wrap)) return;
+    hideLens(wrap);
+  });
+
+  // category buttons
+  if (catWrap) {
+    catWrap.addEventListener('click', (e) => {
+      const btn = e.target.closest('.cat-btn');
+      if (!btn || !catWrap.contains(btn)) return;
+
       const cat = btn.dataset.cat;
       currentCat = cat;
       currentSearch = '';
       applyCategoryFilter(cat);
 
-      // Update URL
-      const newurl = window.location.protocol + '//' + window.location.host + window.location.pathname + (cat === 'all' ? '' : '?cat=' + encodeURIComponent(cat));
+      btn.classList.add('added');
+      setTimeout(() => btn.classList.remove('added'), 350);
+
+      const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + (cat === 'all' ? '' : '?cat=' + encodeURIComponent(cat));
       window.history.pushState({ path: newurl }, '', newurl);
     });
   }
 
-  // ── 12. Search ──
+  // Search filter
   window.addEventListener('search', (e) => {
     const q = (e.detail || '').trim().toLowerCase();
+    const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
+    const descEl = document.getElementById('current-category-desc');
+
     currentSearch = q;
-    if (!q) { applyCategoryFilter(currentCat); return; }
+    if (!q) {
+      applyCategoryFilter(currentCat);
+      return;
+    }
 
     const searchMatches = products.filter(p => {
       const pName = (p.name || '').toLowerCase();
@@ -310,26 +422,27 @@ async function init() {
     const filtered = applyFilterSort(searchMatches);
 
     if (titleEl) titleEl.textContent = `Resultados: "${e.detail}"`;
-    updateCountLabel(filtered.length);
-    if (catList) catList.querySelectorAll('.v2-cat-btn').forEach(b => b.classList.remove('active'));
+    if (descEl) descEl.style.display = 'none';
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
 
     if (filtered.length === 0) {
       mount.innerHTML = `
-        <div class="v2-empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: var(--muted); margin-bottom: 16px; margin: 0 auto; display: block;">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
-          <h3>Sin resultados</h3>
-          <p>No se encontraron productos para "${e.detail}".</p>
-        </div>`;
+          <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin resultados</h3>
+          <p style="color: var(--muted); font-size: 1.1rem;">No se encontraron productos para "${e.detail}".</p>
+        </div>
+      `;
     } else {
       renderProducts(filtered, mount);
     }
   });
 
-  // ── 13. Filter & sort change ──
+  // Filter & sort change listeners
   const reapply = () => {
     if (currentSearch) {
       window.dispatchEvent(new CustomEvent('search', { detail: currentSearch }));
@@ -340,26 +453,10 @@ async function init() {
   sortSelect?.addEventListener('change', reapply);
   filterSelect?.addEventListener('change', reapply);
 
-  // ── 14. Background inventory check ──
+  // Batch-check inventory in background
   checkAllInventory().then(() => {
     if (filterSelect?.value !== 'all') reapply();
   });
-
-  // ── 15. Scroll-to-top button ──
-  if (scrollTopBtn) {
-    window.addEventListener('scroll', () => {
-      scrollTopBtn.classList.toggle('visible', window.scrollY > 600);
-    }, { passive: true });
-    scrollTopBtn.addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
-
-  // ── 16. Render footer ──
-  import('./components/footer.js').then(m => {
-    const footerEl = document.querySelector('.site-footer');
-    if (footerEl && m.renderFooter) m.renderFooter(footerEl);
-  }).catch(() => {});
 }
 
 init();

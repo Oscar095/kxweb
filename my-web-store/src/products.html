@@ -27,48 +27,49 @@
 <body>
   <div id="app">
     <header id="site-header"></header>
+    <main class="products-layout-wrapper">
+      <div class="bg-orb orb-blue" style="top: 10%; left: 5%;"></div>
+      <div class="bg-orb orb-orange" style="top: 60%; right: 5%;"></div>
 
-    <main class="catalog-v2-wrapper">
-      <!-- Sidebar -->
-      <aside class="catalog-v2-sidebar">
-        <p class="v2-sidebar-title">Categorias</p>
-        <nav class="v2-cat-list" id="v2-cat-list">
-          <button class="v2-cat-btn active" data-cat="all">
-            Todos <span class="v2-cat-count" id="v2-count-all">-</span>
-          </button>
-        </nav>
+      <!-- Sidebar for Navigation -->
+      <aside class="category-sidebar">
+        <h2 class="sidebar-title">Categorías</h2>
+        <div class="cat-btn-group sidebar-nav" id="cat-btn-group">
+          <button data-cat="all" class="cat-btn active">Todos</button>
+        </div>
       </aside>
 
-      <!-- Main content -->
-      <div class="catalog-v2-main">
-        <!-- Header bar -->
-        <div class="v2-header-bar">
-          <div class="v2-header-left">
-            <h1 id="v2-page-title">Catalogo</h1>
-            <span class="v2-product-count" id="v2-product-count"></span>
-          </div>
-          <div class="v2-controls">
-            <select id="v2-filter" class="v2-pill-select" aria-label="Filtrar disponibilidad">
+      <!-- Main Content Area -->
+      <div class="products-main-content">
+        <!-- Glass Header -->
+        <div class="products-glass-header">
+          <h1 id="products-page-title">Catálogo Completo</h1>
+          <p id="current-category-desc" class="category-description" style="display: none;"></p>
+        </div>
+
+        <!-- Filter & Sort Controls -->
+        <div class="products-filter-bar" id="filter-bar">
+          <div class="filter-group">
+            <label for="filter-disponible" class="filter-label">Filtrar</label>
+            <select id="filter-disponible" class="filter-select">
               <option value="all">Todos</option>
               <option value="disponible">Disponible</option>
               <option value="no-disponible">No disponible</option>
             </select>
-            <select id="v2-sort" class="v2-pill-select" aria-label="Ordenar por precio">
-              <option value="default">Ordenar</option>
+          </div>
+          <div class="filter-group">
+            <label for="sort-precio" class="filter-label">Ordenar</label>
+            <select id="sort-precio" class="filter-select">
+              <option value="default">Por defecto</option>
               <option value="asc">Precio: Menor a Mayor</option>
               <option value="desc">Precio: Mayor a Menor</option>
             </select>
           </div>
         </div>
 
-        <!-- Product grid (skeleton first, then real products) -->
-        <section id="v2-products" class="v2-product-grid"></section>
+        <section id="products" class="product-grid spacious-grid"></section>
       </div>
     </main>
-
-    <!-- Scroll to top -->
-    <button class="v2-scroll-top" id="v2-scroll-top" aria-label="Volver arriba">&#8593;</button>
-
     <div id="cart-drawer" class="cart-drawer"></div>
     <script type="module" src="./products-page.js?v=3.0"></script>
     <footer class="site-footer"></footer>

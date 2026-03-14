@@ -318,13 +318,13 @@ async function init() {
 
     // Delegado: manejar clicks "Agregar" y leer cantidad del input
     document.addEventListener('click', async (e) => {
-      const btn = e.target.closest('.add-to-cart, .v2-add-btn');
+      const btn = e.target.closest('.add-to-cart');
       if (!btn) return;
       const id = Number(btn.dataset.id);
       const product = products.find(p => p.id === id);
       if (!product) return;
-      const card = btn.closest('.product') || btn.closest('.v2-card') || btn.closest('.bs-card');
-      const qtyInput = card?.querySelector('.qty-input') || card?.querySelector('.v2-qty-input');
+      const card = btn.closest('.product') || btn.closest('.bs-card');
+      const qtyInput = card?.querySelector('.qty-input');
       const qty = Math.max(1, Number(qtyInput?.value) || 1);
 
       const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
@@ -382,30 +382,24 @@ async function init() {
 
     // Delegado: navegación de imágenes (prev/next) por tarjeta
     document.addEventListener('click', (e) => {
-      const prev = e.target.closest('.img-prev') || e.target.closest('.v2-img-nav.prev');
-      const next = e.target.closest('.img-next') || e.target.closest('.v2-img-nav.next');
+      const prev = e.target.closest('.img-prev');
+      const next = e.target.closest('.img-next');
       const nav = prev || next;
       if (!nav) return;
       e.preventDefault();
       e.stopPropagation();
-      const card = nav.closest('.product') || nav.closest('.v2-card');
+      const card = nav.closest('.product');
       const id = Number(card?.dataset.id);
       const product = products.find(p => p.id === id);
       if (!product) return;
       const imgs = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
-      const wrap = card.querySelector('.product-img-wrap') || card.querySelector('.v2-card-img-wrap');
-      const imgEl = card.querySelector('.product-img') || wrap?.querySelector('img');
+      const wrap = card.querySelector('.product-img-wrap');
+      const imgEl = card.querySelector('.product-img');
       let idx = Number(wrap?.dataset.index || 0);
       if (prev) idx = (idx - 1 + imgs.length) % imgs.length;
       if (next) idx = (idx + 1) % imgs.length;
       if (wrap) wrap.dataset.index = String(idx);
-      if (imgEl) {
-        imgEl.classList?.remove('loaded');
-        imgEl.src = imgs[idx] || '/images/placeholder.svg';
-      }
-      // Update v2 dots
-      const dots = wrap?.querySelectorAll('.v2-img-dot');
-      if (dots) dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      if (imgEl) imgEl.src = imgs[idx] || '/images/placeholder.svg';
     });
 
     // search filter (global event dispatched from header)
