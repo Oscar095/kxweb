@@ -1,22 +1,33 @@
 import { renderHeader } from './components/header.js';
-import { renderProducts } from './components/product-list.js';
+import { renderProducts, showSkeletons } from './components/product-list.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
+
 async function init() {
   renderHeader(document.getElementById('site-header'));
   renderCartDrawer(document.getElementById('cart-drawer'));
 
-  // Load products and categories
+  const mount = document.getElementById('v2-products');
+  const catList = document.getElementById('v2-cat-list');
+  const titleEl = document.getElementById('v2-page-title');
+  const countEl = document.getElementById('v2-product-count');
+  const filterSelect = document.getElementById('v2-filter');
+  const sortSelect = document.getElementById('v2-sort');
+  const scrollTopBtn = document.getElementById('v2-scroll-top');
+
+  // ── 1. Show skeletons immediately ──
+  showSkeletons(mount, 6);
+
+  // ── 2. Fetch data in parallel ──
   const [res, resCats] = await Promise.all([
     fetch('/api/products'),
     fetch('/api/categories')
   ]);
-  // NOTE: removed cache:'no-store' — browser can cache briefly
   const allProducts = await res.json();
   const products = allProducts.filter(p => p.habilitado !== false && p.habilitado !== 0);
   const categories = resCats.ok ? await resCats.json() : [];
 
-  // Helper: find DB category by nombre or descripcion (case-insensitive)
+  // ── 3. Category matcher ──
   const findCategory = (name) => {
     const q = String(name || '').trim().toLowerCase();
     return categories.find(c =>
@@ -25,25 +36,45 @@ async function init() {
     ) || null;
   };
 
-  // Reusable matcher: filters products by DB category ID
   window.pMatcher = (p, cQuery) => {
     const catNameLower = String(cQuery || '').trim().toLowerCase();
-    // Exact match by category_name (c.descripcion from DB)
     if (String(p.category_name || '').toLowerCase() === catNameLower) return true;
-    // Match via DB category ID
     const matchedCat = findCategory(cQuery);
     if (matchedCat && String(p.category) === String(matchedCat.id)) return true;
     return false;
   };
-  const mount = document.getElementById('products');
 
-  // ── Inventory cache for availability filter ──
-  // Shared globally so attachDynamicPriceBehavior can reuse results
+  // ── 4. Build category sidebar with counts ──
+  const catCounts = new Map();
+  catCounts.set('all', products.length);
+  for (const p of products) {
+    const cn = (p.category_name || '').trim();
+    if (cn) catCounts.set(cn, (catCounts.get(cn) || 0) + 1);
+  }
+
+  // Update "Todos" count
+  const allCountEl = document.getElementById('v2-count-all');
+  if (allCountEl) allCountEl.textContent = String(products.length);
+
+  // Add category buttons
+  if (catList) {
+    for (const c of categories) {
+      const catName = c.nombre || c.descripcion || 'Sin Nombre';
+      const count = catCounts.get(catName) || 0;
+      const btn = document.createElement('button');
+      btn.className = 'v2-cat-btn';
+      btn.dataset.cat = catName;
+      btn.innerHTML = `${catName} <span class="v2-cat-count">${count}</span>`;
+      catList.appendChild(btn);
+    }
+  }
+
+  // ── 5. Inventory cache ──
   if (!window._inventoryCache) window._inventoryCache = new Map();
   const inventoryCache = window._inventoryCache;
 
   async function checkAllInventory() {
-    const skuMap = []; // { id, sku }
+    const skuMap = [];
     for (const p of products) {
       const sku = (p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '').toString().trim();
       if (inventoryCache.has(p.id)) continue;
@@ -52,7 +83,6 @@ async function init() {
     }
     if (skuMap.length === 0) return;
 
-    // Usar endpoint bulk en vez de N llamadas individuales
     try {
       const uniqueSkus = [...new Set(skuMap.map(s => s.sku))];
       const r = await fetch('/api/inventario-bulk', {
@@ -64,19 +94,15 @@ async function init() {
         const data = await r.json();
         for (const { id, sku } of skuMap) {
           const inv = data[sku];
-          if (inv && inv.estado === 'En Existencia') {
-            inventoryCache.set(id, 'disponible');
-          } else {
-            inventoryCache.set(id, 'no-disponible');
-          }
+          inventoryCache.set(id, inv && inv.estado === 'En Existencia' ? 'disponible' : 'no-disponible');
         }
         return;
       }
     } catch (e) {
-      console.warn('Bulk inventory failed, falling back to individual checks', e);
+      console.warn('Bulk inventory failed, falling back', e);
     }
 
-    // Fallback: llamadas individuales si el bulk falla
+    // Fallback individual
     await Promise.all(skuMap.map(async ({ id, sku }) => {
       if (inventoryCache.has(id)) return;
       try {
@@ -94,118 +120,69 @@ async function init() {
     }));
   }
 
-  // ── Filter & sort helpers ──
-  const filterSelect = document.getElementById('filter-disponible');
-  const sortSelect = document.getElementById('sort-precio');
-
+  // ── 6. Filter & sort ──
   function applyFilterSort(list) {
     let result = [...list];
-
-    // Filter by availability
     const filterVal = filterSelect?.value || 'all';
     if (filterVal !== 'all' && inventoryCache.size > 0) {
       result = result.filter(p => inventoryCache.get(p.id) === filterVal);
     }
-
-    // Sort by price
     const sortVal = sortSelect?.value || 'default';
-    if (sortVal === 'asc') {
-      result.sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
-    } else if (sortVal === 'desc') {
-      result.sort((a, b) => (b.price_unit || 0) - (a.price_unit || 0));
-    }
-
+    if (sortVal === 'asc') result.sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
+    else if (sortVal === 'desc') result.sort((a, b) => (b.price_unit || 0) - (a.price_unit || 0));
     return result;
   }
 
-  renderProducts(products, mount);
+  // ── 7. Render products immediately (replaces skeletons) ──
+  let currentCat = 'all';
+  let currentSearch = '';
 
-  // Render dynamic category buttons
-  const catWrap = document.getElementById('cat-btn-group');
-  if (catWrap) {
-    const existing = Array.from(catWrap.querySelectorAll('.cat-btn'));
-    // keep the first 'Todos' and add others dynamically
-    const toKeep = existing.find(b => b.dataset.cat === 'all');
-    catWrap.innerHTML = '';
-    if (toKeep) catWrap.appendChild(toKeep);
-    for (const c of categories) {
-      const btn = document.createElement('button');
-      btn.className = 'cat-btn';
-      const catName = c.nombre || c.descripcion || 'Sin Nombre';
-      btn.dataset.cat = catName;
-      btn.textContent = catName;
-      catWrap.appendChild(btn);
+  function updateCountLabel(n) {
+    if (countEl) countEl.textContent = `${n} producto${n !== 1 ? 's' : ''}`;
+  }
+
+  function applyCategoryFilter(cat) {
+    // Update active button
+    if (catList) {
+      catList.querySelectorAll('.v2-cat-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.cat === cat);
+      });
+    }
+
+    let filtered;
+    if (cat === 'all') {
+      if (titleEl) titleEl.textContent = 'Catalogo';
+      filtered = applyFilterSort(products);
+    } else {
+      if (titleEl) titleEl.textContent = cat;
+      filtered = applyFilterSort(products.filter(p => window.pMatcher(p, cat)));
+    }
+
+    updateCountLabel(filtered.length);
+
+    if (filtered.length === 0) {
+      mount.innerHTML = `
+        <div class="v2-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <h3>Sin disponibilidad</h3>
+          <p>No hay productos para los filtros seleccionados.</p>
+        </div>`;
+    } else {
+      renderProducts(filtered, mount);
     }
   }
 
-  // Parse URL parameter
+  // Parse initial category from URL
   const params = new URLSearchParams(window.location.search);
   const initialCat = params.get('cat') || 'all';
-
-  // Create a function to filter and update the UI
-  const applyCategoryFilter = (cat) => {
-    const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
-    const descEl = document.getElementById('current-category-desc');
-
-    // Update active button state
-    document.querySelectorAll('.cat-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.cat === cat);
-    });
-
-    if (cat === 'all') {
-      if (titleEl) titleEl.textContent = 'Catálogo Completo';
-      if (descEl) descEl.style.display = 'none';
-      const sorted = applyFilterSort(products);
-      renderProducts(sorted, mount);
-    } else {
-      if (titleEl) titleEl.textContent = cat;
-      const foundCat = categories.find(c => String(c.nombre) === String(cat));
-
-      if (descEl) {
-        if (foundCat && foundCat.descripcion) {
-          descEl.textContent = foundCat.descripcion;
-          descEl.style.display = 'block';
-        } else {
-          // Dynamic text generation
-          const catProducts = products.filter(p => window.pMatcher(p, cat));
-          if (catProducts.length > 0) {
-            const names = Array.from(new Set(catProducts.map(p => p.name).filter(Boolean))).slice(0, 4);
-            const last = names.pop();
-            const listStr = names.length > 0 ? names.join(', ') + ' y ' + last : last || '';
-            descEl.textContent = `Explora nuestra variedad de ${cat}, incluyendo: ${listStr} y mucho más.`;
-            descEl.style.display = 'block';
-          } else {
-            descEl.style.display = 'none';
-          }
-        }
-      }
-      const filtered = applyFilterSort(products.filter(p => window.pMatcher(p, cat)));
-      if (filtered.length === 0) {
-        mount.innerHTML = `
-          <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: var(--muted); margin-bottom: 16px; margin: 0 auto; display: block;">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin disponibilidad</h3>
-            <p style="color: var(--muted); font-size: 1.1rem;">No hay productos para los filtros seleccionados.</p>
-          </div>
-        `;
-      } else {
-        renderProducts(filtered, mount);
-      }
-    }
-  };
-
-  // Track active category and search query to restore on filter/sort change
-  let currentCat = initialCat;
-  let currentSearch = '';
-
-  // Apply initial filter
+  currentCat = initialCat;
   applyCategoryFilter(initialCat);
 
-  // Toast notification system
+  // ── 8. Toast system ──
   const showToast = (msg, type = 'success') => {
     let root = document.getElementById('toast-root');
     if (!root) {
@@ -216,50 +193,37 @@ async function init() {
     const toast = document.createElement('div');
     toast.className = type === 'error' ? 'toast-error' : 'toast-success';
     toast.textContent = msg;
-
     root.appendChild(toast);
-
-    // Trigger animation
     setTimeout(() => toast.classList.add('visible'), 10);
-
     setTimeout(() => {
       toast.classList.remove('visible');
       setTimeout(() => toast.remove(), 400);
     }, 3500);
   };
 
-  // Delegado: manejar clicks "Agregar" y leer cantidad del input
+  // ── 9. Event delegation: Add to cart ──
   mount.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.add-to-cart');
+    const btn = e.target.closest('.v2-add-btn');
     if (!btn || !mount.contains(btn)) return;
     const id = Number(btn.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
-    const card = btn.closest('.product');
-    const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
-
+    const card = btn.closest('.v2-card');
+    const qty = Math.max(1, Number(card?.querySelector('.v2-qty-input')?.value) || 1);
     const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
 
     const onAddSuccess = () => {
       cartService.add(product, qty);
       btn.classList.add('added');
+      btn.textContent = 'Agregado';
       showToast('Agregado Exitosamente');
-      setTimeout(() => btn.classList.remove('added'), 350);
+      setTimeout(() => { btn.classList.remove('added'); btn.textContent = 'Agregar'; }, 600);
     };
 
-    const setBtnLoading = (loading) => {
-      btn.disabled = loading;
-      btn.textContent = loading ? '...' : 'Agregar';
-    };
-
-    if (!sku) {
-      // No sku means we can't check inventory, just allow it
-      onAddSuccess();
-      return;
-    }
+    if (!sku) { onAddSuccess(); return; }
 
     try {
-      setBtnLoading(true);
+      btn.disabled = true; btn.textContent = '...';
       const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
       if (!r.ok) throw new Error('inventario_error');
       const data = await r.json();
@@ -271,7 +235,6 @@ async function init() {
         return;
       }
 
-      // Validate units
       const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
       const unitsPerBox = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
       const requestedUnits = qty * unitsPerBox;
@@ -282,163 +245,61 @@ async function init() {
       }
 
       onAddSuccess();
-    } catch (err) {
-      console.error('Error checando inventario', err);
-      // Fallback if network issue
+    } catch {
       showToast('Producto Agotado', 'error');
     } finally {
-      setBtnLoading(false);
+      btn.disabled = false;
+      if (btn.textContent === '...') btn.textContent = 'Agregar';
     }
   });
 
-  // Delegado: navegación de imágenes (prev/next)
+  // ── 10. Image navigation ──
   mount.addEventListener('click', (e) => {
-    const prev = e.target.closest('.img-prev');
-    const next = e.target.closest('.img-next');
-    const nav = prev || next;
+    const nav = e.target.closest('.v2-img-nav');
     if (!nav || !mount.contains(nav)) return;
     e.preventDefault();
     e.stopPropagation();
-    const card = nav.closest('.product');
+    const card = nav.closest('.v2-card');
     const id = Number(card?.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
     const imgs = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
-    const wrap = card.querySelector('.product-img-wrap');
-    const imgEl = card.querySelector('.product-img');
+    const wrap = card.querySelector('.v2-card-img-wrap');
+    const imgEl = wrap?.querySelector('img');
     let idx = Number(wrap?.dataset.index || 0);
-    if (prev) idx = (idx - 1 + imgs.length) % imgs.length;
-    if (next) idx = (idx + 1) % imgs.length;
+    if (nav.classList.contains('prev')) idx = (idx - 1 + imgs.length) % imgs.length;
+    else idx = (idx + 1) % imgs.length;
     wrap.dataset.index = String(idx);
-    if (imgEl) imgEl.src = imgs[idx] || '/images/placeholder.svg';
-    // Sync lens background with current image if visible
-    const lens = wrap?.querySelector('.img-lens');
-    if (lens && imgEl) {
-      lens.style.backgroundImage = `url("${imgEl.src}")`;
+    if (imgEl) {
+      imgEl.classList.remove('loaded');
+      imgEl.src = imgs[idx] || '/images/placeholder.svg';
     }
+    // Update dots
+    const dots = wrap.querySelectorAll('.v2-img-dot');
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
   });
 
-  // --- LENS MAGNIFIER EFFECT ---
-  const showLens = (wrap) => {
-    const lens = wrap.querySelector('.img-lens');
-    const img = wrap.querySelector('.product-img');
-    if (!lens || !img) return;
-    lens.style.display = 'block';
-    lens.style.backgroundImage = `url("${img.src}")`;
-  };
-
-  const hideLens = (wrap) => {
-    const lens = wrap.querySelector('.img-lens');
-    if (!lens) return;
-    lens.style.display = 'none';
-  };
-
-  const moveLens = (wrap, clientX, clientY) => {
-    const lens = wrap.querySelector('.img-lens');
-    const img = wrap.querySelector('.product-img');
-    if (!lens || !img) return;
-    const wrapRect = wrap.getBoundingClientRect();
-    const imgRect = img.getBoundingClientRect();
-    const lw = lens.offsetWidth;
-    const lh = lens.offsetHeight;
-
-    let left = clientX - wrapRect.left - lw / 2;
-    let top = clientY - wrapRect.top - lh / 2;
-    // clamp within wrapper bounds
-    left = Math.max(0, Math.min(left, wrapRect.width - lw));
-    top = Math.max(0, Math.min(top, wrapRect.height - lh));
-    lens.style.left = left + 'px';
-    lens.style.top = top + 'px';
-
-    // background position based on position relative to the image itself
-    let relX = clientX - imgRect.left;
-    let relY = clientY - imgRect.top;
-    relX = Math.max(0, Math.min(relX, imgRect.width));
-    relY = Math.max(0, Math.min(relY, imgRect.height));
-    const pctX = (relX / imgRect.width) * 100;
-    const pctY = (relY / imgRect.height) * 100;
-    lens.style.backgroundPosition = pctX + '% ' + pctY + '%';
-  };
-
-  // Mouse over to show lens (use mouseover/mouseout because mouseenter/leave don't bubble)
-  mount.addEventListener('mouseover', (e) => {
-    const wrap = e.target.closest('.product-img-wrap');
-    if (!wrap || !mount.contains(wrap)) return;
-    showLens(wrap);
-  });
-
-  mount.addEventListener('mouseout', (e) => {
-    const wrap = e.target.closest('.product-img-wrap');
-    if (!wrap || !mount.contains(wrap)) return;
-    // if moving within the same wrapper, ignore
-    if (wrap.contains(e.relatedTarget)) return;
-    hideLens(wrap);
-  });
-
-  mount.addEventListener('mousemove', (e) => {
-    const wrap = e.target.closest('.product-img-wrap');
-    if (!wrap || !mount.contains(wrap)) return;
-    moveLens(wrap, e.clientX, e.clientY);
-  });
-
-  // Touch support
-  mount.addEventListener('touchstart', (e) => {
-    if (e.target.closest('button') || e.target.closest('a')) return;
-    const touch = e.touches[0];
-    const wrap = e.target.closest('.product-img-wrap');
-    if (!wrap || !mount.contains(wrap) || !touch) return;
-    e.preventDefault();
-    showLens(wrap);
-    moveLens(wrap, touch.clientX, touch.clientY);
-  }, { passive: false });
-
-  mount.addEventListener('touchmove', (e) => {
-    if (e.target.closest('button') || e.target.closest('a')) return;
-    const touch = e.touches[0];
-    const wrap = e.target.closest('.product-img-wrap');
-    if (!wrap || !mount.contains(wrap) || !touch) return;
-    e.preventDefault();
-    moveLens(wrap, touch.clientX, touch.clientY);
-  }, { passive: false });
-
-  mount.addEventListener('touchend', (e) => {
-    const wrap = e.target.closest('.product-img-wrap');
-    if (!wrap || !mount.contains(wrap)) return;
-    hideLens(wrap);
-  });
-
-  // category buttons (delegate to container for dynamic elements)
-  if (catWrap) {
-    catWrap.addEventListener('click', (e) => {
-      const btn = e.target.closest('.cat-btn');
-      if (!btn || !catWrap.contains(btn)) return;
-
+  // ── 11. Category button clicks ──
+  if (catList) {
+    catList.addEventListener('click', (e) => {
+      const btn = e.target.closest('.v2-cat-btn');
+      if (!btn || !catList.contains(btn)) return;
       const cat = btn.dataset.cat;
       currentCat = cat;
       currentSearch = '';
       applyCategoryFilter(cat);
 
-      // Add small feedback class
-      btn.classList.add('added');
-      setTimeout(() => btn.classList.remove('added'), 350);
-
-      // Update URL without reloading
-      const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + (cat === 'all' ? '' : '?cat=' + encodeURIComponent(cat));
+      // Update URL
+      const newurl = window.location.protocol + '//' + window.location.host + window.location.pathname + (cat === 'all' ? '' : '?cat=' + encodeURIComponent(cat));
       window.history.pushState({ path: newurl }, '', newurl);
     });
   }
 
-  // Search filter (global event dispatched from header)
+  // ── 12. Search ──
   window.addEventListener('search', (e) => {
     const q = (e.detail || '').trim().toLowerCase();
-    const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
-    const descEl = document.getElementById('current-category-desc');
-
     currentSearch = q;
-    if (!q) {
-      applyCategoryFilter(currentCat);
-      return;
-    }
+    if (!q) { applyCategoryFilter(currentCat); return; }
 
     const searchMatches = products.filter(p => {
       const pName = (p.name || '').toLowerCase();
@@ -449,27 +310,26 @@ async function init() {
     const filtered = applyFilterSort(searchMatches);
 
     if (titleEl) titleEl.textContent = `Resultados: "${e.detail}"`;
-    if (descEl) descEl.style.display = 'none';
-    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    updateCountLabel(filtered.length);
+    if (catList) catList.querySelectorAll('.v2-cat-btn').forEach(b => b.classList.remove('active'));
 
     if (filtered.length === 0) {
       mount.innerHTML = `
-        <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; color: var(--muted); margin-bottom: 16px; margin: 0 auto; display: block;">
+        <div class="v2-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
-          <h3 style="font-size: 1.5rem; color: var(--text-main); margin-bottom: 8px;">Sin resultados</h3>
-          <p style="color: var(--muted); font-size: 1.1rem;">No se encontraron productos para "${e.detail}".</p>
-        </div>
-      `;
+          <h3>Sin resultados</h3>
+          <p>No se encontraron productos para "${e.detail}".</p>
+        </div>`;
     } else {
       renderProducts(filtered, mount);
     }
   });
 
-  // Filter & sort change listeners
+  // ── 13. Filter & sort change ──
   const reapply = () => {
     if (currentSearch) {
       window.dispatchEvent(new CustomEvent('search', { detail: currentSearch }));
@@ -480,11 +340,26 @@ async function init() {
   sortSelect?.addEventListener('change', reapply);
   filterSelect?.addEventListener('change', reapply);
 
-  // Batch-check inventory for availability filter
+  // ── 14. Background inventory check ──
   checkAllInventory().then(() => {
-    // Reapply current view if availability filter is active
     if (filterSelect?.value !== 'all') reapply();
   });
+
+  // ── 15. Scroll-to-top button ──
+  if (scrollTopBtn) {
+    window.addEventListener('scroll', () => {
+      scrollTopBtn.classList.toggle('visible', window.scrollY > 600);
+    }, { passive: true });
+    scrollTopBtn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // ── 16. Render footer ──
+  import('./components/footer.js').then(m => {
+    const footerEl = document.querySelector('.site-footer');
+    if (footerEl && m.renderFooter) m.renderFooter(footerEl);
+  }).catch(() => {});
 }
 
 init();

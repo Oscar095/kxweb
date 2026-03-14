@@ -188,7 +188,7 @@ async function init() {
 
     resultsEl.innerHTML = dedup.map(productItemTemplate).join('');
 
-    const cards = Array.from(resultsEl.querySelectorAll('.product'));
+    const cards = Array.from(resultsEl.querySelectorAll('.v2-card'));
     cards.forEach((card, i) => {
       card.style.transitionDelay = `${i * 50}ms`;
       card.classList.add('search-card-anim');
@@ -283,13 +283,14 @@ async function init() {
   };
 
   resultsEl.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.add-to-cart');
+    const btn = e.target.closest('.add-to-cart, .v2-add-btn');
     if (!btn) return;
     const id = Number(btn.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
-    const card = btn.closest('.product');
-    const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
+    const card = btn.closest('.v2-card') || btn.closest('.product');
+    const qtyInput = card?.querySelector('.v2-qty-input') || card?.querySelector('.qty-input');
+    const qty = Math.max(1, Number(qtyInput?.value) || 1);
     const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
 
     if (!sku) {
@@ -323,23 +324,28 @@ async function init() {
 
   // Image nav delegate
   resultsEl.addEventListener('click', (e) => {
-    const prev = e.target.closest('.img-prev');
-    const next = e.target.closest('.img-next');
+    const prev = e.target.closest('.img-prev') || e.target.closest('.v2-img-nav.prev');
+    const next = e.target.closest('.img-next') || e.target.closest('.v2-img-nav.next');
     const nav = prev || next;
     if (!nav) return;
     e.preventDefault(); e.stopPropagation();
-    const card = nav.closest('.product');
+    const card = nav.closest('.v2-card') || nav.closest('.product');
     const id = Number(card?.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
     const imgs = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
-    const wrap = card.querySelector('.product-img-wrap');
-    const imgEl = card.querySelector('.product-img');
+    const wrap = card.querySelector('.v2-card-img-wrap') || card.querySelector('.product-img-wrap');
+    const imgEl = wrap?.querySelector('img');
     let idx = Number(wrap?.dataset.index || 0);
     if (prev) idx = (idx - 1 + imgs.length) % imgs.length;
     if (next) idx = (idx + 1) % imgs.length;
     if (wrap) wrap.dataset.index = String(idx);
-    if (imgEl) imgEl.src = imgs[idx] || '/images/placeholder.svg';
+    if (imgEl) {
+      imgEl.classList?.remove('loaded');
+      imgEl.src = imgs[idx] || '/images/placeholder.svg';
+    }
+    const dots = wrap?.querySelectorAll('.v2-img-dot');
+    if (dots) dots.forEach((d, i) => d.classList.toggle('active', i === idx));
   });
 }
 
