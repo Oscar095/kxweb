@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js';
+import { renderHeader } from './components/header.js?v=2';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 

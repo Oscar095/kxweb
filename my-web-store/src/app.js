@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js';
+import { renderHeader } from './components/header.js?v=3';
 import { renderProducts } from './components/product-list.js';
 import { attachDynamicPriceBehavior } from './components/product-item.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
@@ -286,6 +286,8 @@ async function init() {
 
       // Manejo botón volver
       btnBack?.addEventListener('click', () => {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = '';
         showCategories();
         document.getElementById('catalog').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });

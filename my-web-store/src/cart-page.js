@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js';
+import { renderHeader } from './components/header.js?v=2';
 import { cartService } from './services/cart-service.js';
 
 function renderCartPage(mount) {

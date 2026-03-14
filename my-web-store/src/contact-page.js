@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js';
+import { renderHeader } from './components/header.js?v=2';
 import { renderCartDrawer } from './components/cart-drawer.js';
 
 renderHeader(document.getElementById('site-header'));
@@ -6,33 +6,58 @@ renderCartDrawer(document.getElementById('cart-drawer'));
 
 const mount = document.getElementById('contact-root');
 mount.innerHTML = `
-  <form id="contact-form" class="contact-form">
-    <div style="margin-bottom: 8px;">
-      <label for="name">Nombre</label>
-      <input id="name" name="name" required placeholder="Tu nombre completo" />
+  <form id="contact-form" class="contact-form modern-form">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="name">Nombre</label>
+        <input id="name" name="name" required placeholder="Tu nombre completo" />
+      </div>
+      <div class="form-group">
+        <label for="phone">Telefono</label>
+        <input id="phone" name="phone" type="tel" placeholder="+57 300 000 0000" />
+      </div>
     </div>
-    <div style="margin-bottom: 8px;">
-      <label for="email">Correo</label>
-      <input id="email" name="email" type="email" required placeholder="tucorreo@ejemplo.com" />
+    <div class="form-group full-width">
+      <label for="email">Correo electronico</label>
+      <input id="email" name="email" type="email" required placeholder="correo@ejemplo.com" />
     </div>
-    <div style="margin-bottom: 8px;">
-      <label for="phone">Celular</label>
-      <input id="phone" name="phone" type="tel" placeholder="(123) 456-7890" />
+    <div class="form-group full-width">
+      <label for="message">Mensaje</label>
+      <textarea id="message" name="message" required placeholder="Describe tu consulta, producto de interes o pedido..."></textarea>
     </div>
-    <div style="margin-bottom: 8px;">
-      <label for="message">Descripción de la necesidad</label>
-      <textarea id="message" name="message" required placeholder="Escribe aquí tu mensaje..."></textarea>
+    <div class="form-group full-width">
+      <label for="attachments">Archivos adjuntos</label>
+      <div class="file-upload-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" class="upload-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        <span class="upload-text"><strong>Haz clic para subir archivos</strong><br>Logos, diseños, imagenes de referencia (max 10MB)</span>
+        <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple class="file-input-hidden" />
+      </div>
     </div>
-    <div style="margin-bottom: 16px;">
-      <label for="attachments">Adjuntos (imágenes o PDF)</label>
-      <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple />
-    </div>
-    <div class="actions">
-      <button type="submit" class="btn-primary" style="width: 100%; border-radius: 12px; font-size: 1.25rem;">Enviar Mensaje</button>
+    <div class="actions full-width" style="margin-top: 12px;">
+      <button type="submit" class="btn-primary btn-submit" style="width: 100%; border-radius: 30px; font-size: 1.15rem; padding: 14px 24px;">Enviar mensaje</button>
     </div>
   </form>
   <div id="contact-result" style="text-align:center; padding-top: 16px;"></div>
 `;
+
+// Make the visual file upload update when files are selected
+const fileInput = document.getElementById('attachments');
+const uploadText = document.querySelector('.upload-text');
+const originalUploadText = uploadText ? uploadText.innerHTML : '';
+
+if (fileInput && uploadText) {
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      if (e.target.files.length === 1) {
+        uploadText.innerHTML = `<strong>${e.target.files[0].name}</strong><br>Listo para enviar.`;
+      } else {
+        uploadText.innerHTML = `<strong>${e.target.files.length} archivos seleccionados</strong><br>Listos para enviar.`;
+      }
+    } else {
+      uploadText.innerHTML = originalUploadText;
+    }
+  });
+}
 
 const form = document.getElementById('contact-form');
 const result = document.getElementById('contact-result');

@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js';
+import { renderHeader } from './components/header.js?v=2';
 import { renderProducts } from './components/product-list.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
@@ -416,6 +416,10 @@ async function init() {
       const cat = btn.dataset.cat;
       currentCat = cat;
       currentSearch = '';
+      
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) searchInput.value = '';
+
       applyCategoryFilter(cat);
 
       // Add small feedback class

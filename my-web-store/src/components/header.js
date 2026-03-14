@@ -29,6 +29,15 @@ export function renderHeader(container) {
     });
   }, 100);
   container.innerHTML = `
+    <div class="announcement-bar">
+      <div class="announcement-fade-container">
+        <span class="announce-item active">Precios por caja incluyen IVA</span>
+        <span class="announce-item">Después de una compra de $500.000 domicilio gratis</span>
+        <span class="announce-item">Compra fácil y rápido desde nuestra web</span>
+        <span class="announce-item">Envíos a nivel nacional rápidos y seguros</span>
+        <span class="announce-item">La mejor calidad de empaques para tu negocio</span>
+      </div>
+    </div>
     <div class="header-glass-pill">
       <div class="logo">
         <a href="/">
@@ -65,6 +74,17 @@ export function renderHeader(container) {
     </div>
     <div id="nav-backdrop" class="nav-backdrop" aria-hidden="true"></div>
   `;
+
+  // Announcement Bar Rotation Logic
+  const announceItems = container.querySelectorAll('.announce-item');
+  if (announceItems.length > 0) {
+    let currentAnnounce = 0;
+    setInterval(() => {
+      announceItems[currentAnnounce].classList.remove('active');
+      currentAnnounce = (currentAnnounce + 1) % announceItems.length;
+      announceItems[currentAnnounce].classList.add('active');
+    }, 4000); // Rotate every 4 seconds
+  }
 
   const cartToggle = document.getElementById('cart-toggle');
   if (cartToggle) cartToggle.addEventListener('click', () => window.dispatchEvent(new CustomEvent('toggle-cart')));
