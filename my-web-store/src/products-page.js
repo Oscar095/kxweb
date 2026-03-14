@@ -457,10 +457,78 @@ async function init() {
   sortSelect?.addEventListener('change', reapply);
   filterSelect?.addEventListener('change', reapply);
 
-  // Batch-check inventory in background
+  // Fetch inventory
   checkAllInventory().then(() => {
     if (filterSelect?.value !== 'all') reapply();
   });
+
+  // --- Custom Dropdown Logic ---
+  const setupDropdown = (dropdownEl, selectEl) => {
+    if (!dropdownEl || !selectEl) return;
+    const trigger = dropdownEl.querySelector('.dropdown-trigger');
+    const displayVal = dropdownEl.querySelector('.dropdown-val');
+    const items = dropdownEl.querySelectorAll('.dropdown-item');
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.custom-dropdown').forEach(d => {
+        if (d !== dropdownEl) d.classList.remove('open');
+      });
+      dropdownEl.classList.toggle('open');
+    });
+
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        const val = item.dataset.value;
+        const text = item.textContent;
+        // Update visual
+        displayVal.textContent = text;
+        items.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        // Update native select
+        selectEl.value = val;
+        // Close dropdown & trigger change
+        dropdownEl.classList.remove('open');
+        selectEl.dispatchEvent(new Event('change'));
+      });
+    });
+
+    // Initial sync
+    const initialItem = Array.from(items).find(i => i.dataset.value === selectEl.value) || items[0];
+    if (initialItem) {
+      displayVal.textContent = initialItem.textContent;
+      items.forEach(i => i.classList.remove('selected'));
+      initialItem.classList.add('selected');
+    }
+  };
+
+  setupDropdown(document.getElementById('dropdown-disponible'), filterSelect);
+  setupDropdown(document.getElementById('dropdown-sort'), sortSelect);
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('open'));
+  });
+
+  // Intercept the render function internally to add staggered delays for the CSS animation
+  const originalRenderProducts = window.renderProducts || renderProducts;
+  window.renderProducts = function(list, container) {
+    originalRenderProducts(list, container);
+    // After render, add inline delays
+    const cards = container.querySelectorAll('.product-card-premium');
+    cards.forEach((card, index) => {
+      // 50ms stagger per card, up to a max so it doesn't take forever
+      const delay = Math.min(index * 0.05, 1.5);
+      card.style.animationDelay = `${delay}s`;
+    });
+  };
+  
+  // Re-run initial render with delays
+  if (currentSearch) {
+    window.dispatchEvent(new CustomEvent('search', { detail: currentSearch }));
+  } else {
+    applyCategoryFilter(currentCat);
+  }
 }
 
 init();

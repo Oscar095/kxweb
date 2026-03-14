@@ -41,29 +41,63 @@
 
       <!-- Main Content Area -->
       <div class="products-main-content">
-        <!-- Glass Header -->
-        <div class="products-glass-header">
-          <h1 id="products-page-title">Catálogo Completo</h1>
-          <p id="current-category-desc" class="category-description" style="display: none;"></p>
+        <!-- Glass Banner Hero -->
+        <div class="products-premium-banner">
+          <div class="banner-glow banner-glow-blue"></div>
+          <div class="banner-glow banner-glow-orange"></div>
+          <div class="banner-content">
+            <h1 id="products-page-title" class="premium-title">Catálogo Completo</h1>
+            <p id="current-category-desc" class="premium-subtitle" style="display: none;"></p>
+          </div>
         </div>
 
-        <!-- Filter & Sort Controls -->
-        <div class="products-filter-bar" id="filter-bar">
-          <div class="filter-group">
-            <label for="filter-disponible" class="filter-label">Filtrar</label>
-            <select id="filter-disponible" class="filter-select">
-              <option value="all">Todos</option>
-              <option value="disponible">Disponible</option>
-              <option value="no-disponible">No disponible</option>
-            </select>
+        <!-- Custom Filter & Sort Controls -->
+        <div class="products-filter-premium" id="filter-bar">
+          <div class="filter-group-custom">
+            <span class="filter-label-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+              Filtrar
+            </span>
+            <div class="custom-dropdown" id="dropdown-disponible">
+              <button class="dropdown-trigger" type="button">
+                <span class="dropdown-val">Todos</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+              <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="all">Todos</div>
+                <div class="dropdown-item" data-value="disponible">Disponible</div>
+                <div class="dropdown-item" data-value="no-disponible">No disponible</div>
+              </div>
+              <!-- Hidden select to maintain JS compatibility -->
+              <select id="filter-disponible" class="hidden-select" style="display:none;">
+                <option value="all" selected>Todos</option>
+                <option value="disponible">Disponible</option>
+                <option value="no-disponible">No disponible</option>
+              </select>
+            </div>
           </div>
-          <div class="filter-group">
-            <label for="sort-precio" class="filter-label">Ordenar</label>
-            <select id="sort-precio" class="filter-select">
-              <option value="default">Por defecto</option>
-              <option value="asc">Precio: Menor a Mayor</option>
-              <option value="desc">Precio: Mayor a Menor</option>
-            </select>
+
+          <div class="filter-group-custom">
+            <span class="filter-label-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+              Ordenar
+            </span>
+            <div class="custom-dropdown" id="dropdown-sort">
+              <button class="dropdown-trigger" type="button">
+                <span class="dropdown-val">Por defecto</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+              <div class="dropdown-menu">
+                <div class="dropdown-item selected" data-value="default">Por defecto</div>
+                <div class="dropdown-item" data-value="asc">Precio: Menor a Mayor</div>
+                <div class="dropdown-item" data-value="desc">Precio: Mayor a Menor</div>
+              </div>
+              <select id="sort-precio" class="hidden-select" style="display:none;">
+                <option value="default" selected>Por defecto</option>
+                <option value="asc">Precio: Menor a Mayor</option>
+                <option value="desc">Precio: Mayor a Menor</option>
+              </select>
+            </div>
           </div>
         </div>
 

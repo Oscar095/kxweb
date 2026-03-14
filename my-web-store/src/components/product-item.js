@@ -24,10 +24,11 @@ export function productItemTemplate(p) {
   const qtyInputId = `qty-${p.id}`;
   const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
   return /* html */`
-    <article class="product" data-id="${p.id}" data-sku="${skuAttr}" style="cursor: pointer; opacity: 1; transition: transform 0.2s ease, box-shadow 0.2s ease;" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions')) { window.location.href='/product?id=${p.id}'; }">
-      <div class="product-media">
-        <div class="product-img-wrap" data-index="0" style="position:relative;">
-          <div class="out-of-stock-badge" style="display: none; position: absolute; top: 12px; left: 12px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
+    <article class="product-card-premium" data-id="${p.id}" data-sku="${skuAttr}" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions-hover')) { window.location.href='/product?id=${p.id}'; }">
+      
+      <div class="product-media-premium">
+        <div class="product-img-wrap" data-index="0">
+          <div class="out-of-stock-badge premium-badge" style="display: none;">Agotado</div>
           <a href="/product?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
             <img class="product-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
           </a>
@@ -36,15 +37,31 @@ export function productItemTemplate(p) {
             <button class="img-next" aria-label="Imagen siguiente">›</button>
           ` : ''}
         </div>
+        
+        <!-- Hover actions slide up from bottom of image area -->
+        <div class="product-actions-hover">
+          <div class="qty-control-premium">
+            <label for="${qtyInputId}" class="qty-label sr-only">Cant.</label>
+            <button class="qty-btn minus" onclick="event.stopPropagation(); const i = document.getElementById('${qtyInputId}'); i.value = Math.max(1, Number(i.value) - 1); i.dispatchEvent(new Event('input'));" aria-label="Disminuir">-</button>
+            <input id="${qtyInputId}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
+            <button class="qty-btn plus" onclick="event.stopPropagation(); const i = document.getElementById('${qtyInputId}'); i.value = Number(i.value) + 1; i.dispatchEvent(new Event('input'));" aria-label="Aumentar">+</button>
+          </div>
+          <button class="add-to-cart btn-primary btn-add-premium" data-id="${p.id}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+            Agregar
+          </button>
+        </div>
       </div>
-      <div>
-        <a href="/product?id=${p.id}" class="product-link" style="color:inherit;text-decoration:none"><h3>${p.name}</h3></a>
-  <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">$${formatMoney(totalConIva)} <span style="font-size:0.7rem;color:#666;">/ caja</span> <span style="font-size:0.65rem;color:#4CAF50;font-weight:600;">IVA incluido</span></p>
-      </div>
-      <div class="product-actions" style="display:flex;gap:8px;align-items:center;">
-        <label for="${qtyInputId}" class="qty-label" style="font-size:0.9rem;">Cantidad</label>
-        <input id="${qtyInputId}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" style="width:64px;padding:4px;" data-dynamic-price="1">
-        <button class="add-to-cart btn-primary" data-id="${p.id}" style="padding: 8px 16px; font-size: 0.95rem;">Agregar</button>
+      
+      <div class="product-info-premium">
+        <h3 class="product-title-premium"><a href="/product?id=${p.id}">${p.name}</a></h3>
+        <div class="product-price-premium">
+          <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
+            <span class="price-amount">$${formatMoney(totalConIva)}</span>
+            <span class="price-unit">/ caja</span>
+          </p>
+          <span class="tax-badge">IVA incluido</span>
+        </div>
       </div>
     </article>
   `;

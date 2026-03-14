@@ -1,0 +1,1 @@
+import{j as a,m as n}from"./index-CQbVYq3G.js";const s={initial:{opacity:0,y:30},animate:{opacity:1,y:0},exit:{opacity:0,y:-15}},e={type:"spring",stiffness:300,damping:30};function m({children:i,className:t}){return a.jsx(n.div,{variants:s,initial:"initial",animate:"animate",exit:"exit",transition:e,className:t,children:i})}export{m as A};
