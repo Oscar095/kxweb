@@ -90,8 +90,8 @@ async function init() {
   }
 
   // ── Filter & sort helpers ──
-  const filterSelect = document.getElementById('filter-disponible');
-  const sortSelect = document.getElementById('sort-precio');
+  const filterSelect = document.getElementById('filter-select');
+  const sortSelect = document.getElementById('sort-select');
 
   function applyFilterSort(list) {
     let result = [...list];
