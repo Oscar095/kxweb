@@ -462,53 +462,52 @@ async function init() {
     if (filterSelect?.value !== 'all') reapply();
   });
 
-  // --- Custom Dropdown Logic ---
-  const setupDropdown = (dropdownEl, selectEl) => {
-    if (!dropdownEl || !selectEl) return;
-    const trigger = dropdownEl.querySelector('.dropdown-trigger');
-    const displayVal = dropdownEl.querySelector('.dropdown-val');
-    const items = dropdownEl.querySelectorAll('.dropdown-item');
+  // --- Modern Segmented Control Logic ---
+  const setupSegmentedControl = (segEl, selectEl) => {
+    if (!segEl || !selectEl) return;
+    const pills = segEl.querySelectorAll('.segment-pill');
+    const indicator = segEl.querySelector('.segment-indicator');
 
-    trigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.querySelectorAll('.custom-dropdown').forEach(d => {
-        if (d !== dropdownEl) d.classList.remove('open');
-      });
-      dropdownEl.classList.toggle('open');
-    });
+    const updateIndicator = (activePill) => {
+      if (!activePill || !indicator) return;
+      // Use offset calculations to smoothly slide the gradient block behind the active pill
+      indicator.style.width = `${activePill.offsetWidth}px`;
+      indicator.style.transform = `translateX(${activePill.offsetLeft - 6}px)`; // -6px for the parent padding
+    };
 
-    items.forEach(item => {
-      item.addEventListener('click', () => {
-        const val = item.dataset.value;
-        const text = item.textContent;
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const val = pill.dataset.value;
         // Update visual
-        displayVal.textContent = text;
-        items.forEach(i => i.classList.remove('selected'));
-        item.classList.add('selected');
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        updateIndicator(pill);
+        
         // Update native select
         selectEl.value = val;
-        // Close dropdown & trigger change
-        dropdownEl.classList.remove('open');
+        // Trigger change
         selectEl.dispatchEvent(new Event('change'));
       });
     });
 
     // Initial sync
-    const initialItem = Array.from(items).find(i => i.dataset.value === selectEl.value) || items[0];
-    if (initialItem) {
-      displayVal.textContent = initialItem.textContent;
-      items.forEach(i => i.classList.remove('selected'));
-      initialItem.classList.add('selected');
+    const initialPill = Array.from(pills).find(p => p.dataset.value === selectEl.value) || pills[0];
+    if (initialPill) {
+      pills.forEach(p => p.classList.remove('active'));
+      initialPill.classList.add('active');
+      // Wait a tiny bit for render so offsetWidth isn't 0
+      setTimeout(() => updateIndicator(initialPill), 50);
     }
+    
+    // Recalculate indicator position on window resize
+    window.addEventListener('resize', () => {
+      const active = segEl.querySelector('.segment-pill.active');
+      if (active) updateIndicator(active);
+    });
   };
 
-  setupDropdown(document.getElementById('dropdown-disponible'), filterSelect);
-  setupDropdown(document.getElementById('dropdown-sort'), sortSelect);
-
-  // Close dropdowns when clicking outside
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('open'));
-  });
+  setupSegmentedControl(document.getElementById('seg-disponible'), filterSelect);
+  setupSegmentedControl(document.getElementById('seg-sort'), sortSelect);
 
   // Intercept the render function internally to add staggered delays for the CSS animation
   const originalRenderProducts = window.renderProducts || renderProducts;
