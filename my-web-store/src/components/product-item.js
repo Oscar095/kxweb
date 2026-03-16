@@ -21,47 +21,35 @@ export function productItemTemplate(p) {
   const totalPerBox = cantidadNum ? (unitPrice * cantidadNum) : unitPrice;
   const totalConIva = Math.round(totalPerBox * 1.19);
   const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
-  const qtyInputId = `qty-${p.id}`;
+  const qtyInputId = `v2-qty-${p.id}`;
   const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
+
   return /* html */`
-    <article class="product-card-premium" data-id="${p.id}" data-sku="${skuAttr}" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions-hover')) { window.location.href='/product?id=${p.id}'; }">
-      
-      <div class="product-media-premium">
-        <div class="product-img-wrap" data-index="0">
-          <div class="out-of-stock-badge premium-badge" style="display: none;">Agotado</div>
-          <a href="/product?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
-            <img class="product-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
-          </a>
-          ${Array.isArray(p.images) && p.images.length > 1 ? `
-            <button class="img-prev" aria-label="Imagen anterior">‹</button>
-            <button class="img-next" aria-label="Imagen siguiente">›</button>
-          ` : ''}
-        </div>
-        
-        <!-- Hover actions slide up from bottom of image area -->
-        <div class="product-actions-hover">
-          <div class="qty-control-premium">
-            <label for="${qtyInputId}" class="qty-label sr-only">Cant.</label>
-            <button class="qty-btn minus" onclick="event.stopPropagation(); const i = document.getElementById('${qtyInputId}'); i.value = Math.max(1, Number(i.value) - 1); i.dispatchEvent(new Event('input'));" aria-label="Disminuir">-</button>
-            <input id="${qtyInputId}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
-            <button class="qty-btn plus" onclick="event.stopPropagation(); const i = document.getElementById('${qtyInputId}'); i.value = Number(i.value) + 1; i.dispatchEvent(new Event('input'));" aria-label="Aumentar">+</button>
-          </div>
-          <button class="add-to-cart btn-primary btn-add-premium" data-id="${p.id}">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-            Agregar
-          </button>
-        </div>
+    <article class="v2-card reveal" data-id="${p.id}" data-sku="${skuAttr}" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
+      <div class="v2-card-img-wrap">
+        <div class="v2-oos-badge" style="display: none;">AGOTADO</div>
+        <img class="product-img" src="${imgSrc}" alt="${p.name}" loading="lazy" onload="this.classList.add('loaded')" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
+        ${Array.isArray(p.images) && p.images.length > 1 ? `
+          <button class="v2-img-nav prev" onclick="event.stopPropagation();">‹</button>
+          <button class="v2-img-nav next" onclick="event.stopPropagation();">›</button>
+        ` : ''}
       </div>
       
-      <div class="product-info-premium">
-        <h3 class="product-title-premium"><a href="/product?id=${p.id}">${p.name}</a></h3>
-        <div class="product-price-premium">
+      <div class="v2-card-body">
+        <h3 class="v2-card-name">${p.name}</h3>
+        <div class="v2-card-price">
           <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
             <span class="price-amount">$${formatMoney(totalConIva)}</span>
             <span class="price-unit">/ caja</span>
           </p>
-          <span class="tax-badge">IVA incluido</span>
         </div>
+      </div>
+
+      <div class="v2-card-actions">
+        <input id="${qtyInputId}" type="number" class="v2-qty-input" min="1" value="1" data-dynamic-price="1" onclick="event.stopPropagation();">
+        <button class="v2-add-btn add-to-cart" data-id="${p.id}" onclick="event.stopPropagation();">
+          Agregar
+        </button>
       </div>
     </article>
   `;
@@ -75,7 +63,7 @@ export function attachDynamicPriceBehavior(rootEl) {
     const productId = Number(rootEl.dataset.id);
 
     const applyOutOfStock = () => {
-      const badge = rootEl.querySelector('.out-of-stock-badge');
+      const badge = rootEl.querySelector('.v2-oos-badge');
       const img = rootEl.querySelector('.product-img');
       const btn = rootEl.querySelector('.add-to-cart');
       if (badge) badge.style.setProperty('display', 'block', 'important');
@@ -118,7 +106,7 @@ export function attachDynamicPriceBehavior(rootEl) {
     checkStock();
   }
 
-  const qtyInput = rootEl.querySelector('.qty-input[data-dynamic-price]');
+  const qtyInput = rootEl.querySelector('.v2-qty-input[data-dynamic-price]');
   const priceEl = rootEl.querySelector('.price[data-codigo]');
   if (!qtyInput || !priceEl) return;
   const codigo = priceEl.getAttribute('data-codigo');

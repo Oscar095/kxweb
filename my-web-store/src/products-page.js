@@ -33,6 +33,14 @@ async function init() {
     return false;
   };
   const mount = document.getElementById('products');
+  const countBadge = document.getElementById('product-count-badge');
+
+  // Helper to update product count badge
+  function updateProductCount(count) {
+    if (countBadge) {
+      countBadge.textContent = `${count} ${count === 1 ? 'producto' : 'productos'}`;
+    }
+  }
 
   // ── Inventory cache for availability filter ──
   if (!window._inventoryCache) window._inventoryCache = new Map();
@@ -89,45 +97,117 @@ async function init() {
     }));
   }
 
-  // ── Filter & sort helpers ──
-  const filterSelect = document.getElementById('filter-select');
-  const sortSelect = document.getElementById('sort-select');
+  // ── Filter & sort states ──
+  let currentFilter = 'all';
+  let currentSort = 'default';
 
   function applyFilterSort(list) {
     let result = [...list];
 
-    const filterVal = filterSelect?.value || 'all';
-    if (filterVal !== 'all' && inventoryCache.size > 0) {
-      result = result.filter(p => inventoryCache.get(p.id) === filterVal);
+    if (currentFilter !== 'all' && inventoryCache.size > 0) {
+      result = result.filter(p => inventoryCache.get(p.id) === currentFilter);
     }
 
-    const sortVal = sortSelect?.value || 'default';
-    if (sortVal === 'asc') {
+    if (currentSort === 'asc') {
       result.sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
-    } else if (sortVal === 'desc') {
+    } else if (currentSort === 'desc') {
       result.sort((a, b) => (b.price_unit || 0) - (a.price_unit || 0));
     }
 
     return result;
   }
 
+  // Custom Dropdown Helper
+  function setupCustomDropdown(dropdownId, onSelect) {
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+
+    const button = dropdown.querySelector('.filter-control-wrap');
+    const label = dropdown.querySelector('.dropdown-selected-label');
+    const list = dropdown.querySelector('.dropdown-list');
+    const items = list.querySelectorAll('li');
+
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Close other dropdowns
+      document.querySelectorAll('.custom-dropdown').forEach(d => {
+        if (d !== dropdown) d.classList.remove('is-open');
+      });
+      dropdown.classList.toggle('is-open');
+    });
+
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        const val = item.dataset.value;
+        const text = item.textContent;
+        
+        // Update UI
+        label.textContent = text;
+        items.forEach(i => i.classList.remove('is-selected'));
+        item.classList.add('is-selected');
+        
+        dropdown.classList.remove('is-open');
+        onSelect(val);
+      });
+    });
+  }
+
+  // Initialize dropdowns
+  setupCustomDropdown('filter-dropdown', (val) => {
+    currentFilter = val;
+    applyCategoryFilter(currentCat);
+  });
+  setupCustomDropdown('sort-dropdown', (val) => {
+    currentSort = val;
+    applyCategoryFilter(currentCat);
+  });
+
+  // Global click to close dropdowns
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('is-open'));
+  });
+
+  // Initial render
+  updateProductCount(products.length);
   renderProducts(products, mount);
 
-  // Render dynamic category buttons
-  const catWrap = document.getElementById('cat-btn-group');
-  if (catWrap) {
-    const existing = Array.from(catWrap.querySelectorAll('.cat-btn'));
-    const toKeep = existing.find(b => b.dataset.cat === 'all');
-    catWrap.innerHTML = '';
-    if (toKeep) catWrap.appendChild(toKeep);
+  // Render original V2 category list
+  const catContainer = document.getElementById('cat-btn-group');
+  if (catContainer) {
+    catContainer.innerHTML = '';
+    
+    // Todos button
+    const btnAll = document.createElement('button');
+    btnAll.className = 'v2-cat-btn active';
+    btnAll.dataset.cat = 'all';
+    btnAll.innerHTML = `
+      <span>Todos</span>
+      <span class="v2-cat-count">${products.length}</span>
+    `;
+    catContainer.appendChild(btnAll);
+
+    // Other categories
     for (const c of categories) {
       const btn = document.createElement('button');
-      btn.className = 'cat-btn';
+      btn.className = 'v2-cat-btn';
       const catName = c.nombre || c.descripcion || 'Sin Nombre';
       btn.dataset.cat = catName;
-      btn.textContent = catName;
-      catWrap.appendChild(btn);
+      
+      const count = products.filter(p => window.pMatcher(p, catName)).length;
+      if (count === 0 && categories.length > 5) continue; // Skip empty if too many
+
+      btn.innerHTML = `
+        <span>${catName}</span>
+        <span class="v2-cat-count">${count}</span>
+      `;
+      catContainer.appendChild(btn);
     }
+
+    catContainer.addEventListener('click', (e) => {
+      const btn = e.target.closest('.v2-cat-btn');
+      if (!btn) return;
+      applyCategoryFilter(btn.dataset.cat);
+    });
   }
 
   // Parse URL parameter
@@ -152,20 +232,23 @@ async function init() {
 
   // Create a function to filter and update the UI
   const applyCategoryFilter = (cat) => {
+    currentCat = cat;
     // Close sidebar on mobile
     if (sidebar) sidebar.classList.remove('is-expanded');
 
     const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
     const descEl = document.getElementById('current-category-desc');
 
-    document.querySelectorAll('.cat-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.cat === cat);
+    document.querySelectorAll('.v2-cat-btn').forEach(btn => {
+      const isActive = btn.dataset.cat === cat;
+      btn.classList.toggle('active', isActive);
     });
 
     if (cat === 'all') {
       if (titleEl) titleEl.textContent = 'Catálogo Completo';
       if (descEl) descEl.style.display = 'none';
       const sorted = applyFilterSort(products);
+      updateProductCount(sorted.length);
       renderProducts(sorted, mount);
     } else {
       if (titleEl) titleEl.textContent = cat;
@@ -189,6 +272,7 @@ async function init() {
         }
       }
       const filtered = applyFilterSort(products.filter(p => window.pMatcher(p, cat)));
+      updateProductCount(filtered.length);
       if (filtered.length === 0) {
         mount.innerHTML = `
           <div style="text-align:center; padding: 60px 24px; width: 100%; grid-column: 1 / -1;">
@@ -401,13 +485,13 @@ async function init() {
     hideLens(wrap);
   });
 
-  // category buttons
-  if (catWrap) {
-    catWrap.addEventListener('click', (e) => {
-      const btn = e.target.closest('.cat-btn');
-      if (!btn || !catWrap.contains(btn)) return;
+  // Segmented control clicks
+  if (segmentedControl) {
+    segmentedControl.addEventListener('click', (e) => {
+      const pill = e.target.closest('.segment-pill');
+      if (!pill || !segmentedControl.contains(pill)) return;
 
-      const cat = btn.dataset.cat;
+      const cat = pill.dataset.cat;
       currentCat = cat;
       currentSearch = '';
       
@@ -416,11 +500,14 @@ async function init() {
 
       applyCategoryFilter(cat);
 
-      btn.classList.add('added');
-      setTimeout(() => btn.classList.remove('added'), 350);
-
       const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + (cat === 'all' ? '' : '?cat=' + encodeURIComponent(cat));
       window.history.pushState({ path: newurl }, '', newurl);
+    });
+
+    // Handle window resize to keep indicator in place
+    window.addEventListener('resize', () => {
+      const active = segmentedControl.querySelector('.segment-pill.active');
+      if (active) updateIndicator(active);
     });
   }
 
@@ -481,77 +568,7 @@ async function init() {
     if (filterSelect?.value !== 'all') reapply();
     window.dispatchEvent(new CustomEvent('content-loaded'));
   });
-<<<<<<< HEAD
   window.dispatchEvent(new CustomEvent('content-loaded'));
-=======
-
-  // --- Modern Segmented Control Logic ---
-  const setupSegmentedControl = (segEl, selectEl) => {
-    if (!segEl || !selectEl) return;
-    const pills = segEl.querySelectorAll('.segment-pill');
-    const indicator = segEl.querySelector('.segment-indicator');
-
-    const updateIndicator = (activePill) => {
-      if (!activePill || !indicator) return;
-      // Use offset calculations to smoothly slide the gradient block behind the active pill
-      indicator.style.width = `${activePill.offsetWidth}px`;
-      indicator.style.transform = `translateX(${activePill.offsetLeft - 6}px)`; // -6px for the parent padding
-    };
-
-    pills.forEach(pill => {
-      pill.addEventListener('click', () => {
-        const val = pill.dataset.value;
-        // Update visual
-        pills.forEach(p => p.classList.remove('active'));
-        pill.classList.add('active');
-        updateIndicator(pill);
-        
-        // Update native select
-        selectEl.value = val;
-        // Trigger change
-        selectEl.dispatchEvent(new Event('change'));
-      });
-    });
-
-    // Initial sync
-    const initialPill = Array.from(pills).find(p => p.dataset.value === selectEl.value) || pills[0];
-    if (initialPill) {
-      pills.forEach(p => p.classList.remove('active'));
-      initialPill.classList.add('active');
-      // Wait a tiny bit for render so offsetWidth isn't 0
-      setTimeout(() => updateIndicator(initialPill), 50);
-    }
-    
-    // Recalculate indicator position on window resize
-    window.addEventListener('resize', () => {
-      const active = segEl.querySelector('.segment-pill.active');
-      if (active) updateIndicator(active);
-    });
-  };
-
-  setupSegmentedControl(document.getElementById('seg-disponible'), filterSelect);
-  setupSegmentedControl(document.getElementById('seg-sort'), sortSelect);
-
-  // Intercept the render function internally to add staggered delays for the CSS animation
-  const originalRenderProducts = window.renderProducts || renderProducts;
-  window.renderProducts = function(list, container) {
-    originalRenderProducts(list, container);
-    // After render, add inline delays
-    const cards = container.querySelectorAll('.product-card-premium');
-    cards.forEach((card, index) => {
-      // 50ms stagger per card, up to a max so it doesn't take forever
-      const delay = Math.min(index * 0.05, 1.5);
-      card.style.animationDelay = `${delay}s`;
-    });
-  };
-  
-  // Re-run initial render with delays
-  if (currentSearch) {
-    window.dispatchEvent(new CustomEvent('search', { detail: currentSearch }));
-  } else {
-    applyCategoryFilter(currentCat);
-  }
->>>>>>> a7397add9f6a230a6416c1407fb53aa34d5d8e2f
 }
 
 init();

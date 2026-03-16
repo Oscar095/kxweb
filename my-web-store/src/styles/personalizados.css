@@ -185,7 +185,7 @@
 
 .personalizados-page .hero-subtext {
     font-size: 1.25rem;
-    color: var(--kos-blue);
+    color: #000000;
     margin-bottom: 40px;
     line-height: 1.6;
     font-weight: 500;
@@ -436,9 +436,9 @@
     transform: translateY(0);
 }
 
-/* ========================================
+/* =====
    V12: Valor y Educación — Grid 50/50
-   ======================================== */
+   ===== */
 
 .personalizados-page .ve-section {
     position: relative;
@@ -867,9 +867,9 @@
     width: 100%;
 }
 
-/* ================================================
+/* ======
    CTA FINAL SECTION — Full-Screen Premium Banner
-   ================================================ */
+   ====== */
 
 .personalizados-page .cta-final-section {
     position: relative;
@@ -1038,9 +1038,9 @@
     }
 }
 
-/* ==============================================
+/* ====
    LAYOUT — overlapping layers
-   ============================================== */
+   ==== */
 .personalizados-page .cta-final-layout {
     position: relative;
     z-index: 3;
@@ -1141,9 +1141,9 @@
     }
 }
 
-/* ==============================================
+/* ====
    TYPOGRAPHY — matching reference hierarchy
-   ============================================== */
+   ==== */
 
 /* Opening ¿ — very large, orange, inline with the text */
 .personalizados-page .cta-qm-open {
@@ -1285,9 +1285,9 @@
     }
 }
 
-/* ==============================================
+/* ====
    RESPONSIVE
-   ============================================== */
+   ==== */
 @media (max-width: 1100px) {
     .personalizados-page .cta-text-layer {
         padding-left: 220px;
