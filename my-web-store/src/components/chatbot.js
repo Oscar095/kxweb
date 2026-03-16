@@ -62,7 +62,9 @@ export function initChatbot() {
       pointer-events: auto;
       transform: translateY(0) scale(1);
     }
-    .kos-chatbot-window.open + .kos-chatbot-btn {
+    
+    /* Force hide button when open */
+    .chat-open .kos-chatbot-btn {
       display: none !important;
     }
 
@@ -401,18 +403,21 @@ export function initChatbot() {
     }
 
     /* ===== MOBILE RESPONSIVE ===== */
-    @media (max-width: 480px) {
+    @media (max-width: 600px) {
       .kos-chatbot-window {
-        width: calc(100vw - 32px);
-        height: auto;
-        min-height: 400px;
-        max-height: calc(100dvh - 120px);
-        bottom: 90px;
-        top: auto;
-        right: 16px;
-        left: 16px;
-        border-radius: 20px;
-        max-width: none;
+        width: calc(100vw - 24px);
+        height: 80vh;
+        max-height: 560px;
+        bottom: 20px;
+        right: 12px;
+        left: 12px;
+        border-radius: 24px;
+      }
+      .kos-chatbot-btn {
+        width: 56px;
+        height: 56px;
+        bottom: 20px;
+        right: 20px;
       }
     }
   `;
@@ -485,10 +490,10 @@ export function initChatbot() {
     windowEl.classList.toggle('open');
     const isOpen = windowEl.classList.contains('open');
     if (isOpen) {
+      document.body.classList.add('chat-open');
       input.focus();
-      btnOpen.style.display = 'none';
     } else {
-      btnOpen.style.display = '';
+      document.body.classList.remove('chat-open');
     }
   };
 

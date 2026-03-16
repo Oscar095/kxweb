@@ -1364,6 +1364,21 @@ h6 {
 	opacity: 1;
 }
 
+@media (max-width: 768px) {
+	.product-actions-hover {
+		position: static;
+		transform: none;
+		opacity: 1;
+		background: #fff;
+		padding: 12px 16px;
+		border-top: 1px solid rgba(0, 0, 0, 0.05);
+	}
+	
+	.product-media-premium .product-img {
+		padding: 16px;
+	}
+}
+
 .qty-control-premium {
 	display: flex;
 	align-items: center;
@@ -1431,8 +1446,18 @@ h6 {
 	font-size: 1.1rem;
 	font-weight: 600;
 	line-height: 1.4;
-	margin-bottom: 12px;
+	margin-bottom: 8px;
 	color: #1a202c;
+}
+
+@media (max-width: 600px) {
+	.product-title-premium {
+		font-size: 0.95rem;
+		margin-bottom: 6px;
+	}
+	.product-info-premium {
+		padding: 12px 14px;
+	}
 }
 
 .product-title-premium a {
@@ -3353,9 +3378,15 @@ h6 {
 
 @media (max-width: 560px) {
 	.v2-product-grid {
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 		gap: 12px;
-		padding: 0 12px;
+		padding: 0 10px;
+	}
+	
+	@media (max-width: 380px) {
+		.v2-product-grid {
+			grid-template-columns: 1fr;
+		}
 	}
 
 	.v2-card-body {
