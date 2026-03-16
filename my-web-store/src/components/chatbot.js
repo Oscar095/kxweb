@@ -405,19 +405,24 @@ export function initChatbot() {
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 600px) {
       .kos-chatbot-window {
-        width: calc(100vw - 24px);
-        height: 80vh;
-        max-height: 560px;
-        bottom: 20px;
-        right: 12px;
-        left: 12px;
-        border-radius: 24px;
+        width: 100%;
+        height: 100%;
+        max-height: calc(100vh - 80px);
+        bottom: 0;
+        right: 0;
+        left: 0;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.1);
       }
       .kos-chatbot-btn {
         width: 56px;
         height: 56px;
         bottom: 20px;
         right: 20px;
+      }
+      .kos-chatbot-suggestions {
+        padding: 0 10px 8px;
+        gap: 4px;
       }
     }
   `;
@@ -491,9 +496,11 @@ export function initChatbot() {
     const isOpen = windowEl.classList.contains('open');
     if (isOpen) {
       document.body.classList.add('chat-open');
+      btnOpen.style.display = 'none'; // Force hide
       input.focus();
     } else {
       document.body.classList.remove('chat-open');
+      btnOpen.style.display = ''; // Restore
     }
   };
 

@@ -1416,9 +1416,6 @@
     display: none !important;
 }
 
-/* Explicitly hide the chatbot to be absolutely sure */
-#chatbot-launcher,
-.chatbot-container,
 .whatsapp-float-btn {
     display: none !important;
 }

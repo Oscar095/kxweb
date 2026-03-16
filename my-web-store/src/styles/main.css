@@ -3378,14 +3378,16 @@ h6 {
 
 @media (max-width: 560px) {
 	.v2-product-grid {
-		grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+		grid-template-columns: repeat(2, 1fr);
 		gap: 12px;
 		padding: 0 10px;
 	}
 	
-	@media (max-width: 380px) {
+	@media (max-width: 500px) {
 		.v2-product-grid {
 			grid-template-columns: 1fr;
+			padding: 0 24px;
+			gap: 24px;
 		}
 	}
 

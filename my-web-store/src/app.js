@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js?v=24.0';
+import { renderHeader } from './components/header.js?v=38.0';
 import { renderProducts } from './components/product-list.js';
 import { attachDynamicPriceBehavior } from './components/product-item.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
