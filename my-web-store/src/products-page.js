@@ -90,8 +90,8 @@ async function init() {
   }
 
   // ── Filter & sort helpers ──
-  const filterSelect = document.getElementById('filter-disponible');
-  const sortSelect = document.getElementById('sort-precio');
+  const filterSelect = document.getElementById('filter-select');
+  const sortSelect = document.getElementById('sort-select');
 
   function applyFilterSort(list) {
     let result = [...list];
@@ -476,12 +476,82 @@ async function init() {
   sortSelect?.addEventListener('change', reapply);
   filterSelect?.addEventListener('change', reapply);
 
-  // Batch-check inventory in background
+  // Fetch inventory
   checkAllInventory().then(() => {
     if (filterSelect?.value !== 'all') reapply();
     window.dispatchEvent(new CustomEvent('content-loaded'));
   });
+<<<<<<< HEAD
   window.dispatchEvent(new CustomEvent('content-loaded'));
+=======
+
+  // --- Modern Segmented Control Logic ---
+  const setupSegmentedControl = (segEl, selectEl) => {
+    if (!segEl || !selectEl) return;
+    const pills = segEl.querySelectorAll('.segment-pill');
+    const indicator = segEl.querySelector('.segment-indicator');
+
+    const updateIndicator = (activePill) => {
+      if (!activePill || !indicator) return;
+      // Use offset calculations to smoothly slide the gradient block behind the active pill
+      indicator.style.width = `${activePill.offsetWidth}px`;
+      indicator.style.transform = `translateX(${activePill.offsetLeft - 6}px)`; // -6px for the parent padding
+    };
+
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const val = pill.dataset.value;
+        // Update visual
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        updateIndicator(pill);
+        
+        // Update native select
+        selectEl.value = val;
+        // Trigger change
+        selectEl.dispatchEvent(new Event('change'));
+      });
+    });
+
+    // Initial sync
+    const initialPill = Array.from(pills).find(p => p.dataset.value === selectEl.value) || pills[0];
+    if (initialPill) {
+      pills.forEach(p => p.classList.remove('active'));
+      initialPill.classList.add('active');
+      // Wait a tiny bit for render so offsetWidth isn't 0
+      setTimeout(() => updateIndicator(initialPill), 50);
+    }
+    
+    // Recalculate indicator position on window resize
+    window.addEventListener('resize', () => {
+      const active = segEl.querySelector('.segment-pill.active');
+      if (active) updateIndicator(active);
+    });
+  };
+
+  setupSegmentedControl(document.getElementById('seg-disponible'), filterSelect);
+  setupSegmentedControl(document.getElementById('seg-sort'), sortSelect);
+
+  // Intercept the render function internally to add staggered delays for the CSS animation
+  const originalRenderProducts = window.renderProducts || renderProducts;
+  window.renderProducts = function(list, container) {
+    originalRenderProducts(list, container);
+    // After render, add inline delays
+    const cards = container.querySelectorAll('.product-card-premium');
+    cards.forEach((card, index) => {
+      // 50ms stagger per card, up to a max so it doesn't take forever
+      const delay = Math.min(index * 0.05, 1.5);
+      card.style.animationDelay = `${delay}s`;
+    });
+  };
+  
+  // Re-run initial render with delays
+  if (currentSearch) {
+    window.dispatchEvent(new CustomEvent('search', { detail: currentSearch }));
+  } else {
+    applyCategoryFilter(currentCat);
+  }
+>>>>>>> a7397add9f6a230a6416c1407fb53aa34d5d8e2f
 }
 
 init();

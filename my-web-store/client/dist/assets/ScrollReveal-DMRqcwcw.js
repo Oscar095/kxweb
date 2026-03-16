@@ -1,0 +1,1 @@
+import{j as a,m as s}from"./index-CQbVYq3G.js";const r={hidden:{opacity:0,y:40},visible:{opacity:1,y:0}};function c({children:i,delay:t=0,duration:e=.6,className:n,variants:o=r}){return a.jsx(s.div,{variants:o,initial:"hidden",whileInView:"visible",viewport:{once:!0,amount:.2},transition:{duration:e,delay:t,ease:[.2,.8,.2,1]},className:n,children:i})}export{c as S};
