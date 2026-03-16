@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=24.0';
 import { renderProducts } from './components/product-list.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
@@ -134,8 +134,27 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const initialCat = params.get('cat') || 'all';
 
+  // Mobile toggle logic
+  const sidebar = document.getElementById('category-sidebar');
+  const mobileToggle = document.getElementById('mobile-cat-toggle');
+  if (mobileToggle && sidebar) {
+    mobileToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sidebar.classList.toggle('is-expanded');
+    });
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (sidebar.classList.contains('is-expanded') && !sidebar.contains(e.target)) {
+        sidebar.classList.remove('is-expanded');
+      }
+    });
+  }
+
   // Create a function to filter and update the UI
   const applyCategoryFilter = (cat) => {
+    // Close sidebar on mobile
+    if (sidebar) sidebar.classList.remove('is-expanded');
+
     const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
     const descEl = document.getElementById('current-category-desc');
 
@@ -460,7 +479,9 @@ async function init() {
   // Batch-check inventory in background
   checkAllInventory().then(() => {
     if (filterSelect?.value !== 'all') reapply();
+    window.dispatchEvent(new CustomEvent('content-loaded'));
   });
+  window.dispatchEvent(new CustomEvent('content-loaded'));
 }
 
 init();

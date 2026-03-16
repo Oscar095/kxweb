@@ -662,13 +662,13 @@
 }
 
 .personalizados-page .cotizador-glass {
-    background: #ffffff;
-    border: 1px solid rgba(0, 159, 227, 0.1);
+    background: #f0f9ff;
+    border: 1px solid rgba(0, 159, 227, 0.15);
     border-radius: 24px;
     padding: 60px;
     max-width: 1000px;
     margin: 0 auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 60px rgba(118, 143, 167, 0.08);
 }
 
 .personalizados-page .cotizador-title {
@@ -883,7 +883,7 @@
     padding: 80px 24px;
     /* More padding top/bottom */
     overflow: hidden;
-    background: #ffffff;
+    background: radial-gradient(circle, #eff6ff 0%, #cfe8f8 100%);
 }
 
 /* --- Radial gradient blobs — clearly visible --- */
@@ -896,12 +896,12 @@
 }
 
 .personalizados-page .cta-blob-orange {
-    background: radial-gradient(circle, rgba(242, 140, 48, 0.28) 0%, rgba(242, 140, 48, 0.10) 50%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 170, 95, 0.76) 0%, rgba(242, 140, 48, 0.10) 50%, transparent 70%);
     filter: blur(30px);
 }
 
 .personalizados-page .cta-blob-blue {
-    background: radial-gradient(circle, rgba(0, 159, 227, 0.22) 0%, rgba(0, 159, 227, 0.08) 50%, transparent 70%);
+    background: radial-gradient(circle, rgba(5, 167, 236, 0.603) 0%, rgba(0, 159, 227, 0.08) 50%, transparent 70%);
     filter: blur(30px);
 }
 

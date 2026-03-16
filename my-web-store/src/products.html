@@ -21,7 +21,7 @@
   <meta property="og:locale" content="es_CO">
   <link rel="preconnect" href="https://datalakekos.blob.core.windows.net">
   <link rel="dns-prefetch" href="https://datalakekos.blob.core.windows.net">
-  <link rel="stylesheet" href="styles/main.css?v=13.0">
+  <link rel="stylesheet" href="styles/main.css?v=28.0">
 </head>
 
 <body>
@@ -32,7 +32,7 @@
       <div class="bg-orb orb-orange" style="top: 60%; right: 5%;"></div>
 
       <!-- Sidebar for Navigation -->
-      <aside class="category-sidebar">
+      <aside class="category-sidebar" id="category-sidebar">
         <h2 class="sidebar-title">Categorías</h2>
         <div class="cat-btn-group sidebar-nav" id="cat-btn-group">
           <button data-cat="all" class="cat-btn active">Todos</button>
@@ -42,15 +42,22 @@
       <!-- Main Content Area -->
       <div class="products-main-content">
         <!-- Glass Header -->
-        <div class="products-glass-header">
+        <div class="products-glass-header reveal">
           <h1 id="products-page-title">Catálogo Completo</h1>
+          <button id="mobile-cat-toggle" class="mobile-cat-toggle mobile-only">
+            <span>Ver Categorías</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
           <p id="current-category-desc" class="category-description" style="display: none;"></p>
         </div>
 
         <!-- Filter & Sort Controls -->
         <div class="products-filter-bar" id="filter-bar">
           <div class="filter-group">
-            <label for="filter-disponible" class="filter-label">Filtrar</label>
+            <label for="filter-disponible" class="filter-label">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+              Filtrar
+            </label>
             <select id="filter-disponible" class="filter-select">
               <option value="all">Todos</option>
               <option value="disponible">Disponible</option>
@@ -58,7 +65,10 @@
             </select>
           </div>
           <div class="filter-group">
-            <label for="sort-precio" class="filter-label">Ordenar</label>
+            <label for="sort-precio" class="filter-label">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M11 5L6 9l5 4M11 19l5-4-5-4M2 12h20"></path></svg>
+              Ordenar
+            </label>
             <select id="sort-precio" class="filter-select">
               <option value="default">Por defecto</option>
               <option value="asc">Precio: Menor a Mayor</option>
@@ -71,7 +81,7 @@
       </div>
     </main>
     <div id="cart-drawer" class="cart-drawer"></div>
-    <script type="module" src="./products-page.js?v=3.0"></script>
+    <script type="module" src="./products-page.js?v=25.0"></script>
     <footer class="site-footer"></footer>
   </div>
   <script src="./utils/tracker.js"></script>

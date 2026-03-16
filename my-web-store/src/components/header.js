@@ -31,11 +31,11 @@ export function renderHeader(container) {
   container.innerHTML = `
     <div class="announcement-bar">
       <div class="announcement-fade-container">
-        <span class="announce-item active">Precios por caja incluyen IVA</span>
-        <span class="announce-item">Después de una compra de $500.000 domicilio gratis</span>
-        <span class="announce-item">Compra fácil y rápido desde nuestra web</span>
-        <span class="announce-item">Envíos a nivel nacional rápidos y seguros</span>
-        <span class="announce-item">La mejor calidad de empaques para tu negocio</span>
+        <span class="announce-item active">🌟 Precios por caja incluyen IVA</span>
+
+        <span class="announce-item">✨ Personaliza desde 2.000 unidades con tu marca</span>
+        <span class="announce-item">💻 Compra fácil y rápido desde nuestra web</span>
+        <span class="announce-item">📦 Envíos a nivel nacional rápidos y seguros</span>
       </div>
     </div>
     <div class="header-glass-pill">

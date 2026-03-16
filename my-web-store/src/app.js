@@ -1,11 +1,11 @@
-import { renderHeader } from './components/header.js?v=3';
+import { renderHeader } from './components/header.js?v=24.0';
 import { renderProducts } from './components/product-list.js';
 import { attachDynamicPriceBehavior } from './components/product-item.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 import { formatMoney } from './utils/format.js';
 
-console.log('app.js (módulo) cargado');
+console.log('app.js?v=20.0 (módulo) cargado');
 
 function renderBestSellers(products, mount) {
   if (!mount || !products.length) return;
