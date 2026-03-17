@@ -414,8 +414,8 @@ export function initChatbot() {
         box-shadow: 0 20px 60px rgba(0,0,0,0.2);
       }
       .kos-chatbot-btn {
-        width: 56px;
-        height: 56px;
+        width: 52px;
+        height: 52px;
         bottom: 20px;
         right: 20px;
       }

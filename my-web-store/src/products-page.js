@@ -486,6 +486,7 @@ async function init() {
   });
 
   mount.addEventListener('touchstart', (e) => {
+    if (window.innerWidth <= 900) return; // Skip lens on mobile — let card onclick work
     if (e.target.closest('button') || e.target.closest('a')) return;
     const touch = e.touches[0];
     const wrap = e.target.closest('.v2-card-img-wrap');
@@ -496,6 +497,7 @@ async function init() {
   }, { passive: false });
 
   mount.addEventListener('touchmove', (e) => {
+    if (window.innerWidth <= 900) return; // Skip lens on mobile
     if (e.target.closest('button') || e.target.closest('a')) return;
     const touch = e.touches[0];
     const wrap = e.target.closest('.v2-card-img-wrap');
@@ -505,6 +507,7 @@ async function init() {
   }, { passive: false });
 
   mount.addEventListener('touchend', (e) => {
+    if (window.innerWidth <= 900) return; // Skip lens on mobile
     const wrap = e.target.closest('.v2-card-img-wrap');
     if (!wrap || !mount.contains(wrap)) return;
     hideLens(wrap);

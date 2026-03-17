@@ -34,7 +34,7 @@ function renderBestSellers(products, mount) {
     return `
       <article class="bs-card" data-id="${p.id}" data-sku="${skuAttr}" style="opacity:1;">
         <div class="bs-card-visual" style="position:relative; cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
-          <div class="out-of-stock-badge" style="display: none; position: absolute; top: 8px; left: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.70rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
+          <div class="out-of-stock-badge" style="display: none; position: absolute; bottom: 8px; right: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">No disponible</div>
           <span class="bs-card-rank">#${idx + 1}</span>
           <img class="bs-card-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
           <span class="bs-card-flame">🔥</span>
