@@ -108,10 +108,17 @@ async function init() {
       result = result.filter(p => inventoryCache.get(p.id) === currentFilter);
     }
 
-    if (currentSort === 'asc') {
-      result.sort((a, b) => (a.price_unit || 0) - (b.price_unit || 0));
-    } else if (currentSort === 'desc') {
-      result.sort((a, b) => (b.price_unit || 0) - (a.price_unit || 0));
+    if (currentSort === 'asc' || currentSort === 'desc') {
+      const getBoxPrice = (p) => {
+        const up = Number(p.price_unit || p.precio_unitario || 0);
+        const cant = Number(p.cantidad || p.Cantidad || 1000);
+        return up * cant * 1.19;
+      };
+      result.sort((a, b) => {
+        const priceA = getBoxPrice(a);
+        const priceB = getBoxPrice(b);
+        return currentSort === 'asc' ? priceA - priceB : priceB - priceA;
+      });
     }
 
     return result;
@@ -173,10 +180,11 @@ async function init() {
 
   // Render original V2 category list
   const catContainer = document.getElementById('cat-btn-group');
+  
   if (catContainer) {
     catContainer.innerHTML = '';
     
-    // Todos button
+    // Todos button (ALWAYS rendered first)
     const btnAll = document.createElement('button');
     btnAll.className = 'v2-cat-btn active';
     btnAll.dataset.cat = 'all';
@@ -187,20 +195,24 @@ async function init() {
     catContainer.appendChild(btnAll);
 
     // Other categories
-    for (const c of categories) {
-      const btn = document.createElement('button');
-      btn.className = 'v2-cat-btn';
-      const catName = c.nombre || c.descripcion || 'Sin Nombre';
-      btn.dataset.cat = catName;
-      
-      const count = products.filter(p => window.pMatcher(p, catName)).length;
-      if (count === 0 && categories.length > 5) continue; // Skip empty if too many
+    if (categories && categories.length > 0) {
+      for (const c of categories) {
+        const btn = document.createElement('button');
+        btn.className = 'v2-cat-btn';
+        const catName = c.nombre || c.descripcion || 'Sin Nombre';
+        btn.dataset.cat = catName;
+        
+        const count = products.filter(p => window.pMatcher(p, catName)).length;
+        if (count === 0 && categories.length > 5) continue; 
 
-      btn.innerHTML = `
-        <span>${catName}</span>
-        <span class="v2-cat-count">${count}</span>
-      `;
-      catContainer.appendChild(btn);
+        btn.innerHTML = `
+          <span>${catName}</span>
+          <span class="v2-cat-count">${count}</span>
+        `;
+        catContainer.appendChild(btn);
+      }
+    } else {
+      console.warn('No active categories found or API failed.');
     }
 
     catContainer.addEventListener('click', (e) => {
@@ -214,18 +226,23 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const initialCat = params.get('cat') || 'all';
 
-  // Mobile toggle logic
+  // Toggle categories on mobile (accordion style)
+  const mobileCatToggle = document.getElementById('mobile-cat-toggle');
   const sidebar = document.getElementById('category-sidebar');
-  const mobileToggle = document.getElementById('mobile-cat-toggle');
-  if (mobileToggle && sidebar) {
-    mobileToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      sidebar.classList.toggle('is-expanded');
+
+  if (mobileCatToggle && sidebar) {
+    mobileCatToggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // BUG FIX: Prevent immediate close by document listener
+      const isExpanded = sidebar.classList.toggle('is-expanded');
+      mobileCatToggle.classList.toggle('is-open', isExpanded);
+      console.log('Mobile category toggled. Expanded:', isExpanded);
     });
     // Close when clicking outside
     document.addEventListener('click', (e) => {
-      if (sidebar.classList.contains('is-expanded') && !sidebar.contains(e.target)) {
+      if (sidebar.classList.contains('is-expanded') && !sidebar.contains(e.target) && !mobileCatToggle.contains(e.target)) {
         sidebar.classList.remove('is-expanded');
+        mobileCatToggle.classList.remove('is-open');
       }
     });
   }
@@ -235,6 +252,14 @@ async function init() {
     currentCat = cat;
     // Close sidebar on mobile
     if (sidebar) sidebar.classList.remove('is-expanded');
+
+    // Auto-scroll to top of product section on change (unless initial load)
+    const productsSection = document.getElementById('products-page-title') || document.getElementById('products');
+    if (productsSection && window.pageYOffset > 500) {
+      const offset = 140; // Adjust for sticky filters/toggle
+      const top = productsSection.getBoundingClientRect().top + window.pageYOffset - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
 
     const titleEl = document.getElementById('products-page-title') || document.querySelector('h1');
     const descEl = document.getElementById('current-category-desc');
@@ -322,8 +347,8 @@ async function init() {
     const id = Number(btn.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
-    const card = btn.closest('.product');
-    const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
+    const card = btn.closest('.v2-card');
+    const qty = Math.max(1, Number(card?.querySelector('.v2-qty-input')?.value) || 1);
 
     const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
 
@@ -377,18 +402,18 @@ async function init() {
 
   // Delegado: navegación de imágenes (prev/next)
   mount.addEventListener('click', (e) => {
-    const prev = e.target.closest('.img-prev');
-    const next = e.target.closest('.img-next');
+    const prev = e.target.closest('.v2-img-nav.prev');
+    const next = e.target.closest('.v2-img-nav.next');
     const nav = prev || next;
     if (!nav || !mount.contains(nav)) return;
     e.preventDefault();
     e.stopPropagation();
-    const card = nav.closest('.product');
+    const card = nav.closest('.v2-card');
     const id = Number(card?.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
     const imgs = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
-    const wrap = card.querySelector('.product-img-wrap');
+    const wrap = card.querySelector('.v2-card-img-wrap');
     const imgEl = card.querySelector('.product-img');
     let idx = Number(wrap?.dataset.index || 0);
     if (prev) idx = (idx - 1 + imgs.length) % imgs.length;
@@ -442,20 +467,20 @@ async function init() {
   };
 
   mount.addEventListener('mouseover', (e) => {
-    const wrap = e.target.closest('.product-img-wrap');
+    const wrap = e.target.closest('.v2-card-img-wrap');
     if (!wrap || !mount.contains(wrap)) return;
     showLens(wrap);
   });
 
   mount.addEventListener('mouseout', (e) => {
-    const wrap = e.target.closest('.product-img-wrap');
+    const wrap = e.target.closest('.v2-card-img-wrap');
     if (!wrap || !mount.contains(wrap)) return;
     if (wrap.contains(e.relatedTarget)) return;
     hideLens(wrap);
   });
 
   mount.addEventListener('mousemove', (e) => {
-    const wrap = e.target.closest('.product-img-wrap');
+    const wrap = e.target.closest('.v2-card-img-wrap');
     if (!wrap || !mount.contains(wrap)) return;
     moveLens(wrap, e.clientX, e.clientY);
   });
@@ -463,7 +488,7 @@ async function init() {
   mount.addEventListener('touchstart', (e) => {
     if (e.target.closest('button') || e.target.closest('a')) return;
     const touch = e.touches[0];
-    const wrap = e.target.closest('.product-img-wrap');
+    const wrap = e.target.closest('.v2-card-img-wrap');
     if (!wrap || !mount.contains(wrap) || !touch) return;
     e.preventDefault();
     showLens(wrap);
@@ -473,14 +498,14 @@ async function init() {
   mount.addEventListener('touchmove', (e) => {
     if (e.target.closest('button') || e.target.closest('a')) return;
     const touch = e.touches[0];
-    const wrap = e.target.closest('.product-img-wrap');
+    const wrap = e.target.closest('.v2-card-img-wrap');
     if (!wrap || !mount.contains(wrap) || !touch) return;
     e.preventDefault();
     moveLens(wrap, touch.clientX, touch.clientY);
   }, { passive: false });
 
   mount.addEventListener('touchend', (e) => {
-    const wrap = e.target.closest('.product-img-wrap');
+    const wrap = e.target.closest('.v2-card-img-wrap');
     if (!wrap || !mount.contains(wrap)) return;
     hideLens(wrap);
   });

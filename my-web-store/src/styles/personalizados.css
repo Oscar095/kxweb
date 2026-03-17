@@ -26,7 +26,7 @@
     overflow: hidden;
     z-index: 1;
     pointer-events: none;
-    background: linear-gradient(135deg, #ffffff 0%, #f4f7f9 100%);
+    background: linear-gradient(135deg, #eef8ffa9 0%, #f4f7f9 100%);
 }
 
 .blob-blue {
@@ -35,7 +35,7 @@
     left: -10%;
     width: 60vw;
     height: 60vw;
-    background: radial-gradient(circle, rgba(0, 159, 227, 0.15) 0%, rgba(0, 159, 227, 0) 70%);
+    background: radial-gradient(circle, rgba(117, 214, 255, 0.692) 0%, rgba(0, 159, 227, 0) 70%);
     filter: blur(80px);
 }
 
@@ -45,7 +45,7 @@
     right: -10%;
     width: 70vw;
     height: 70vw;
-    background: radial-gradient(circle, rgba(242, 140, 48, 0.15) 0%, rgba(242, 140, 48, 0) 70%);
+    background: radial-gradient(circle, rgba(242, 138, 48, 0.705) 0%, rgba(242, 140, 48, 0) 70%);
     filter: blur(80px);
 }
 
@@ -81,7 +81,7 @@
     transform: translate(-50%, -50%);
     font-size: clamp(8rem, 15vw, 18rem);
     font-weight: 900;
-    color: #f6f8fb;
+    color: #f6f8fba2;
     white-space: nowrap;
     z-index: 1;
     pointer-events: none;

@@ -30,8 +30,8 @@ export function productItemTemplate(p) {
         <div class="v2-oos-badge" style="display: none;">AGOTADO</div>
         <img class="product-img" src="${imgSrc}" alt="${p.name}" loading="lazy" onload="this.classList.add('loaded')" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
         ${Array.isArray(p.images) && p.images.length > 1 ? `
-          <button class="v2-img-nav prev" onclick="event.stopPropagation();">‹</button>
-          <button class="v2-img-nav next" onclick="event.stopPropagation();">›</button>
+          <button class="v2-img-nav prev">‹</button>
+          <button class="v2-img-nav next">›</button>
         ` : ''}
       </div>
       
@@ -41,13 +41,14 @@ export function productItemTemplate(p) {
           <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
             <span class="price-amount">$${formatMoney(totalConIva)}</span>
             <span class="price-unit">/ caja</span>
+            <span class="iva-tag">IVA incluido</span>
           </p>
         </div>
       </div>
 
       <div class="v2-card-actions">
         <input id="${qtyInputId}" type="number" class="v2-qty-input" min="1" value="1" data-dynamic-price="1" onclick="event.stopPropagation();">
-        <button class="v2-add-btn add-to-cart" data-id="${p.id}" onclick="event.stopPropagation();">
+        <button class="v2-add-btn add-to-cart" data-id="${p.id}">
           Agregar
         </button>
       </div>
@@ -148,7 +149,7 @@ export function attachDynamicPriceBehavior(rootEl) {
     }
     const precioCaja = unitario * BOX_SIZE;
     const precioConIva = Math.round(precioCaja * 1.19);
-    priceEl.innerHTML = '$' + fmt(precioConIva) + ' <span style="font-size:0.7rem;color:#666;">/ caja</span> <span style="font-size:0.65rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
+    priceEl.innerHTML = '$' + fmt(precioConIva) + ' <span class="price-unit">/ caja</span> <span class="iva-tag">IVA incluido</span>';
     priceEl.dataset.precioCaja = String(precioCaja);
     if (data?.escalonUsado) {
       priceEl.dataset.dynamicEscalon = String(data.escalonUsado);

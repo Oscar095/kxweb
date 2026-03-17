@@ -13,9 +13,9 @@ export function renderCartDrawer(mount) {
     </div>
     <div class="cart-body" id="cart-body"></div>
     <div class="cart-footer">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div class="cart-summary">
         <span style="font-size:1.1rem; color:var(--muted); font-weight:600;">Total a Pagar:</span>
-        <strong id="cart-total" style="font-size:1.6rem; color:var(--text-main);">$0,00</strong>
+        <div id="cart-total"></div>
       </div>
       <button id="checkout" class="btn-primary" style="width: 100%; font-size: 1.15rem; padding: 14px; border-radius: 12px; box-sizing: border-box; text-align:center;">Procesar Pago</button>
     </div>
@@ -55,7 +55,7 @@ export function renderCartDrawer(mount) {
         </a>
         <div class="meta" style="flex:1;min-width:0;">
           <a href="/product?id=${i.id}" style="text-decoration:none;color:inherit;"><div style="font-weight:700;white-space:normal;overflow:visible; font-size: 1rem; color:var(--text-main); line-height: 1.2;">${i.name}</div></a>
-          <div style="color:var(--primary);font-size:13px; font-weight: 600; margin-top:4px;">$${formatMoney(Math.round(i.price * 1.19))} <span style="font-size:10px;color:#4CAF50;">IVA incl.</span></div>
+          <div style="color:var(--primary);font-size:13px; font-weight: 600; margin-top:4px;">$${formatMoney(Math.round(i.price * 1.19))} <span style="font-size:10px;color:#f28c30;">IVA incl.</span></div>
           <div style="color:var(--text-main);font-size:13px; margin-top:2px;">Subtotal: <strong>$${formatMoney(Math.round(i.subtotal * 1.19))}</strong></div>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
@@ -71,13 +71,16 @@ export function renderCartDrawer(mount) {
     `).join('') : '<div style="text-align:center; padding:40px 0; color:var(--muted); font-weight:600;">Ouch, tu carrito está vacío 🛒</div>';
 
     const total = grouped.reduce((s, it) => s + Math.round(it.subtotal * 1.19), 0);
-    document.getElementById('cart-total').innerHTML = `Total: $${formatMoney(total)} <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>`;
+    document.getElementById('cart-total').innerHTML = `<strong>$${formatMoney(total)}</strong> <span style="font-size:0.75rem;color:#f28c30;font-weight:600;">IVA incluido</span>`;
   }
 
   cartService.onChange = update;
   cartService._notify();
 
-  mount.querySelector('#close-cart').addEventListener('click', () => mount.classList.remove('open'));
+  mount.querySelector('#close-cart').addEventListener('click', () => {
+    mount.classList.remove('open');
+    document.body.classList.remove('cart-open');
+  });
 
   let clearConfirmTimeout = null;
 
@@ -140,7 +143,10 @@ export function renderCartDrawer(mount) {
   });
 
   // global events
-  window.addEventListener('toggle-cart', () => mount.classList.toggle('open'));
+  window.addEventListener('toggle-cart', () => {
+    mount.classList.toggle('open');
+    document.body.classList.toggle('cart-open', mount.classList.contains('open'));
+  });
 
   // reemplaza el listener del botón checkout por:
   mount.querySelector('#checkout').addEventListener('click', () => {

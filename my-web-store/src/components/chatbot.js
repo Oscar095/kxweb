@@ -405,14 +405,13 @@ export function initChatbot() {
     /* ===== MOBILE RESPONSIVE ===== */
     @media (max-width: 600px) {
       .kos-chatbot-window {
-        width: 100%;
-        height: 100%;
-        max-height: calc(100vh - 80px);
-        bottom: 0;
-        right: 0;
-        left: 0;
-        border-radius: 20px 20px 0 0;
-        box-shadow: 0 -8px 32px rgba(0,0,0,0.1);
+        width: calc(100% - 32px);
+        height: min(580px, calc(100% - 140px));
+        bottom: 24px;
+        right: 16px;
+        left: 16px;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
       }
       .kos-chatbot-btn {
         width: 56px;
@@ -425,6 +424,7 @@ export function initChatbot() {
         gap: 4px;
       }
     }
+
   `;
   document.head.appendChild(style);
 

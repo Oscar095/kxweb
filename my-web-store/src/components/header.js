@@ -39,6 +39,7 @@ export function renderHeader(container) {
       </div>
     </div>
     <div class="header-glass-pill">
+      <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menú">☰</button>
       <div class="logo">
         <a href="/">
           <img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/>
@@ -52,7 +53,6 @@ export function renderHeader(container) {
         <span class="nav-rect"></span>
       </nav>
       <div class="search">
-        <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menú">☰</button>
         <input id="search-input" placeholder="Buscar productos..." />
         <button id="cart-toggle" title="Carrito" class="cart-btn">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
