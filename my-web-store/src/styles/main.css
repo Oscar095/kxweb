@@ -178,6 +178,51 @@ textarea {
 	}
 }
 
+/* Hero Actions Buttons */
+.hero-actions {
+	display: flex;
+	gap: 20px;
+	margin-top: 32px;
+	flex-wrap: nowrap;
+}
+
+.hero-actions .btn-primary,
+.hero-actions .btn-naranja {
+	min-width: 240px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 64px;
+	padding: 0 32px !important;
+	font-weight: 800;
+	font-size: 1.25rem;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	font-family: 'Outfit', sans-serif;
+	white-space: nowrap;
+}
+
+/* Pulses */
+.cta-pulse-blue {
+	animation: cta-pulse-blue 2s infinite;
+}
+
+.cta-pulse-naranja {
+	animation: cta-pulse-naranja 2s infinite;
+}
+
+@keyframes cta-pulse-blue {
+	0% { box-shadow: 0 0 0 0 rgba(0, 159, 227, 0.7); }
+	70% { box-shadow: 0 0 0 15px rgba(0, 159, 227, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(0, 159, 227, 0); }
+}
+
+@keyframes cta-pulse-naranja {
+	0% { box-shadow: 0 0 0 0 rgba(242, 140, 48, 0.7); }
+	70% { box-shadow: 0 0 0 15px rgba(242, 140, 48, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(242, 140, 48, 0); }
+}
+
 /* Header */
 header {
 	position: fixed;
@@ -192,9 +237,9 @@ header {
 
 .header-glass-pill {
 	position: relative;
-	background: transparent;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.6);
-	box-shadow: 0 4px 20px rgba(0, 159, 227, 0.15);
+	background: #ffffff;
+	border-bottom: 1px solid #e2e8f0;
+	box-shadow: 0 4px 20px rgba(0, 159, 227, 0.1);
 	border-radius: 0;
 	display: flex;
 	align-items: center;
@@ -211,9 +256,7 @@ header {
 	content: '';
 	position: absolute;
 	inset: 0;
-	background: rgba(255, 255, 255, 0.45);
-	backdrop-filter: blur(24px);
-	-webkit-backdrop-filter: blur(24px);
+	background: #ffffff;
 	border-radius: inherit;
 	z-index: -1;
 	pointer-events: none;
@@ -279,7 +322,7 @@ header {
 .nav a:hover {
 	color: var(--primary);
 	text-shadow: 0 0 12px rgba(0, 159, 227, 0.6);
-	background: rgba(255, 255, 255, 0.7);
+	background: #f8fafc;
 }
 
 /* Premium style for Personalizados link only on hover/active V11 */
@@ -404,8 +447,7 @@ header {
 	border: 1px solid rgba(0, 0, 0, 0.1);
 	border-radius: 20px;
 	width: 220px;
-	background: rgba(255, 255, 255, 0.7);
-	backdrop-filter: blur(8px);
+	background: #ffffff;
 	transition: all 0.3s ease;
 	font-family: inherit;
 	font-size: 0.95rem;
@@ -1443,6 +1485,49 @@ h6 {
 	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
 	transition: transform 0.3s ease, box-shadow 0.3s ease;
 	border: 1px solid rgba(0, 0, 0, 0.02);
+	position: relative;
+	overflow: hidden;
+}
+
+.benefit-card.featured {
+	grid-column: 1 / -1;
+	background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+	color: #fff !important;
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
+	transform: scale(1.01);
+	margin-bottom: 20px;
+	text-align: center;
+}
+
+.benefit-card.featured h3 {
+	color: #fff !important;
+	font-size: 1.8rem;
+}
+
+.benefit-card.featured h3 span {
+	color: rgba(255, 255, 255, 0.8) !important;
+	font-weight: 300;
+}
+
+.benefit-card.featured p {
+	color: rgba(255, 255, 255, 0.9) !important;
+	font-size: 1.2rem;
+	max-width: 800px;
+	margin: 0 auto;
+}
+
+.benefit-card.featured .benefit-icon {
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+	width: 80px;
+	height: 80px;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.benefit-card.featured .benefit-icon svg {
+	width: 44px;
+	height: 44px;
 }
 
 .benefit-card:hover {
@@ -3050,16 +3135,21 @@ h6 {
 	position: absolute;
 	top: 10px;
 	left: 10px;
-	background: var(--secondary, #f28c30);
+	background: #ef4444; /* Rojo más vibrante */
 	color: #fff;
-	padding: 3px 10px;
-	border-radius: 6px;
-	font-size: 0.7rem;
-	font-weight: 700;
+	padding: 4px 12px;
+	border-radius: 8px;
+	font-size: 0.75rem;
+	font-weight: 800;
 	letter-spacing: 0.5px;
 	text-transform: uppercase;
-	z-index: 2;
+	z-index: 10;
 	pointer-events: none;
+	box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+}
+
+img.product-img, img.bs-card-img {
+    transition: filter 0.4s ease, opacity 0.4s ease !important;
 }
 
 /* Image nav arrows */
@@ -3984,12 +4074,12 @@ h6 {
 
 /* ──── Security trust bar ──── */
 .co-trust-bar {
-	background: linear-gradient(90deg, #0a1628, #0d2240, #0a1628);
-	color: rgba(255, 255, 255, .88);
+	background: var(--secondary);
+	color: #ffffff;
 	padding: 9px 0;
-	font-size: .78rem;
-	font-weight: 500;
-	letter-spacing: .3px;
+	font-size: .8rem;
+	font-weight: 700;
+	letter-spacing: .2px;
 	margin-top: 140px;
 	/* Push below fixed desktop header */
 }
@@ -4013,7 +4103,7 @@ h6 {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	opacity: .9
+	opacity: 1
 }
 
 /* ──── Main wrapper ──── */
@@ -4986,11 +5076,11 @@ h6 {
 /* --- CUSTOM ANTIGRAVITY CSS APPEND --- */
 /* Announcement Bar Overlay */
 .announcement-bar {
-	background-color: #009FE3;
+	background-color: #F28C30;
 	color: #fff;
 	text-align: center;
 	font-size: 0.85rem;
-	font-weight: 600;
+	font-weight: 700;
 	letter-spacing: 0.5px;
 	padding: 0;
 	z-index: 200;
@@ -5362,7 +5452,9 @@ h6 {
 
 .out-of-stock-badge {
 	white-space: nowrap !important;
-	z-index: 10;
+	z-index: 20 !important;
+	background-color: #ef4444 !important;
+	box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
 /* --- MOBILE OVERRIDES (Moved to end for higher precedence) --- */

@@ -1508,7 +1508,7 @@ async function fetchInventarioForSku(skuRaw) {
       return result;
     }
 
-    const statusText = inventario > 1000 ? 'En Existencia' : 'Agotado';
+    const statusText = inventario > 0 ? 'En Existencia' : 'Agotado';
     const result = { sku: skuRaw, inventario, estado: statusText };
     inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
     return result;

@@ -2,6 +2,7 @@ import { renderHeader } from './components/header.js?v=24.0';
 import { renderProducts } from './components/product-list.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
+import { applyOutOfStockToCard } from './components/product-item.js';
 async function init() {
   renderHeader(document.getElementById('site-header'));
   renderCartDrawer(document.getElementById('cart-drawer'));
@@ -46,6 +47,14 @@ async function init() {
   if (!window._inventoryCache) window._inventoryCache = new Map();
   const inventoryCache = window._inventoryCache;
 
+  // Promise global que se resuelve cuando bulk-inventory termina.
+  // product-item.js la usa para no asumir 'Agotado' antes de tiempo.
+  if (!window._inventoryReady) {
+    let _resolveInv;
+    window._inventoryReady = new Promise(r => { _resolveInv = r; });
+    window._resolveInventoryReady = _resolveInv;
+  }
+
   async function checkAllInventory() {
     const skuMap = [];
     for (const p of products) {
@@ -69,8 +78,11 @@ async function init() {
           const inv = data[sku];
           if (inv && inv.estado === 'En Existencia') {
             inventoryCache.set(id, 'disponible');
-          } else {
+          } else if (inv && inv.estado === 'Agotado' && inv.error !== 'upstream_error' && inv.error !== 'timeout') {
             inventoryCache.set(id, 'no-disponible');
+          } else {
+            // En caso de error o SKU no encontrado, asumimos disponible para evitar falsos negativos
+            inventoryCache.set(id, 'disponible');
           }
         }
         return;
@@ -591,7 +603,7 @@ async function init() {
   sortSelect?.addEventListener('change', reapply);
   filterSelect?.addEventListener('change', reapply);
 
-  // Fetch inventory
+  // Fetch inventory (non-blocking)
   checkAllInventory().then(() => {
     if (filterSelect?.value !== 'all') reapply();
     window.dispatchEvent(new CustomEvent('content-loaded'));

@@ -342,6 +342,12 @@ function renderProduct(p) {
             upstreamEstado = 'En Existencia';
             inventarioExistencia = Number(data?.inventario);
             renderStockAndCartState();
+          } else if (data.error === 'upstream_error' || data.error === 'timeout') {
+            // En caso de error de servidor, dejarlo como disponible
+            stock.textContent = '';
+            stock.className = 'pd-stock';
+            upstreamEstado = 'En Existencia';
+            setCartEnabled(true);
           } else {
             upstreamEstado = 'Agotado';
             inventarioExistencia = Number(data?.inventario);
@@ -349,11 +355,10 @@ function renderProduct(p) {
           }
         })
         .catch(() => {
-          stock.textContent = 'Agotado';
-          stock.className = 'pd-stock pd-stock--out';
-          upstreamEstado = 'Agotado';
-          inventarioExistencia = null;
-          setCartEnabled(false, 'Agotado');
+          stock.textContent = '';
+          stock.className = 'pd-stock';
+          upstreamEstado = 'En Existencia';
+          setCartEnabled(true);
         });
     }
   }

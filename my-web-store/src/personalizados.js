@@ -66,12 +66,15 @@ function initCotizador() {
     // Populate the select with API data
     populateSelect(select);
 
+    const QUANTITY_MAP = [2000, 4000, 8000, 20000];
+
     function calcular() {
         const selectedOpt = select.options[select.selectedIndex];
         if (!selectedOpt || !selectedOpt.dataset.priceUnit) return;
 
         const basePrice = parseFloat(selectedOpt.dataset.priceUnit);
-        const cantidad = parseInt(slider.value, 10);
+        const stepIndex = parseInt(slider.value, 10);
+        const cantidad = QUANTITY_MAP[stepIndex] || 2000;
 
         // Volume discount: ~2% per each 1000 over base 2000, capped at 30%
         const unidadesBase = 2000;

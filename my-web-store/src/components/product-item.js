@@ -56,6 +56,35 @@ export function productItemTemplate(p) {
   `;
 }
 
+/**
+ * Aplica el estilo de "No disponible" a una tarjeta de producto dada.
+ * Se usa desde páginas que hacen su propio bulk-check (ej: search-page.js).
+ * @param {HTMLElement} card - El elemento de la tarjeta de producto
+ */
+/**
+ * Apply out of stock styles to a card element
+ */
+export function applyOutOfStockToCard(card) {
+  if (!card) return;
+  const badge = card.querySelector('.v2-oos-badge') || card.querySelector('.out-of-stock-badge');
+  if (badge) badge.style.setProperty('display', 'block', 'important');
+
+  const img = card.querySelector('.product-img') || card.querySelector('.bs-card-img') || card.querySelector('img');
+  if (img) {
+    img.style.setProperty('filter', 'grayscale(1)', 'important');
+    img.style.setProperty('opacity', '0.5', 'important');
+  }
+
+  const btn = card.querySelector('.add-to-cart') || card.querySelector('.v2-add-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'No disponible';
+    btn.style.setProperty('background-color', '#ccc', 'important');
+    btn.style.setProperty('color', '#666', 'important');
+    btn.style.setProperty('cursor', 'not-allowed', 'important');
+  }
+}
+
 export function attachDynamicPriceBehavior(rootEl) {
   if (!rootEl) return;
   const skuAttr = rootEl.getAttribute('data-sku');
@@ -64,44 +93,48 @@ export function attachDynamicPriceBehavior(rootEl) {
     const productId = Number(rootEl.dataset.id);
 
     const applyOutOfStock = () => {
+      rootEl.classList.add('is-out-of-stock');
       const badge = rootEl.querySelector('.v2-oos-badge');
       const img = rootEl.querySelector('.product-img');
       const btn = rootEl.querySelector('.add-to-cart');
-      if (badge) badge.style.setProperty('display', 'block', 'important');
+      if (badge) badge.style.display = 'block';
       if (img) {
-        img.style.setProperty('filter', 'grayscale(1)', 'important');
-        img.style.setProperty('opacity', '0.5', 'important');
+        img.style.filter = 'grayscale(1)';
+        img.style.opacity = '0.5';
       }
       if (btn) {
         btn.disabled = true;
-        btn.textContent = 'No disponible';
-        btn.title = 'No disponible';
-        btn.style.backgroundColor = '#ccc';
-        btn.style.borderColor = '#ccc';
-        btn.style.color = '#777';
-        btn.style.cursor = 'not-allowed';
-        btn.classList.add('disabled');
+        btn.textContent = 'Agotado';
       }
     };
 
-    // Non-blocking stock check
+    // Non-blocking stock check: espera al bulk-inventory antes de decidir.
+    // Esto evita la race condition donde el caché aún no está listo y se asume 'Agotado'.
     const checkStock = async () => {
       try {
         const cache = window._inventoryCache;
-        let estado;
+
+        // Si el caché ya tiene este producto, usarlo directamente (sin fetch)
         if (cache && cache.has(productId)) {
-          estado = cache.get(productId) === 'disponible' ? 'En Existencia' : 'Agotado';
-        } else {
-          estado = 'Agotado';
+          if (cache.get(productId) !== 'disponible') applyOutOfStock();
+          return;
+        }
+
+        // Fallback: individual check
+        try {
           const r = await fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`);
           if (r.ok) {
             const data = await r.json();
-            estado = (data && (data.estado || data.status || '')).toString();
+            const estado = (data && (data.estado || data.status || '')).toString();
+            // Solo marcar como agotado si no hay error y el estado es explícitamente "Agotado"
+            if (estado === 'Agotado' && data.error !== 'upstream_error' && data.error !== 'timeout') {
+              applyOutOfStock();
+            }
           }
-        }
-        if (estado !== 'En Existencia') applyOutOfStock();
+        } catch {}
       } catch (e) {
-        applyOutOfStock();
+        // Error inesperado — no marcar como agotado
+        console.warn('[checkStock] Error inesperado:', e);
       }
     };
     checkStock();

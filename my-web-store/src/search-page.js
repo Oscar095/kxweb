@@ -1,7 +1,7 @@
 import { renderHeader } from './components/header.js?v=24.0';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
-import { productItemTemplate, attachDynamicPriceBehavior } from './components/product-item.js';
+import { productItemTemplate, attachDynamicPriceBehavior, applyOutOfStockToCard } from './components/product-item.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,16 @@ async function init() {
   let activeFilter = 'all';
 
   // ── filter ──────────────────────────────────────────────────────────────────
+
+  // ── inventory sync ──────────────────────────────────────────────────────────
+  if (!window._inventoryCache) window._inventoryCache = new Map();
+  const inventoryCache = window._inventoryCache;
+
+  if (!window._inventoryReady) {
+    let _res;
+    window._inventoryReady = new Promise(r => { _res = r; });
+    window._resolveInventoryReady = _res;
+  }
 
   function filterProducts(q) {
     const qL = q.trim().toLowerCase();

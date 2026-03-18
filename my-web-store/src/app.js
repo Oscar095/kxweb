@@ -69,7 +69,9 @@ function renderBestSellers(products, mount) {
         const sku = it.getAttribute('data-sku');
         if (!sku) return;
         const inv = data[sku];
-        if (!inv || inv.estado !== 'En Existencia') {
+        // Solo marcar como agotado si la respuesta es positiva Y dice "Agotado"
+        // Si no hay info (inv undefined) o hay error previo, no alarmar al usuario.
+        if (inv && inv.estado === 'Agotado' && inv.error !== 'upstream_error' && inv.error !== 'timeout') {
           const badge = it.querySelector('.out-of-stock-badge');
           const img = it.querySelector('.bs-card-img');
           const btn = it.querySelector('.add-to-cart');
