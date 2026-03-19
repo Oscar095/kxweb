@@ -72,21 +72,18 @@ async function init() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skus: uniqueSkus })
       });
-      if (r.ok) {
-        const data = await r.json();
-        for (const { id, sku } of skuMap) {
-          const inv = data[sku];
-          if (inv && inv.estado === 'En Existencia') {
-            inventoryCache.set(id, 'disponible');
-          } else if (inv && inv.estado === 'Agotado' && inv.error !== 'upstream_error' && inv.error !== 'timeout') {
-            inventoryCache.set(id, 'no-disponible');
-          } else {
-            // En caso de error o SKU no encontrado, asumimos disponible para evitar falsos negativos
-            inventoryCache.set(id, 'disponible');
-          }
+      const data = await r.json().catch(() => ({}));
+      for (const { id, sku } of skuMap) {
+        const inv = data[sku];
+        const isOk = (inv && inv.estado === 'En Existencia');
+        if (inv && !isOk) {
+          inventoryCache.set(id, 'no-disponible');
+        } else {
+          // En caso de SKU no encontrado, asumimos disponible
+          inventoryCache.set(id, 'disponible');
         }
-        return;
       }
+      return;
     } catch (e) {
       console.warn('Bulk inventory failed, falling back to individual checks', e);
     }
@@ -159,12 +156,12 @@ async function init() {
       item.addEventListener('click', () => {
         const val = item.dataset.value;
         const text = item.textContent;
-        
+
         // Update UI
         label.textContent = text;
         items.forEach(i => i.classList.remove('is-selected'));
         item.classList.add('is-selected');
-        
+
         dropdown.classList.remove('is-open');
         onSelect(val);
       });
@@ -192,10 +189,10 @@ async function init() {
 
   // Render original V2 category list
   const catContainer = document.getElementById('cat-btn-group');
-  
+
   if (catContainer) {
     catContainer.innerHTML = '';
-    
+
     // Todos button (ALWAYS rendered first)
     const btnAll = document.createElement('button');
     btnAll.className = 'v2-cat-btn active';
@@ -213,9 +210,9 @@ async function init() {
         btn.className = 'v2-cat-btn';
         const catName = c.nombre || c.descripcion || 'Sin Nombre';
         btn.dataset.cat = catName;
-        
+
         const count = products.filter(p => window.pMatcher(p, catName)).length;
-        if (count === 0 && categories.length > 5) continue; 
+        if (count === 0 && categories.length > 5) continue;
 
         btn.innerHTML = `
           <span>${catName}</span>
@@ -534,7 +531,7 @@ async function init() {
       const cat = pill.dataset.cat;
       currentCat = cat;
       currentSearch = '';
-      
+
       const searchInput = document.getElementById('search-input');
       if (searchInput) searchInput.value = '';
 

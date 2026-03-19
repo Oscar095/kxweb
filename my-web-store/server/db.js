@@ -207,6 +207,14 @@ async function ensureSchema() {
     END
   `);
 
+  // Ensure es_personalizado column exists on products
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.products','es_personalizado') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD es_personalizado BIT NOT NULL CONSTRAINT DF_products_es_personalizado DEFAULT (0);
+    END
+  `);
+
   // logos (header/footer)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[logos]') AND type in (N'U'))

@@ -28,9 +28,9 @@ function populateSelect(select) {
         return;
     }
 
-    // Group by category
+    // Group by category, filtering only personalized products
     const groups = {};
-    productsData.forEach(p => {
+    productsData.filter(p => p.es_personalizado === true || p.es_personalizado === 1).forEach(p => {
         const cat = p.category_name || 'Otros';
         if (!groups[cat]) groups[cat] = [];
         groups[cat].push(p);

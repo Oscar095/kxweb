@@ -408,23 +408,23 @@ app.post('/api/pedidos', async (req, res) => {
     if (!clienteExiste) {
       try {
         const terceroBody = {
-        tipo_documento: tipoDocumento || null,
-        numero_documento: nitId,
-        digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
-        nombres: nombres || null,
-        apellidos: apellidos || null,
-        nombre_completo: nombreCompleto || null,
-        fecha_nacimiento: fechaNacimiento || null,
-        email: email,
-        telefono: telefonoFijo || null,
-        celular: phone || null,
-        direccion: address || null,
-        ciudad: city || null,
-        departamento: departamento || null,
-        pais: pais || 'CO',
-        tipo_persona: tipoPersona || 'N',
-        regimen: regimen || null
-      };
+          tipo_documento: tipoDocumento || null,
+          numero_documento: nitId,
+          digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
+          nombres: nombres || null,
+          apellidos: apellidos || null,
+          nombre_completo: nombreCompleto || null,
+          fecha_nacimiento: fechaNacimiento || null,
+          email: email,
+          telefono: telefonoFijo || null,
+          celular: phone || null,
+          direccion: address || null,
+          ciudad: city || null,
+          departamento: departamento || null,
+          pais: pais || 'CO',
+          tipo_persona: tipoPersona || 'N',
+          regimen: regimen || null
+        };
         fetch('https://kx-endpoints.azurewebsites.net/crear-tercero', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -692,6 +692,7 @@ function mapProductRow(d) {
     empaque_descripcion: d.empaque_descripcion || '',
     description: d.description || '',
     habilitado: d.habilitado != null ? !!d.habilitado : true,
+    es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
     images: imgs,
     image: imgs[0] || '/images/placeholder.svg',
     image2: d.image2 || '',
@@ -743,6 +744,7 @@ app.get('/api/products/:id', async (req, res) => {
       empaque_descripcion: d.empaque_descripcion || '',
       description: d.description || '',
       habilitado: d.habilitado != null ? !!d.habilitado : true,
+      es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
       image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
       images: imgs,
       image2: d.image2 || '',
@@ -1249,6 +1251,7 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
     const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
     const row_empaque = asNumber(b.row_empaque) ?? null;
+    const es_personalizado = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
     if (!name) return res.status(400).json({ message: 'Nombre requerido' });
 
     // images: can be array or JSON string
@@ -1268,11 +1271,11 @@ app.post('/api/products', requireAdmin, async (req, res) => {
 
     // Validate categoryParam resolved and exists (FK)
     if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
-    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque });
-    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque)
+    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque, es_personalizado });
+    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque,es_personalizado)
         OUTPUT INSERTED.id
-        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque);`, {
-      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque
+        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque,@es_personalizado);`, {
+      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque, es_personalizado: es_personalizado ? 1 : 0
     });
     const newId = resIns[0] && resIns[0].id;
     productsCache.data = null; // invalidar caché
@@ -1868,6 +1871,11 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     if (categoryResolved != null) { sets.push('category = @category'); params.category = categoryResolved; }
     if (row_empaque != null) { sets.push('row_empaque = @row_empaque'); params.row_empaque = row_empaque; }
     if (description !== '') { sets.push('description = @description'); params.description = description; }
+    if (b.es_personalizado !== undefined) {
+      const esp = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
+      sets.push('es_personalizado = @es_personalizado');
+      params.es_personalizado = esp ? 1 : 0;
+    }
     if (images !== undefined) {
       sets.push('images = @images'); params.images = JSON.stringify(images);
       params.image2 = images[1] || '';

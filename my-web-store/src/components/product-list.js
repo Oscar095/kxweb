@@ -29,7 +29,7 @@ export function renderProducts(products, mount) {
   const remaining = toRender.slice(INITIAL_BATCH);
 
   mount.innerHTML = initial.map(productItemTemplate).join('');
-  const initialCards = Array.from(mount.querySelectorAll('.product'));
+  const initialCards = Array.from(mount.querySelectorAll('.v2-card'));
   initialCards.forEach(card => attachDynamicPriceBehavior(card));
 
   // Progressive loading for remaining products

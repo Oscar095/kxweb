@@ -66,22 +66,49 @@ export function productItemTemplate(p) {
  */
 export function applyOutOfStockToCard(card) {
   if (!card) return;
-  const badge = card.querySelector('.v2-oos-badge') || card.querySelector('.out-of-stock-badge');
-  if (badge) badge.style.setProperty('display', 'block', 'important');
+  card.classList.add('is-out-of-stock', 'oos-applied');
 
-  const img = card.querySelector('.product-img') || card.querySelector('.bs-card-img') || card.querySelector('img');
-  if (img) {
-    img.style.setProperty('filter', 'grayscale(1)', 'important');
-    img.style.setProperty('opacity', '0.5', 'important');
+  // 1. Badge ligero
+  const badge = card.querySelector('.v2-oos-badge') || card.querySelector('.out-of-stock-badge');
+  if (badge) {
+    badge.textContent = 'No disponible';
+    badge.style.cssText = `
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      background: #ef4444 !important;
+      color: #fff !important;
+      padding: 2px 8px !important;
+      border-radius: 4px !important;
+      font-size: 11px !important;
+      position: absolute !important;
+      top: 5px !important;
+      left: 5px !important;
+      z-index: 100 !important;
+      text-transform: uppercase !important;
+    `;
   }
 
-  const btn = card.querySelector('.add-to-cart') || card.querySelector('.v2-add-btn');
+  // 2. Imagen (solo opacidad suave)
+  const img = card.querySelector('.product-img') || card.querySelector('.bs-card-img') || card.querySelector('img');
+  if (img) {
+    img.style.setProperty('opacity', '0.7', 'important');
+    img.style.setProperty('filter', 'none', 'important');
+  }
+
+  // 3. Botón desactivado
+  const btn = card.querySelector('.add-to-cart') || card.querySelector('.v2-add-btn') || card.querySelector('button');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'No disponible';
-    btn.style.setProperty('background-color', '#ccc', 'important');
-    btn.style.setProperty('color', '#666', 'important');
-    btn.style.setProperty('cursor', 'not-allowed', 'important');
+    btn.innerHTML = 'No disponible';
+    btn.style.cssText = `
+      background-color: #f5f5f5 !important;
+      color: #aaa !important;
+      cursor: not-allowed !important;
+      border: 1px solid #eee !important;
+      box-shadow: none !important;
+      pointer-events: none !important;
+    `;
   }
 }
 
@@ -93,19 +120,7 @@ export function attachDynamicPriceBehavior(rootEl) {
     const productId = Number(rootEl.dataset.id);
 
     const applyOutOfStock = () => {
-      rootEl.classList.add('is-out-of-stock');
-      const badge = rootEl.querySelector('.v2-oos-badge');
-      const img = rootEl.querySelector('.product-img');
-      const btn = rootEl.querySelector('.add-to-cart');
-      if (badge) badge.style.display = 'block';
-      if (img) {
-        img.style.filter = 'grayscale(1)';
-        img.style.opacity = '0.5';
-      }
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Agotado';
-      }
+      applyOutOfStockToCard(rootEl);
     };
 
     // Non-blocking stock check: espera al bulk-inventory antes de decidir.
@@ -122,16 +137,17 @@ export function attachDynamicPriceBehavior(rootEl) {
 
         // Fallback: individual check
         try {
-          const r = await fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`);
-          if (r.ok) {
-            const data = await r.json();
-            const estado = (data && (data.estado || data.status || '')).toString();
-            // Solo marcar como agotado si no hay error y el estado es explícitamente "Agotado"
-            if (estado === 'Agotado' && data.error !== 'upstream_error' && data.error !== 'timeout') {
-              applyOutOfStock();
-            }
+          const sku = (rootEl.getAttribute('data-sku') || '').trim();
+          if (!sku) return;
+          const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
+          // Aun si el status es 502, el body puede traer { estado: 'Agotado' }
+          const data = await r.json().catch(() => ({}));
+          const estado = (data && (data.estado || data.status || '')).toString();
+
+          if (estado !== 'En Existencia') {
+            applyOutOfStock();
           }
-        } catch {}
+        } catch { }
       } catch (e) {
         // Error inesperado — no marcar como agotado
         console.warn('[checkStock] Error inesperado:', e);

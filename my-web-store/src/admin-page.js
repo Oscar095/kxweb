@@ -58,6 +58,7 @@ async function loadProducts() {
             <span style="font-weight: 600; color: var(--admin-text-main);">${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</span>
         </div>
         <div style="font-size: 0.85rem; color: #555; margin-top: 4px;"><strong>Stock:</strong> ${safe(p.cantidad ?? p.Cantidad)} | <strong>SKU:</strong> ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
+        ${p.es_personalizado ? '<div style="font-size:0.75rem; color:#d97706; font-weight:700; text-transform:uppercase; margin-top:4px;">✨ Personalizado</div>' : ''}
         ${descHtml}
         <div class="gpc-actions">
           <button data-id="${p.id}" class="toggle-habilitado ${toggleClass}">
@@ -121,6 +122,8 @@ async function loadProducts() {
         // Set empaque select
         const selEmp = form.querySelector('#p-empaque');
         if (selEmp) selEmp.value = prod.row_empaque != null ? prod.row_empaque : '';
+        const selPers = form.querySelector('#p-personalizado');
+        if (selPers) selPers.value = String(prod.es_personalizado || 'false');
         form.description.value = prod.description || '';
         form.images.value = ''; // limpia selección
 
@@ -222,6 +225,7 @@ async function submitForm(ev) {
     payload.cantidad = formEl.querySelector('#p-cantidad')?.value || '';
     payload.category = formEl.querySelector('#p-category')?.value || '';
     payload.row_empaque = formEl.querySelector('#p-empaque')?.value || '';
+    payload.es_personalizado = formEl.querySelector('#p-personalizado')?.value || 'false';
     payload.description = formEl.querySelector('#p-desc')?.value || '';
 
     // Files selected
