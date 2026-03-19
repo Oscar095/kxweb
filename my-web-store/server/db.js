@@ -215,6 +215,14 @@ async function ensureSchema() {
     END
   `);
 
+  // Ensure precio_personalizado_2000 column exists on products
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.products','precio_personalizado_2000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_2000 FLOAT NULL;
+    END
+  `);
+
   // logos (header/footer)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[logos]') AND type in (N'U'))

@@ -123,7 +123,14 @@ async function loadProducts() {
         const selEmp = form.querySelector('#p-empaque');
         if (selEmp) selEmp.value = prod.row_empaque != null ? prod.row_empaque : '';
         const selPers = form.querySelector('#p-personalizado');
-        if (selPers) selPers.value = String(prod.es_personalizado || 'false');
+        if (selPers) {
+          selPers.value = String(prod.es_personalizado || 'false');
+          // Update visibility
+          const priceGroup = document.getElementById('p-precio-personalizado-group');
+          if (priceGroup) priceGroup.style.display = (selPers.value === 'true') ? 'block' : 'none';
+        }
+        const inputPersPrice = form.querySelector('#p-precio-personalizado-2000');
+        if (inputPersPrice) inputPersPrice.value = prod.precio_personalizado_2000 != null ? prod.precio_personalizado_2000 : '';
         form.description.value = prod.description || '';
         form.images.value = ''; // limpia selección
 
@@ -226,6 +233,7 @@ async function submitForm(ev) {
     payload.category = formEl.querySelector('#p-category')?.value || '';
     payload.row_empaque = formEl.querySelector('#p-empaque')?.value || '';
     payload.es_personalizado = formEl.querySelector('#p-personalizado')?.value || 'false';
+    payload.precio_personalizado_2000 = formEl.querySelector('#p-precio-personalizado-2000')?.value || null;
     payload.description = formEl.querySelector('#p-desc')?.value || '';
 
     // Files selected
@@ -286,6 +294,13 @@ async function submitForm(ev) {
     console.error(e); status.textContent = 'Error guardando producto.';
   }
 }
+
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'p-personalizado') {
+    const priceGroup = document.getElementById('p-precio-personalizado-group');
+    if (priceGroup) priceGroup.style.display = (e.target.value === 'true') ? 'block' : 'none';
+  }
+});
 
 async function uploadFileFromBrowser(file) {
   // Upload via server to avoid CORS issues

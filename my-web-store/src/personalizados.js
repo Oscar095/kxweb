@@ -46,6 +46,7 @@ function populateSelect(select) {
             opt.textContent = p.name;
             opt.dataset.priceUnit = p.price_unit;
             opt.dataset.cantidad = p.cantidad;
+            opt.dataset.precioPersonalizado2000 = p.precio_personalizado_2000;
             optgroup.appendChild(opt);
         });
         select.appendChild(optgroup);
@@ -70,19 +71,24 @@ function initCotizador() {
 
     function calcular() {
         const selectedOpt = select.options[select.selectedIndex];
-        if (!selectedOpt || !selectedOpt.dataset.priceUnit) return;
+        const precioPers2000 = parseFloat(selectedOpt.dataset.precioPersonalizado2000);
+        const hasPrecioPers = !isNaN(precioPers2000) && precioPers2000 > 0;
 
-        const basePrice = parseFloat(selectedOpt.dataset.priceUnit);
+        const basePrice = hasPrecioPers ? precioPers2000 : parseFloat(selectedOpt.dataset.priceUnit);
         const stepIndex = parseInt(slider.value, 10);
         const cantidad = QUANTITY_MAP[stepIndex] || 2000;
 
-        // Volume discount: ~2% per each 1000 over base 2000, capped at 30%
-        const unidadesBase = 2000;
-        const intervalos1000 = Math.max(0, (cantidad - unidadesBase) / 1000);
-        let descuentoPct = intervalos1000 * 0.02;
-        if (descuentoPct > 0.30) descuentoPct = 0.30;
-
-        const unitarioActual = basePrice * (1 - descuentoPct);
+        // New calculation logic: 2k is base, every step is 5% discount over PREVIOUS step
+        // 0: 2000 (base)
+        // 1: 4000 (base * 0.95)
+        // 2: 8000 (4k_price * 0.95)
+        // 3: 20000 (8k_price * 0.95)
+        let unitarioActual = basePrice;
+        if (stepIndex > 0) {
+            for (let i = 0; i < stepIndex; i++) {
+                unitarioActual *= 0.95;
+            }
+        }
         const total = unitarioActual * cantidad;
         const ahorro = (basePrice - unitarioActual) * cantidad;
 

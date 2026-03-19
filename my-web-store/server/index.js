@@ -693,6 +693,7 @@ function mapProductRow(d) {
     description: d.description || '',
     habilitado: d.habilitado != null ? !!d.habilitado : true,
     es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
+    precio_personalizado_2000: d.precio_personalizado_2000 != null ? Number(d.precio_personalizado_2000) : null,
     images: imgs,
     image: imgs[0] || '/images/placeholder.svg',
     image2: d.image2 || '',
@@ -745,6 +746,7 @@ app.get('/api/products/:id', async (req, res) => {
       description: d.description || '',
       habilitado: d.habilitado != null ? !!d.habilitado : true,
       es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
+      precio_personalizado_2000: d.precio_personalizado_2000 != null ? Number(d.precio_personalizado_2000) : null,
       image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
       images: imgs,
       image2: d.image2 || '',
@@ -1252,6 +1254,7 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
     const row_empaque = asNumber(b.row_empaque) ?? null;
     const es_personalizado = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
+    const precio_personalizado_2000 = b.precio_personalizado_2000 != null ? Number(b.precio_personalizado_2000) : null;
     if (!name) return res.status(400).json({ message: 'Nombre requerido' });
 
     // images: can be array or JSON string
@@ -1271,11 +1274,11 @@ app.post('/api/products', requireAdmin, async (req, res) => {
 
     // Validate categoryParam resolved and exists (FK)
     if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
-    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque, es_personalizado });
-    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque,es_personalizado)
+    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque, es_personalizado, precio_personalizado_2000 });
+    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque,es_personalizado,precio_personalizado_2000)
         OUTPUT INSERTED.id
-        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque,@es_personalizado);`, {
-      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque, es_personalizado: es_personalizado ? 1 : 0
+        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque,@es_personalizado,@precio_personalizado_2000);`, {
+      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque, es_personalizado: es_personalizado ? 1 : 0, precio_personalizado_2000
     });
     const newId = resIns[0] && resIns[0].id;
     productsCache.data = null; // invalidar caché
@@ -1875,6 +1878,10 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
       const esp = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
       sets.push('es_personalizado = @es_personalizado');
       params.es_personalizado = esp ? 1 : 0;
+    }
+    if (b.precio_personalizado_2000 !== undefined) {
+      sets.push('precio_personalizado_2000 = @precio_personalizado_2000');
+      params.precio_personalizado_2000 = b.precio_personalizado_2000 != null ? Number(b.precio_personalizado_2000) : null;
     }
     if (images !== undefined) {
       sets.push('images = @images'); params.images = JSON.stringify(images);
