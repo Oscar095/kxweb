@@ -206,6 +206,15 @@ export function initChatbot() {
     .chatbot-msg.user .chatbot-msg-time { text-align: right; }
     .chatbot-msg.bot .chatbot-msg-time { text-align: left; }
 
+    .chatbot-msg.bot a {
+      color: var(--primary, #0077b6);
+      text-decoration: underline;
+      word-break: break-all;
+    }
+    .chatbot-msg.bot a:hover {
+      opacity: 0.8;
+    }
+
     /* ===== TYPING INDICATOR ===== */
     .typing-indicator {
       display: none;
@@ -534,6 +543,10 @@ export function initChatbot() {
     if (sender === 'bot' && !isError) {
       let formattedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
       formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      formattedText = formattedText.replace(
+        /(https?:\/\/[^\s<>"')\]]+)/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      );
       content = formattedText;
     } else if (isError) {
       content = text;
