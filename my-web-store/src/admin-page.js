@@ -6,10 +6,15 @@ function renderNewPreviews(files) {
   if (!files || files.length === 0) return;
   [...files].forEach(f => {
     const url = URL.createObjectURL(f);
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = f.name;
-    wrap.appendChild(img);
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${url}" alt="${f.name}">
+      <div class="admin-img-preview-overlay">
+        <span style="font-size:0.65rem; color:var(--admin-text-muted); font-weight:600;">NUEVA</span>
+      </div>
+    `;
+    wrap.appendChild(item);
   });
 }
 
@@ -147,31 +152,24 @@ async function loadProducts() {
         if (window.__currentImages.length === 0 && prod.image) window.__currentImages.push(prod.image);
 
         window.__currentImages.forEach((url, idx) => {
-          const wrap = document.createElement('div');
-          wrap.style.position = 'relative';
+          const item = document.createElement('div');
+          item.className = 'admin-img-preview-item';
+          
+          item.innerHTML = `
+            <img src="${url}" alt="${prod.name || ''}">
+            <div class="admin-img-preview-overlay">
+              <button type="button" class="admin-btn-icon danger remove-current" data-idx="${idx}" title="Quitar imagen">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
+          `;
 
-          const im = document.createElement('img');
-          im.src = url;
-          im.alt = prod.name || '';
-          im.style.maxHeight = '120px';
-          im.style.width = '100%';
-          im.style.objectFit = 'contain';
-          wrap.appendChild(im);
-
-          const rm = document.createElement('button');
-          rm.textContent = 'Quitar';
-          rm.type = 'button';
-          rm.style.marginTop = '4px';
-          rm.style.width = '100%';
-          rm.className = 'admin-btn-secondary';
-          rm.style.padding = '4px';
-          rm.addEventListener('click', () => {
+          item.querySelector('.remove-current').addEventListener('click', () => {
             window.__currentImages.splice(idx, 1);
-            wrap.remove();
+            item.remove();
           });
-          wrap.appendChild(rm);
 
-          cur.appendChild(wrap);
+          cur.appendChild(item);
         });
 
         // compute total if both values available
@@ -736,21 +734,18 @@ function renderLibrarySelection() {
   if (!wrap) return;
   wrap.innerHTML = '';
   for (const it of (window.__libSelected || [])) {
-    const cell = document.createElement('div');
-    const img = document.createElement('img');
-    img.src = it.url;
-    img.alt = it.nombre || '';
-    img.style.width = '100%';
-    img.style.height = '88px';
-    img.style.objectFit = 'cover';
-    const rm = document.createElement('button');
-    rm.textContent = 'Quitar';
-    rm.type = 'button';
-    rm.style.marginTop = '4px';
-    rm.addEventListener('click', () => removeLibrarySelection(it.id));
-    cell.appendChild(img);
-    cell.appendChild(rm);
-    wrap.appendChild(cell);
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${it.url}" alt="${it.nombre || ''}">
+      <div class="admin-img-preview-overlay">
+        <button type="button" class="admin-btn-icon danger remove-lib" data-id="${it.id}" title="Quitar de selección">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+    `;
+    item.querySelector('.remove-lib').addEventListener('click', () => removeLibrarySelection(it.id));
+    wrap.appendChild(item);
   }
 }
 async function submitLibraryForm(ev) {
