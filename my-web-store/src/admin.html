@@ -391,10 +391,26 @@
                     <option value="true">Personalizado</option>
                   </select>
                 </div>
-                <div class="field-group" id="p-precio-personalizado-group" style="display:none;">
-                  <label for="p-precio-personalizado-2000">Precio Personalizado (2.000 unds)</label>
-                  <input id="p-precio-personalizado-2000" type="number" name="precio_personalizado_2000" step="0.01"
-                    placeholder="Ej: 250" />
+                <div id="p-precio-personalizado-group" style="display:none; width:100%; grid-column: 1 / -1; margin-top: 10px;">
+                  <label style="margin-bottom: 10px; display: block; font-weight: bold; color: var(--primary);">Escalas de Precios Personalizados</label>
+                  <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-2000">2.000 unds ($)</label>
+                      <input id="p-precio-personalizado-2000" type="number" name="precio_personalizado_2000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-4000">4.000 unds ($)</label>
+                      <input id="p-precio-personalizado-4000" type="number" name="precio_personalizado_4000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-8000">8.000 unds ($)</label>
+                      <input id="p-precio-personalizado-8000" type="number" name="precio_personalizado_8000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-20000">20.000 unds ($)</label>
+                      <input id="p-precio-personalizado-20000" type="number" name="precio_personalizado_20000" step="0.01" placeholder="0.00" />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="form-grid" style="margin-top:20px;">

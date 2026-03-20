@@ -59,6 +59,13 @@ function toBuffer(val) {
 const PAYU_ENABLED = process.env.PAYU_ENABLED === 'true';
 const PORT = process.env.PORT || 3000;
 
+process.on('uncaughtException', err => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
 // Wompi
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY;
 const WOMPI_INTEGRITY_SECRET = process.env.WOMPI_INTEGRITY_SECRET;
@@ -694,6 +701,9 @@ function mapProductRow(d) {
     habilitado: d.habilitado != null ? !!d.habilitado : true,
     es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
     precio_personalizado_2000: d.precio_personalizado_2000 != null ? Number(d.precio_personalizado_2000) : null,
+    precio_personalizado_4000: d.precio_personalizado_4000 != null ? Number(d.precio_personalizado_4000) : null,
+    precio_personalizado_8000: d.precio_personalizado_8000 != null ? Number(d.precio_personalizado_8000) : null,
+    precio_personalizado_20000: d.precio_personalizado_20000 != null ? Number(d.precio_personalizado_20000) : null,
     images: imgs,
     image: imgs[0] || '/images/placeholder.svg',
     image2: d.image2 || '',
@@ -747,6 +757,9 @@ app.get('/api/products/:id', async (req, res) => {
       habilitado: d.habilitado != null ? !!d.habilitado : true,
       es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
       precio_personalizado_2000: d.precio_personalizado_2000 != null ? Number(d.precio_personalizado_2000) : null,
+      precio_personalizado_4000: d.precio_personalizado_4000 != null ? Number(d.precio_personalizado_4000) : null,
+      precio_personalizado_8000: d.precio_personalizado_8000 != null ? Number(d.precio_personalizado_8000) : null,
+      precio_personalizado_20000: d.precio_personalizado_20000 != null ? Number(d.precio_personalizado_20000) : null,
       image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
       images: imgs,
       image2: d.image2 || '',
@@ -1254,7 +1267,10 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
     const row_empaque = asNumber(b.row_empaque) ?? null;
     const es_personalizado = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
-    const precio_personalizado_2000 = b.precio_personalizado_2000 != null ? Number(b.precio_personalizado_2000) : null;
+    const precio_personalizado_2000 = b.precio_personalizado_2000 != null && b.precio_personalizado_2000 !== '' ? Number(b.precio_personalizado_2000) : null;
+    const precio_personalizado_4000 = b.precio_personalizado_4000 != null && b.precio_personalizado_4000 !== '' ? Number(b.precio_personalizado_4000) : null;
+    const precio_personalizado_8000 = b.precio_personalizado_8000 != null && b.precio_personalizado_8000 !== '' ? Number(b.precio_personalizado_8000) : null;
+    const precio_personalizado_20000 = b.precio_personalizado_20000 != null && b.precio_personalizado_20000 !== '' ? Number(b.precio_personalizado_20000) : null;
     if (!name) return res.status(400).json({ message: 'Nombre requerido' });
 
     // images: can be array or JSON string
@@ -1275,10 +1291,11 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     // Validate categoryParam resolved and exists (FK)
     if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
     console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque, es_personalizado, precio_personalizado_2000 });
-    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque,es_personalizado,precio_personalizado_2000)
+    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque,es_personalizado,precio_personalizado_2000,precio_personalizado_4000,precio_personalizado_8000,precio_personalizado_20000)
         OUTPUT INSERTED.id
-        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque,@es_personalizado,@precio_personalizado_2000);`, {
-      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque, es_personalizado: es_personalizado ? 1 : 0, precio_personalizado_2000
+        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque,@es_personalizado,@precio_personalizado_2000,@precio_personalizado_4000,@precio_personalizado_8000,@precio_personalizado_20000);`, {
+      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque, es_personalizado: es_personalizado ? 1 : 0, 
+      precio_personalizado_2000, precio_personalizado_4000, precio_personalizado_8000, precio_personalizado_20000
     });
     const newId = resIns[0] && resIns[0].id;
     productsCache.data = null; // invalidar caché
@@ -1881,7 +1898,19 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     }
     if (b.precio_personalizado_2000 !== undefined) {
       sets.push('precio_personalizado_2000 = @precio_personalizado_2000');
-      params.precio_personalizado_2000 = b.precio_personalizado_2000 != null ? Number(b.precio_personalizado_2000) : null;
+      params.precio_personalizado_2000 = (b.precio_personalizado_2000 != null && b.precio_personalizado_2000 !== '') ? Number(b.precio_personalizado_2000) : null;
+    }
+    if (b.precio_personalizado_4000 !== undefined) {
+      sets.push('precio_personalizado_4000 = @precio_personalizado_4000');
+      params.precio_personalizado_4000 = (b.precio_personalizado_4000 != null && b.precio_personalizado_4000 !== '') ? Number(b.precio_personalizado_4000) : null;
+    }
+    if (b.precio_personalizado_8000 !== undefined) {
+      sets.push('precio_personalizado_8000 = @precio_personalizado_8000');
+      params.precio_personalizado_8000 = (b.precio_personalizado_8000 != null && b.precio_personalizado_8000 !== '') ? Number(b.precio_personalizado_8000) : null;
+    }
+    if (b.precio_personalizado_20000 !== undefined) {
+      sets.push('precio_personalizado_20000 = @precio_personalizado_20000');
+      params.precio_personalizado_20000 = (b.precio_personalizado_20000 != null && b.precio_personalizado_20000 !== '') ? Number(b.precio_personalizado_20000) : null;
     }
     if (images !== undefined) {
       sets.push('images = @images'); params.images = JSON.stringify(images);

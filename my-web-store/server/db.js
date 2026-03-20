@@ -221,6 +221,18 @@ async function ensureSchema() {
     BEGIN
       ALTER TABLE dbo.products ADD precio_personalizado_2000 FLOAT NULL;
     END
+    IF COL_LENGTH('dbo.products','precio_personalizado_4000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_4000 FLOAT NULL;
+    END
+    IF COL_LENGTH('dbo.products','precio_personalizado_8000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_8000 FLOAT NULL;
+    END
+    IF COL_LENGTH('dbo.products','precio_personalizado_20000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_20000 FLOAT NULL;
+    END
   `);
 
   // logos (header/footer)

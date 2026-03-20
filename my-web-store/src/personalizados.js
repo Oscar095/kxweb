@@ -47,6 +47,9 @@ function populateSelect(select) {
             opt.dataset.priceUnit = p.price_unit;
             opt.dataset.cantidad = p.cantidad;
             opt.dataset.precioPersonalizado2000 = p.precio_personalizado_2000;
+            opt.dataset.precioPersonalizado4000 = p.precio_personalizado_4000;
+            opt.dataset.precioPersonalizado8000 = p.precio_personalizado_8000;
+            opt.dataset.precioPersonalizado20000 = p.precio_personalizado_20000;
             optgroup.appendChild(opt);
         });
         select.appendChild(optgroup);
@@ -71,24 +74,29 @@ function initCotizador() {
 
     function calcular() {
         const selectedOpt = select.options[select.selectedIndex];
-        const precioPers2000 = parseFloat(selectedOpt.dataset.precioPersonalizado2000);
-        const hasPrecioPers = !isNaN(precioPers2000) && precioPers2000 > 0;
-
-        const basePrice = hasPrecioPers ? precioPers2000 : parseFloat(selectedOpt.dataset.priceUnit);
         const stepIndex = parseInt(slider.value, 10);
         const cantidad = QUANTITY_MAP[stepIndex] || 2000;
 
-        // New calculation logic: 2k is base, every step is 5% discount over PREVIOUS step
-        // 0: 2000 (base)
-        // 1: 4000 (base * 0.95)
-        // 2: 8000 (4k_price * 0.95)
-        // 3: 20000 (8k_price * 0.95)
-        let unitarioActual = basePrice;
-        if (stepIndex > 0) {
-            for (let i = 0; i < stepIndex; i++) {
-                unitarioActual *= 0.95;
-            }
-        }
+        const prices = [
+            parseFloat(selectedOpt.dataset.precioPersonalizado2000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado4000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado8000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado20000)
+        ];
+
+        const precioEspecífico = prices[stepIndex];
+        const hasPrecioEspecífico = !isNaN(precioEspecífico) && precioEspecífico > 0;
+
+        // Base price for savings calculation (usually the 2k price or unit price)
+        const basePrice = !isNaN(prices[0]) && prices[0] > 0 ? prices[0] : parseFloat(selectedOpt.dataset.priceUnit);
+
+        // Logic: Use specific price if available, otherwise fallback to base unit price 
+        let unitarioActual = hasPrecioEspecífico ? precioEspecífico : parseFloat(selectedOpt.dataset.priceUnit);
+        
+        // If not specific price, we might want to keep some discount? 
+        // User said: "el usuario solo pondra el valor para las 2000... hay que agregar para 4000, 8000 y 20000"
+        // If they leave them empty, maybe we revert to 0 or unit price. 
+        // Let's assume they provide them. If not, unitarioActual is the base price.
         const total = unitarioActual * cantidad;
         const ahorro = (basePrice - unitarioActual) * cantidad;
 

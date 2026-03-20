@@ -129,8 +129,15 @@ async function loadProducts() {
           const priceGroup = document.getElementById('p-precio-personalizado-group');
           if (priceGroup) priceGroup.style.display = (selPers.value === 'true') ? 'block' : 'none';
         }
-        const inputPersPrice = form.querySelector('#p-precio-personalizado-2000');
-        if (inputPersPrice) inputPersPrice.value = prod.precio_personalizado_2000 != null ? prod.precio_personalizado_2000 : '';
+        const inputPersPrice2000 = form.querySelector('#p-precio-personalizado-2000');
+        if (inputPersPrice2000) inputPersPrice2000.value = prod.precio_personalizado_2000 != null ? prod.precio_personalizado_2000 : '';
+        const inputPersPrice4000 = form.querySelector('#p-precio-personalizado-4000');
+        if (inputPersPrice4000) inputPersPrice4000.value = prod.precio_personalizado_4000 != null ? prod.precio_personalizado_4000 : '';
+        const inputPersPrice8000 = form.querySelector('#p-precio-personalizado-8000');
+        if (inputPersPrice8000) inputPersPrice8000.value = prod.precio_personalizado_8000 != null ? prod.precio_personalizado_8000 : '';
+        const inputPersPrice20000 = form.querySelector('#p-precio-personalizado-20000');
+        if (inputPersPrice20000) inputPersPrice20000.value = prod.precio_personalizado_20000 != null ? prod.precio_personalizado_20000 : '';
+        
         form.description.value = prod.description || '';
         form.images.value = ''; // limpia selección
 
@@ -233,7 +240,10 @@ async function submitForm(ev) {
     payload.category = formEl.querySelector('#p-category')?.value || '';
     payload.row_empaque = formEl.querySelector('#p-empaque')?.value || '';
     payload.es_personalizado = formEl.querySelector('#p-personalizado')?.value || 'false';
-    payload.precio_personalizado_2000 = formEl.querySelector('#p-precio-personalizado-2000')?.value || null;
+    payload.precio_personalizado_2000 = formEl.querySelector('#p-precio-personalizado-2000')?.value || '';
+    payload.precio_personalizado_4000 = formEl.querySelector('#p-precio-personalizado-4000')?.value || '';
+    payload.precio_personalizado_8000 = formEl.querySelector('#p-precio-personalizado-8000')?.value || '';
+    payload.precio_personalizado_20000 = formEl.querySelector('#p-precio-personalizado-20000')?.value || '';
     payload.description = formEl.querySelector('#p-desc')?.value || '';
 
     // Files selected
