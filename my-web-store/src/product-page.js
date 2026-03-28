@@ -221,6 +221,15 @@ function renderProduct(p) {
     if (addBtn) {
       addBtn.disabled = !enabled;
       addBtn.title = enabled ? '' : (reason || 'No disponible');
+      if (!enabled) {
+        addBtn.style.setProperty('opacity', '0.5', 'important');
+        addBtn.style.setProperty('pointer-events', 'none', 'important');
+        addBtn.style.setProperty('cursor', 'not-allowed', 'important');
+      } else {
+        addBtn.style.removeProperty('opacity');
+        addBtn.style.removeProperty('pointer-events');
+        addBtn.style.removeProperty('cursor');
+      }
     }
   };
 
@@ -252,9 +261,9 @@ function renderProduct(p) {
 
     // Upstream dice agotado
     if (upstreamEstado !== 'En Existencia') {
-      stock.textContent = 'Agotado';
+      stock.textContent = 'Producto agotado';
       stock.className = 'pd-stock pd-stock--out';
-      setCartEnabled(false, 'Agotado');
+      setCartEnabled(false, 'Producto agotado');
       return;
     }
 
@@ -343,11 +352,11 @@ function renderProduct(p) {
             inventarioExistencia = Number(data?.inventario);
             renderStockAndCartState();
           } else if (data.error === 'upstream_error' || data.error === 'timeout') {
-            // En caso de error de servidor, dejarlo como disponible
-            stock.textContent = '';
-            stock.className = 'pd-stock';
-            upstreamEstado = 'En Existencia';
-            setCartEnabled(true);
+            // En caso de error de servidor, bloquear por seguridad
+            stock.textContent = 'Producto agotado';
+            stock.className = 'pd-stock pd-stock--out';
+            upstreamEstado = 'Agotado';
+            setCartEnabled(false, 'Producto agotado');
           } else {
             upstreamEstado = 'Agotado';
             inventarioExistencia = Number(data?.inventario);
@@ -355,10 +364,10 @@ function renderProduct(p) {
           }
         })
         .catch(() => {
-          stock.textContent = '';
-          stock.className = 'pd-stock';
-          upstreamEstado = 'En Existencia';
-          setCartEnabled(true);
+          stock.textContent = 'Producto agotado';
+          stock.className = 'pd-stock pd-stock--out';
+          upstreamEstado = 'Agotado';
+          setCartEnabled(false, 'Producto agotado');
         });
     }
   }

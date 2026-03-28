@@ -146,6 +146,15 @@ export function attachDynamicPriceBehavior(rootEl) {
 
           if (estado !== 'En Existencia') {
             applyOutOfStock();
+            if (cache) {
+              cache.set(productId, 'no-disponible');
+              window.dispatchEvent(new CustomEvent('inventory-updated', { detail: { productId, status: 'no-disponible' } }));
+            }
+          } else {
+            if (cache) {
+              cache.set(productId, 'disponible');
+              window.dispatchEvent(new CustomEvent('inventory-updated', { detail: { productId, status: 'disponible' } }));
+            }
           }
         } catch { }
       } catch (e) {

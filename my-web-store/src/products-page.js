@@ -602,9 +602,18 @@ async function init() {
 
   // Fetch inventory (non-blocking)
   checkAllInventory().then(() => {
-    if (filterSelect?.value !== 'all') reapply();
+    console.log('[checkAllInventory] Finished bulk check');
+    if (currentFilter !== 'all') reapply();
     window.dispatchEvent(new CustomEvent('content-loaded'));
   });
+  
+  // Escuchar actualizaciones individuales de stock para refrescar el filtro
+  window.addEventListener('inventory-updated', () => {
+    if (currentFilter !== 'all') {
+      reapply();
+    }
+  });
+
   window.dispatchEvent(new CustomEvent('content-loaded'));
 }
 
