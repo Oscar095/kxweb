@@ -567,6 +567,74 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // --- Validate inventory for all cart items before processing ---
+    {
+      const cartItems = readCart();
+      // Group by id to get total qty per product
+      const qtyMap = new Map();
+      const itemMap = new Map();
+      for (const ci of cartItems) {
+        const qty = Math.max(1, Number(ci._qty) || 1);
+        qtyMap.set(ci.id, (qtyMap.get(ci.id) || 0) + qty);
+        if (!itemMap.has(ci.id)) itemMap.set(ci.id, ci);
+      }
+
+      let hasStockIssue = false;
+      const issues = [];
+
+      for (const [id, totalQty] of qtyMap.entries()) {
+        const item = itemMap.get(id);
+        const sku = (item.codigo_siesa || item.sku || item.SKU || item.item_ext || '').toString().trim();
+        if (!sku) continue;
+
+        try {
+          const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
+          if (!r.ok) {
+            hasStockIssue = true;
+            issues.push(`${item.name || 'Producto'}: no disponible`);
+            cartService.remove(id);
+            continue;
+          }
+          const data = await r.json();
+          const estado = (data && (data.estado || data.status || '')).toString();
+          if (estado !== 'En Existencia') {
+            hasStockIssue = true;
+            issues.push(`${item.name || 'Producto'}: agotado`);
+            cartService.remove(id);
+            continue;
+          }
+          const inventario = Number(data?.inventario);
+          if (Number.isFinite(inventario)) {
+            const rawUnits = item.cantidad ?? item.Cantidad ?? 1000;
+            const unitsPerBox = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
+            const maxBoxes = Math.floor(inventario / unitsPerBox);
+            if (totalQty > maxBoxes) {
+              hasStockIssue = true;
+              if (maxBoxes > 0) {
+                issues.push(`${item.name || 'Producto'}: ajustado a ${maxBoxes} caja${maxBoxes !== 1 ? 's' : ''}`);
+                cartService.setQty(id, maxBoxes);
+              } else {
+                issues.push(`${item.name || 'Producto'}: agotado`);
+                cartService.remove(id);
+              }
+            }
+          }
+        } catch {
+          // On error, block this item
+          hasStockIssue = true;
+          issues.push(`${item.name || 'Producto'}: error verificando stock`);
+          cartService.remove(id);
+        }
+      }
+
+      if (hasStockIssue) {
+        msgEl.textContent = 'Algunos productos excedían el inventario y fueron ajustados: ' + issues.join('; ') + '. Por favor revisa tu carrito y vuelve a intentar.';
+        msgEl.className = 'co-message co-message-error';
+        renderOrderSummary();
+        return;
+      }
+    }
+
     const tipoDoc = String(form.tipoDocumento?.value || '').trim();
     const rawNit = String(form.nitId?.value || '').trim();
     const nitId = (tipoDoc === 'CE' || tipoDoc === 'PA') ? rawNit : rawNit.replace(/\D+/g, '');
