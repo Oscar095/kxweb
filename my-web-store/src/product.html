@@ -300,6 +300,19 @@
       -webkit-overflow-scrolling: touch;
       touch-action: pinch-zoom pan-x pan-y;
     }
+    .pd-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 600px) {
+      .pd-actions-row #pd-add {
+        width: 100%;
+        margin-top: 8px;
+      }
+    }
     .pd-lightbox-img-container img {
       max-width: 95vw;
       max-height: 85vh;
@@ -351,9 +364,13 @@
           <div id="pd-category" class="pd-category"></div>
           <div id="pd-price" class="pd-price"></div>
           <div id="pd-stock" class="pd-stock"></div>
-          <div class="pd-actions-row" style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+          <div class="pd-actions-row">
             <label for="pd-qty">Cantidad</label>
-            <input id="pd-qty" type="number" min="1" value="1" style="width:72px;padding:6px;" />
+            <div class="qty-control-premium" style="width: 110px; height: 36px;">
+              <button type="button" class="qty-btn qty-btn-minus">-</button>
+              <input id="pd-qty" type="number" class="qty-input" min="1" value="1" style="padding:0; width: 38px; border: none; height: 100%;" />
+              <button type="button" class="qty-btn qty-btn-plus">+</button>
+            </div>
             <button id="pd-add" class="btn-primary">Agregar al carrito</button>
           </div>
           <div id="pd-subtitle" class="pd-subtitle"></div>

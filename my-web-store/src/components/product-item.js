@@ -38,7 +38,7 @@ export function productItemTemplate(p) {
       <div class="v2-card-body">
         <h3 class="v2-card-name">${p.name}</h3>
         <div class="v2-card-price">
-          <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
+          <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${skuAttr}">
             <span class="price-amount">$${formatMoney(totalConIva)}</span>
             <span class="price-unit">/ caja</span>
             <span class="iva-tag">IVA incluido</span>
@@ -47,7 +47,11 @@ export function productItemTemplate(p) {
       </div>
 
       <div class="v2-card-actions">
-        <input id="${qtyInputId}" type="number" class="v2-qty-input" min="1" value="1" data-dynamic-price="1" onclick="event.stopPropagation();">
+        <div class="qty-control-premium" style="width: 105px; flex-shrink: 0; height: 36px;">
+          <button type="button" class="qty-btn qty-btn-minus">-</button>
+          <input id="${qtyInputId}" type="number" class="v2-qty-input qty-input" min="1" value="1" data-dynamic-price="1" style="width: 33px; padding: 0; border: none; height: 100%;">
+          <button type="button" class="qty-btn qty-btn-plus">+</button>
+        </div>
         <button class="v2-add-btn add-to-cart" data-id="${p.id}">
           Agregar
         </button>
@@ -165,10 +169,12 @@ export function attachDynamicPriceBehavior(rootEl) {
     checkStock();
   }
 
-  const qtyInput = rootEl.querySelector('.v2-qty-input[data-dynamic-price]');
-  const priceEl = rootEl.querySelector('.price[data-codigo]');
+  const qtyInput = rootEl.querySelector('.v2-qty-input[data-dynamic-price], .qty-input[data-dynamic-price]');
+  const priceEl = rootEl.querySelector('.price');
   if (!qtyInput || !priceEl) return;
-  const codigo = priceEl.getAttribute('data-codigo');
+  
+  const skuAttrFromRoot = rootEl.getAttribute('data-sku');
+  const codigo = priceEl.getAttribute('data-codigo') || skuAttrFromRoot;
   if (!codigo) return;
 
   let controller = null;
@@ -242,11 +248,93 @@ export function attachDynamicPriceBehavior(rootEl) {
     }
   }
 
+  let localStock = null;
+  let stockFetched = false;
+
+  const validateLimit = () => {
+    const btn = rootEl.querySelector('.add-to-cart');
+    if (!btn || localStock === null) return;
+    
+    // Si la API arrojó NaN o falta inventario (y no está Agotado), asumimos ilimitado.
+    if (!Number.isFinite(localStock)) {
+      btn.disabled = false;
+      btn.textContent = 'Agregar';
+      btn.style.setProperty('opacity', '1', 'important');
+      btn.style.setProperty('pointer-events', 'auto', 'important');
+      btn.style.cursor = 'pointer';
+      return;
+    }
+
+    const upbStr = priceEl?.getAttribute('data-cantidad');
+    const upb = (Number.isFinite(Number(upbStr)) && Number(upbStr) > 0) ? Number(upbStr) : 1000;
+    const req = sanitizeToInteger() * upb;
+
+    if (req > localStock) {
+      btn.disabled = true;
+      btn.textContent = 'Agotado';
+      btn.style.setProperty('opacity', '0.5', 'important');
+      btn.style.setProperty('pointer-events', 'none', 'important');
+      btn.style.cursor = 'not-allowed';
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Agregar';
+      btn.style.setProperty('opacity', '1', 'important');
+      btn.style.setProperty('pointer-events', 'auto', 'important');
+      btn.style.cursor = 'pointer';
+    }
+  };
+
   qtyInput.addEventListener('input', () => {
     sanitizeToInteger();
-    clearTimeout(qtyInput._t);
-    qtyInput._t = setTimeout(recalc, 160);
+    clearTimeout(qtyInput._tTimer);
+    qtyInput._tTimer = setTimeout(recalc, 180);
+
+    const skuAttr = rootEl.getAttribute('data-sku') || priceEl?.getAttribute('data-codigo');
+    if (skuAttr && !stockFetched) {
+      stockFetched = true;
+      fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`).then(r => r.json()).then(data => {
+        if (data && data.estado === 'En Existencia') {
+          localStock = Number(data.inventario);
+        } else if (data && data.estado === 'Agotado') {
+          localStock = 0;
+        } else {
+          localStock = NaN; // Sin cantidad específica, sin límite simulado.
+        }
+        validateLimit();
+      }).catch(() => {
+        localStock = NaN;
+        validateLimit();
+      });
+    } else {
+      validateLimit();
+    }
   });
 
   recalc();
 }
+
+if (typeof window !== 'undefined' && !window._qtyStepperGlobalListener) {
+  window._qtyStepperGlobalListener = true;
+  document.addEventListener('click', (e) => {
+    const control = e.target.closest('.qty-control-premium');
+    if (control) {
+      e.stopPropagation();
+      const minus = e.target.closest('.qty-btn-minus');
+      const plus = e.target.closest('.qty-btn-plus');
+      if (minus) {
+        const input = minus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Math.max(1, Number(input.value) - 1);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      } else if (plus) {
+        const input = plus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Number(input.value) + 1;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+  });
+}
+

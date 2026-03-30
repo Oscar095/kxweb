@@ -717,3 +717,28 @@ async function init() {
 }
 
 init();
+
+if (typeof window !== 'undefined' && !window._qtyStepperGlobalListener) {
+  window._qtyStepperGlobalListener = true;
+  document.addEventListener('click', (e) => {
+    const control = e.target.closest('.qty-control-premium');
+    if (control) {
+      e.stopPropagation();
+      const minus = e.target.closest('.qty-btn-minus');
+      const plus = e.target.closest('.qty-btn-plus');
+      if (minus) {
+        const input = minus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Math.max(1, Number(input.value) - 1);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      } else if (plus) {
+        const input = plus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Number(input.value) + 1;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+  });
+}

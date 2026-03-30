@@ -45,11 +45,15 @@ function renderBestSellers(products, mount) {
           <a href="/product?id=${p.id}" class="bs-card-name-link">
             <h3 class="bs-card-name">${p.name}</h3>
           </a>
-          <p class="price bs-card-price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
+          <p class="price bs-card-price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${skuAttr}">
             $${formatMoney(totalConIva)}<span class="bs-per-box"> / caja</span> <span style="font-size:0.65rem;color:#4CAF50;font-weight:600;">IVA incluido</span>
           </p>
           <div class="bs-card-actions">
-            <input id="bs-qty-${p.id}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
+            <div class="qty-control-premium" style="width: 105px; flex-shrink: 0; height: 36px;">
+              <button type="button" class="qty-btn qty-btn-minus">-</button>
+              <input id="bs-qty-${p.id}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1" style="width: 33px; padding: 0;">
+              <button type="button" class="qty-btn qty-btn-plus">+</button>
+            </div>
             <button class="add-to-cart bs-add-btn btn-primary" data-id="${p.id}">Agregar</button>
           </div>
         </div>
@@ -352,7 +356,7 @@ async function init() {
     // Delegado: manejar clicks "Agregar" y leer cantidad del input
     document.addEventListener('click', async (e) => {
       const btn = e.target.closest('.add-to-cart');
-      if (!btn) return;
+      if (!btn || btn.disabled) return;
       const id = Number(btn.dataset.id);
       const product = products.find(p => p.id === id);
       if (!product) return;

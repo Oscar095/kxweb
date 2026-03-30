@@ -245,7 +245,6 @@ async function init() {
       e.stopPropagation(); // BUG FIX: Prevent immediate close by document listener
       const isExpanded = sidebar.classList.toggle('is-expanded');
       mobileCatToggle.classList.toggle('is-open', isExpanded);
-      console.log('Mobile category toggled. Expanded:', isExpanded);
     });
     // Close when clicking outside
     document.addEventListener('click', (e) => {
@@ -352,7 +351,7 @@ async function init() {
   // Delegado: manejar clicks "Agregar"
   mount.addEventListener('click', async (e) => {
     const btn = e.target.closest('.add-to-cart');
-    if (!btn || !mount.contains(btn)) return;
+    if (!btn || btn.disabled || !mount.contains(btn)) return;
     const id = Number(btn.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;

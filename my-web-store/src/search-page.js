@@ -294,7 +294,7 @@ async function init() {
 
   resultsEl.addEventListener('click', async (e) => {
     const btn = e.target.closest('.add-to-cart');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     const id = Number(btn.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
