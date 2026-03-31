@@ -178,7 +178,8 @@ export function attachDynamicPriceBehavior(rootEl) {
   if (!codigo) return;
 
   let controller = null;
-  const BOX_SIZE = 1000;
+  const upbStr = priceEl.getAttribute('data-cantidad');
+  const BOX_SIZE = (Number.isFinite(Number(upbStr)) && Number(upbStr) > 0) ? Number(upbStr) : 1000;
   const fmt = (n) => new Intl.NumberFormat('es-CO').format(Math.round(n));
 
   qtyInput.addEventListener('keydown', (e) => {
@@ -208,7 +209,7 @@ export function attachDynamicPriceBehavior(rootEl) {
       if (Number.isFinite(totalEscalon) && Number.isFinite(escalon) && escalon > 0) {
         unitario = (totalEscalon / escalon);
       } else {
-        unitario = Number(fallbackBase) / BOX_SIZE;
+        unitario = Number(fallbackBase);
       }
     }
     const precioCaja = unitario * BOX_SIZE;

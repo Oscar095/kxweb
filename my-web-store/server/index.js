@@ -1373,7 +1373,7 @@ app.get('/api/precio', async (req, res) => {
     if (!escalones.length) {
       // Derivar escalones de los productos con este código
       const codigoStr = String(codigo);
-      const prodDocs = await db.query('SELECT cantidad FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
+      const prodDocs = await db.query('SELECT cantidad FROM dbo.products WHERE codigo_siesa = @codigo', { codigo: codigoStr });
       escalones = prodDocs.map(p => p.cantidad).filter(Number.isFinite).map(Number);
     }
     escalones = escalones.filter(c => Number.isFinite(c)).sort((a, b) => a - b);
@@ -1407,7 +1407,7 @@ app.get('/api/precio', async (req, res) => {
       ]
     };
     // try direct match in SQL
-    const prodRows = await db.query(`SELECT * FROM dbo.products WHERE codigo = @codigo AND cantidad = @escalon`, { codigo: codigoStr, escalon: escalonNum });
+    const prodRows = await db.query(`SELECT * FROM dbo.products WHERE codigo_siesa = @codigo AND cantidad = @escalon`, { codigo: codigoStr, escalon: escalonNum });
     let prod = prodRows[0];
     if (debugPrecio === 'true') {
       console.log('[DEBUG /api/precio]', { codigo, cantidadReal, escalon, found: !!prod });
@@ -1415,7 +1415,7 @@ app.get('/api/precio', async (req, res) => {
     let chosen = prod;
     if (!chosen) {
       // Fallback: buscar el producto con mayor Cantidad <= escalon (ya debería ser escalon) o el máximo disponible para el código
-      const allCode = await db.query('SELECT * FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
+      const allCode = await db.query('SELECT * FROM dbo.products WHERE codigo_siesa = @codigo', { codigo: codigoStr });
       const withQty = allCode.map(p => ({ doc: p, qty: Number(p.cantidad) })).filter(x => Number.isFinite(x.qty));
       const floorCandidates = withQty.filter(x => x.qty <= escalonNum).sort((a, b) => b.qty - a.qty);
       if (floorCandidates.length) chosen = floorCandidates[0].doc; else if (withQty.length) {
@@ -1429,9 +1429,10 @@ app.get('/api/precio', async (req, res) => {
     }
 
     // Precio total almacenado para ese escalón (preferimos el guardado, NO escalamos a cantidadReal)
-    const precioEscalon = (chosen.price != null ? chosen.price : null);
-    const qtyChosen = chosen.cantidad;
-    const precioUnitario = chosen.precio_unitario ?? ((precioEscalon && qtyChosen) ? (precioEscalon / qtyChosen) : null);
+    const qtyChosen = chosen.cantidad ?? chosen.Cantidad ?? 1;
+    const precioUnitario = chosen.price_unit ?? chosen.precio_unitario ?? null;
+    const precioEscalon = (chosen.price != null ? chosen.price : (precioUnitario != null ? precioUnitario * qtyChosen : null));
+    
     if (precioEscalon == null) {
       return res.status(500).json({ message: 'Producto sin Precio total en el escalón', productoId: chosen.id, escalon });
     }

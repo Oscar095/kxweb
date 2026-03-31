@@ -486,7 +486,8 @@ function renderProduct(p) {
         return;
       }
       const data = await r.json();
-      const BOX_SIZE = 1000;
+      const upbStr = price.getAttribute('data-cantidad') || p.cantidad || p.Cantidad;
+      const BOX_SIZE = (Number.isFinite(Number(upbStr)) && Number(upbStr) > 0) ? Number(upbStr) : 1000;
       let unitario = Number(data.precioUnitario);
       if (!Number.isFinite(unitario) || unitario <= 0) {
         const totalEscalon = Number(data.precio);
@@ -496,8 +497,9 @@ function renderProduct(p) {
         }
       }
       if (!Number.isFinite(unitario) || unitario <= 0) {
-        // fallback: usar p.price / BOX_SIZE
-        unitario = Number(p.price) / BOX_SIZE;
+        // fallback
+        const basePrice = Number(p.price_unit ?? p.precio_unitario ?? ((p.price && p.cantidad) ? p.price / p.cantidad : p.price)) || 0;
+        unitario = basePrice;
       }
       const precioCaja = unitario * BOX_SIZE;
       const precioConIva = Math.round(precioCaja * 1.19);
