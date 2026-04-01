@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js?v=24.0';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 import { productItemTemplate, attachDynamicPriceBehavior, applyOutOfStockToCard } from './components/product-item.js';

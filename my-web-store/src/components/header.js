@@ -1,6 +1,10 @@
 import { initChatbot } from './chatbot.js';
+import { initPromoPopup } from './promo-popup.js?v=999';
 
 export function renderHeader(container) {
+  // Inicializar Popup Promocional lo antes posible
+  try { initPromoPopup(); } catch(e) { console.error('[Promo] Error de inicio:', e); }
+
   // Animación de rectángulo en nav
   setTimeout(() => {
     const nav = document.querySelector('.nav-animated');

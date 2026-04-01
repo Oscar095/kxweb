@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js?v=38.0';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 
 renderHeader(document.getElementById('site-header'));
