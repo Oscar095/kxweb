@@ -1410,6 +1410,28 @@ h6 {
 	border-top: 1px solid rgba(0, 0, 0, 0.03);
 }
 
+h1, h2, h3, h4, h5, h6 {
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+/* Generic scroll indicator */
+.scroll-indicator {
+    position: absolute;
+    bottom: 3rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.8);
+    animation: scroll-bounce 2s infinite;
+    z-index: 10;
+    pointer-events: none;
+}
+@keyframes scroll-bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0) translateX(-50%); }
+    40% { transform: translateY(-10px) translateX(-50%); }
+    60% { transform: translateY(-5px) translateX(-50%); }
+}
+
 .product-title-premium {
 	font-size: 1.1rem;
 	font-weight: 600;
@@ -5649,4 +5671,42 @@ img.bs-card-img {
 		overflow: hidden !important;
 		text-overflow: ellipsis !important;
 	}
+}
+
+/* Nav Dropdown Desktop/Mobile */
+.nav-dropdown {
+	position: relative;
+	display: inline-block;
+}
+.nav-dropdown-btn {
+	cursor: pointer;
+}
+.nav-dropdown-content {
+	display: none;
+	position: absolute;
+	background-color: #fff;
+	min-width: 160px;
+	box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+	z-index: 200;
+	border-radius: 8px;
+	top: 100%;
+	left: 0;
+	padding: 8px 0;
+	text-align: left;
+}
+.nav-dropdown:hover .nav-dropdown-content {
+	display: block;
+	animation: fadeUp 0.3s ease;
+}
+.nav-link-sub {
+	color: #333;
+	padding: 10px 16px;
+	text-decoration: none;
+	display: block;
+	font-weight: 600;
+	transition: background 0.2s, color 0.2s;
+}
+.nav-dropdown-content .nav-link-sub:hover {
+	background-color: #f1f5f9;
+	color: var(--primary);
 }

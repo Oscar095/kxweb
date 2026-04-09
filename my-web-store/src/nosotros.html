@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Nosotros - KosXpress</title>
+    <meta name="description" content="Somos una empresa comprometida con el cuidado del medio ambiente, especializada en empaques reciclables.">
+    <link rel="stylesheet" href="/styles/main.css?v=42.0">
+    <link rel="stylesheet" href="/styles/nosotros.css?v=1.0">
+</head>
+<body>
+    <div id="app" class="nosotros-page">
+        <header id="site-header"></header>
+        <main>
+            <!-- SECCION: Banner Hero -->
+            <section class="ns-hero">
+                <div class="ns-hero-bg">
+                    <img src="/images/us/IMG_4714.JPEG" alt="Banners Kos" class="ns-hero-img" loading="eager" fetchpriority="high">
+                    <div class="ns-hero-overlay"></div>
+                </div>
+                <!-- Absolutely position strictly at top 10% to avoid faces, and center horizontally -->
+                <div class="ns-hero-content reveal" style="position: absolute; top: 10%; left: 50%; transform: translateX(-50%); width: 100%; display: flex; justify-content: center; text-align: center;">
+                    <h1 class="ns-title-main" style="color: #009FE3; text-shadow: 0 4px 15px rgba(0,0,0,0.8); margin: 0;">Nosotros</h1>
+                </div>
+                
+                <!-- Scroll Indicator -->
+                <div class="scroll-indicator">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <polyline points="19 12 12 19 5 12"></polyline>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Introduccion -->
+            <section class="ns-intro-section" style="padding: 4rem 2rem; text-align: center; background: #e0f2fe;">
+                <div class="container">
+                    <p class="ns-intro-text" style="font-size: 1.25rem; line-height: 1.8; color: #333; max-width: 800px; margin: 0 auto;">Somos una empresa comprometida con el cuidado del medio ambiente, especializada en la producción y venta de envases reciclables para bebidas calientes y frías. Nuestros productos están diseñados para ofrecer innovación, eficiencia y precios competitivos.</p>
+                </div>
+            </section>
+
+            <div class="ns-content-wrapper">
+                <div class="ns-animated-line line-main"></div>
+
+                <!-- SECCION: Misión -->
+                <section class="ns-section ns-mision reveal container">
+                    <div class="ns-grid">
+                        <div class="ns-text-col">
+                            <h2 class="ns-section-title">Misión</h2>
+                            <p class="ns-section-body">Somos una organización dedicada al desarrollo de soluciones en empaques y envases del sector de alimentos, generando experiencias que aumentan la percepción de valor de nuestros clientes, en pro de la conservación del medio ambiente, operando nacional e internacionalmente en beneficio de todas las partes interesadas y adaptándonos a las necesidades del mercado.</p>
+                        </div>
+                        <div class="ns-visual-col ns-float-anim">
+                            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" class="ns-large-icon" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <circle cx="12" cy="12" r="6" />
+                                <circle cx="12" cy="12" r="2" />
+                            </svg>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCION: Visión -->
+                <section class="ns-section ns-vision reveal container">
+                    <div class="ns-grid ns-grid-reverse">
+                        <div class="ns-text-col">
+                            <h2 class="ns-section-title">Visión</h2>
+                            <p class="ns-section-body">Para el 2026 queremos ser una organización con amplia percepción de marca, líderes en empaques y envases del sector de alimentos, creando soluciones que disminuyan el impacto al medio ambiente, siendo reconocidos por nuestra dinámica para resolver las necesidades de nuestros clientes, con una participación superior al 50% del mercado nacional y reconocimiento importante en los mercados internacionales.</p>
+                        </div>
+                        <div class="ns-visual-col ns-float-anim-alt">
+                            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" class="ns-large-icon" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- SECCION: Sticky/Parallax Footer Reveal.  -->
+            <section class="ns-final-parallax" style="position: sticky; bottom: 0; z-index: 0; overflow: hidden; height: 80vh; padding: 0;">
+                <img src="/images/us/IMG_4710.JPEG" alt="Banners Final" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" loading="lazy">
+                <div class="ns-hero-overlay"></div>
+            </section>
+        </main>
+        
+        <div id="cart-drawer" class="cart-drawer"></div>
+        <footer class="site-footer"></footer>
+    </div>
+
+    <!-- Script to handle header, cart and animations -->
+    <script type="module">
+        import { renderHeader } from './components/header.js?v=999';
+        import { renderCartDrawer } from './components/cart-drawer.js';
+        
+        renderHeader(document.getElementById('site-header'));
+        renderCartDrawer(document.getElementById('cart-drawer'));
+
+        // Scroll reveals and line animation observer
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        
+        // Dynamic main line growth on scroll
+        const wrapper = document.querySelector('.ns-content-wrapper');
+        const mainLine = document.querySelector('.line-main');
+        if (mainLine && wrapper) {
+            window.addEventListener('scroll', () => {
+                const rect = wrapper.getBoundingClientRect();
+                const progress = (window.innerHeight - rect.top) / rect.height;
+                // Mult by 1.25 so it finishes slightly before the absolute bottom
+                const percentage = Math.max(0, Math.min(progress * 130, 100)); 
+                mainLine.style.height = percentage + '%';
+            });
+        }
+    </script>
+    <script src="./utils/tracker.js"></script>
+</body>
+</html>

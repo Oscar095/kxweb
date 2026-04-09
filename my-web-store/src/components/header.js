@@ -51,8 +51,15 @@ export function renderHeader(container) {
       </div>
       <nav class="nav nav-animated">
         <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
+        <a href="/nosotros" class="nav-link" data-nav="nosotros">Nosotros</a>
         <a href="/products" class="nav-link" data-nav="productos">Productos</a>
         <a href="/personalizados" class="nav-link" data-nav="personalizados">Personalizados</a>
+        <div class="nav-dropdown">
+          <a href="/canal-etico" class="nav-link nav-dropdown-btn" data-nav="canal-etico">Canal Ético</a>
+          <div class="nav-dropdown-content">
+            <a href="/canal-etico" class="nav-link-sub">PTEE</a>
+          </div>
+        </div>
         <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
         <span class="nav-rect"></span>
       </nav>
