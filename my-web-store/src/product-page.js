@@ -314,6 +314,15 @@ function renderProduct(p) {
   const mainImg = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : (p.image || '');
   if (ogImg && mainImg) ogImg.content = mainImg;
 
+  // SEO: canonical URL dinámica
+  let canonicalEl = document.querySelector('link[rel="canonical"]');
+  if (!canonicalEl) {
+    canonicalEl = document.createElement('link');
+    canonicalEl.rel = 'canonical';
+    document.head.appendChild(canonicalEl);
+  }
+  canonicalEl.href = `https://kosxpress.com/product?id=${p.id}`;
+
   // SEO: Inject Schema.org Product JSON-LD
   const existingSchema = document.getElementById('product-schema-ld');
   if (existingSchema) existingSchema.remove();
