@@ -62,7 +62,9 @@ export function initChatbot() {
       pointer-events: auto;
       transform: translateY(0) scale(1);
     }
-    .kos-chatbot-window.open + .kos-chatbot-btn {
+    
+    /* Force hide button when open */
+    .chat-open .kos-chatbot-btn {
       display: none !important;
     }
 
@@ -203,6 +205,15 @@ export function initChatbot() {
     }
     .chatbot-msg.user .chatbot-msg-time { text-align: right; }
     .chatbot-msg.bot .chatbot-msg-time { text-align: left; }
+
+    .chatbot-msg.bot a {
+      color: var(--primary, #0077b6);
+      text-decoration: underline;
+      word-break: break-all;
+    }
+    .chatbot-msg.bot a:hover {
+      opacity: 0.8;
+    }
 
     /* ===== TYPING INDICATOR ===== */
     .typing-indicator {
@@ -401,20 +412,28 @@ export function initChatbot() {
     }
 
     /* ===== MOBILE RESPONSIVE ===== */
-    @media (max-width: 480px) {
+    @media (max-width: 600px) {
       .kos-chatbot-window {
-        width: calc(100vw - 32px);
-        height: auto;
-        min-height: 400px;
-        max-height: calc(100dvh - 120px);
-        bottom: 90px;
-        top: auto;
+        width: calc(100% - 32px);
+        height: min(580px, calc(100% - 140px));
+        bottom: 24px;
         right: 16px;
         left: 16px;
-        border-radius: 20px;
-        max-width: none;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      }
+      .kos-chatbot-btn {
+        width: 52px;
+        height: 52px;
+        bottom: 20px;
+        right: 20px;
+      }
+      .kos-chatbot-suggestions {
+        padding: 0 10px 8px;
+        gap: 4px;
       }
     }
+
   `;
   document.head.appendChild(style);
 
@@ -486,10 +505,12 @@ export function initChatbot() {
     windowEl.classList.toggle('open');
     const isOpen = windowEl.classList.contains('open');
     if (isOpen) {
+      document.body.classList.add('chat-open');
+      btnOpen.style.display = 'none'; // Force hide
       input.focus();
-      btnOpen.style.display = 'none';
     } else {
-      btnOpen.style.display = '';
+      document.body.classList.remove('chat-open');
+      btnOpen.style.display = ''; // Restore
     }
   };
 
@@ -523,6 +544,10 @@ export function initChatbot() {
     if (sender === 'bot' && !isError) {
       let formattedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
       formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      formattedText = formattedText.replace(
+        /(https?:\/\/[^\s<>"')\]]+)/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      );
       content = formattedText;
     } else if (isError) {
       content = text;

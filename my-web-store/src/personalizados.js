@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { initChatbot } from './components/chatbot.js';
 
@@ -28,9 +28,9 @@ function populateSelect(select) {
         return;
     }
 
-    // Group by category
+    // Group by category, filtering only personalized products
     const groups = {};
-    productsData.forEach(p => {
+    productsData.filter(p => p.es_personalizado === true || p.es_personalizado === 1).forEach(p => {
         const cat = p.category_name || 'Otros';
         if (!groups[cat]) groups[cat] = [];
         groups[cat].push(p);
@@ -46,6 +46,10 @@ function populateSelect(select) {
             opt.textContent = p.name;
             opt.dataset.priceUnit = p.price_unit;
             opt.dataset.cantidad = p.cantidad;
+            opt.dataset.precioPersonalizado2000 = p.precio_personalizado_2000;
+            opt.dataset.precioPersonalizado4000 = p.precio_personalizado_4000;
+            opt.dataset.precioPersonalizado8000 = p.precio_personalizado_8000;
+            opt.dataset.precioPersonalizado20000 = p.precio_personalizado_20000;
             optgroup.appendChild(opt);
         });
         select.appendChild(optgroup);
@@ -66,20 +70,33 @@ function initCotizador() {
     // Populate the select with API data
     populateSelect(select);
 
+    const QUANTITY_MAP = [2000, 4000, 8000, 20000];
+
     function calcular() {
         const selectedOpt = select.options[select.selectedIndex];
-        if (!selectedOpt || !selectedOpt.dataset.priceUnit) return;
+        const stepIndex = parseInt(slider.value, 10);
+        const cantidad = QUANTITY_MAP[stepIndex] || 2000;
 
-        const basePrice = parseFloat(selectedOpt.dataset.priceUnit);
-        const cantidad = parseInt(slider.value, 10);
+        const prices = [
+            parseFloat(selectedOpt.dataset.precioPersonalizado2000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado4000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado8000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado20000)
+        ];
 
-        // Volume discount: ~2% per each 1000 over base 2000, capped at 30%
-        const unidadesBase = 2000;
-        const intervalos1000 = Math.max(0, (cantidad - unidadesBase) / 1000);
-        let descuentoPct = intervalos1000 * 0.02;
-        if (descuentoPct > 0.30) descuentoPct = 0.30;
+        const precioEspecífico = prices[stepIndex];
+        const hasPrecioEspecífico = !isNaN(precioEspecífico) && precioEspecífico > 0;
 
-        const unitarioActual = basePrice * (1 - descuentoPct);
+        // Base price for savings calculation (usually the 2k price or unit price)
+        const basePrice = !isNaN(prices[0]) && prices[0] > 0 ? prices[0] : parseFloat(selectedOpt.dataset.priceUnit);
+
+        // Logic: Use specific price if available, otherwise fallback to base unit price 
+        let unitarioActual = hasPrecioEspecífico ? precioEspecífico : parseFloat(selectedOpt.dataset.priceUnit);
+        
+        // If not specific price, we might want to keep some discount? 
+        // User said: "el usuario solo pondra el valor para las 2000... hay que agregar para 4000, 8000 y 20000"
+        // If they leave them empty, maybe we revert to 0 or unit price. 
+        // Let's assume they provide them. If not, unitarioActual is the base price.
         const total = unitarioActual * cantidad;
         const ahorro = (basePrice - unitarioActual) * cantidad;
 

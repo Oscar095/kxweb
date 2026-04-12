@@ -59,6 +59,13 @@ function toBuffer(val) {
 const PAYU_ENABLED = process.env.PAYU_ENABLED === 'true';
 const PORT = process.env.PORT || 3000;
 
+process.on('uncaughtException', err => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
 // Wompi
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY;
 const WOMPI_INTEGRITY_SECRET = process.env.WOMPI_INTEGRITY_SECRET;
@@ -408,23 +415,23 @@ app.post('/api/pedidos', async (req, res) => {
     if (!clienteExiste) {
       try {
         const terceroBody = {
-        tipo_documento: tipoDocumento || null,
-        numero_documento: nitId,
-        digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
-        nombres: nombres || null,
-        apellidos: apellidos || null,
-        nombre_completo: nombreCompleto || null,
-        fecha_nacimiento: fechaNacimiento || null,
-        email: email,
-        telefono: telefonoFijo || null,
-        celular: phone || null,
-        direccion: address || null,
-        ciudad: city || null,
-        departamento: departamento || null,
-        pais: pais || 'CO',
-        tipo_persona: tipoPersona || 'N',
-        regimen: regimen || null
-      };
+          tipo_documento: tipoDocumento || null,
+          numero_documento: nitId,
+          digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
+          nombres: nombres || null,
+          apellidos: apellidos || null,
+          nombre_completo: nombreCompleto || null,
+          fecha_nacimiento: fechaNacimiento || null,
+          email: email,
+          telefono: telefonoFijo || null,
+          celular: phone || null,
+          direccion: address || null,
+          ciudad: city || null,
+          departamento: departamento || null,
+          pais: pais || 'CO',
+          tipo_persona: tipoPersona || 'N',
+          regimen: regimen || null
+        };
         fetch('https://kx-endpoints.azurewebsites.net/crear-tercero', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -596,8 +603,8 @@ app.use(express.static(staticDir, {
   extensions: ['html'],
   maxAge: '7d',
   setHeaders(res, filePath) {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
+    if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
   }
 }));
@@ -692,6 +699,11 @@ function mapProductRow(d) {
     empaque_descripcion: d.empaque_descripcion || '',
     description: d.description || '',
     habilitado: d.habilitado != null ? !!d.habilitado : true,
+    es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
+    precio_personalizado_2000: d.precio_personalizado_2000 != null ? Number(d.precio_personalizado_2000) : null,
+    precio_personalizado_4000: d.precio_personalizado_4000 != null ? Number(d.precio_personalizado_4000) : null,
+    precio_personalizado_8000: d.precio_personalizado_8000 != null ? Number(d.precio_personalizado_8000) : null,
+    precio_personalizado_20000: d.precio_personalizado_20000 != null ? Number(d.precio_personalizado_20000) : null,
     images: imgs,
     image: imgs[0] || '/images/placeholder.svg',
     image2: d.image2 || '',
@@ -743,6 +755,11 @@ app.get('/api/products/:id', async (req, res) => {
       empaque_descripcion: d.empaque_descripcion || '',
       description: d.description || '',
       habilitado: d.habilitado != null ? !!d.habilitado : true,
+      es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
+      precio_personalizado_2000: d.precio_personalizado_2000 != null ? Number(d.precio_personalizado_2000) : null,
+      precio_personalizado_4000: d.precio_personalizado_4000 != null ? Number(d.precio_personalizado_4000) : null,
+      precio_personalizado_8000: d.precio_personalizado_8000 != null ? Number(d.precio_personalizado_8000) : null,
+      precio_personalizado_20000: d.precio_personalizado_20000 != null ? Number(d.precio_personalizado_20000) : null,
       image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
       images: imgs,
       image2: d.image2 || '',
@@ -1249,6 +1266,11 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
     const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
     const row_empaque = asNumber(b.row_empaque) ?? null;
+    const es_personalizado = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
+    const precio_personalizado_2000 = b.precio_personalizado_2000 != null && b.precio_personalizado_2000 !== '' ? Number(b.precio_personalizado_2000) : null;
+    const precio_personalizado_4000 = b.precio_personalizado_4000 != null && b.precio_personalizado_4000 !== '' ? Number(b.precio_personalizado_4000) : null;
+    const precio_personalizado_8000 = b.precio_personalizado_8000 != null && b.precio_personalizado_8000 !== '' ? Number(b.precio_personalizado_8000) : null;
+    const precio_personalizado_20000 = b.precio_personalizado_20000 != null && b.precio_personalizado_20000 !== '' ? Number(b.precio_personalizado_20000) : null;
     if (!name) return res.status(400).json({ message: 'Nombre requerido' });
 
     // images: can be array or JSON string
@@ -1268,11 +1290,12 @@ app.post('/api/products', requireAdmin, async (req, res) => {
 
     // Validate categoryParam resolved and exists (FK)
     if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
-    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque });
-    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque)
+    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque, es_personalizado, precio_personalizado_2000 });
+    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque,es_personalizado,precio_personalizado_2000,precio_personalizado_4000,precio_personalizado_8000,precio_personalizado_20000)
         OUTPUT INSERTED.id
-        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque);`, {
-      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque
+        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque,@es_personalizado,@precio_personalizado_2000,@precio_personalizado_4000,@precio_personalizado_8000,@precio_personalizado_20000);`, {
+      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque, es_personalizado: es_personalizado ? 1 : 0, 
+      precio_personalizado_2000, precio_personalizado_4000, precio_personalizado_8000, precio_personalizado_20000
     });
     const newId = resIns[0] && resIns[0].id;
     productsCache.data = null; // invalidar caché
@@ -1350,7 +1373,7 @@ app.get('/api/precio', async (req, res) => {
     if (!escalones.length) {
       // Derivar escalones de los productos con este código
       const codigoStr = String(codigo);
-      const prodDocs = await db.query('SELECT cantidad FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
+      const prodDocs = await db.query('SELECT cantidad FROM dbo.products WHERE codigo_siesa = @codigo', { codigo: codigoStr });
       escalones = prodDocs.map(p => p.cantidad).filter(Number.isFinite).map(Number);
     }
     escalones = escalones.filter(c => Number.isFinite(c)).sort((a, b) => a - b);
@@ -1384,7 +1407,7 @@ app.get('/api/precio', async (req, res) => {
       ]
     };
     // try direct match in SQL
-    const prodRows = await db.query(`SELECT * FROM dbo.products WHERE codigo = @codigo AND cantidad = @escalon`, { codigo: codigoStr, escalon: escalonNum });
+    const prodRows = await db.query(`SELECT * FROM dbo.products WHERE codigo_siesa = @codigo AND cantidad = @escalon`, { codigo: codigoStr, escalon: escalonNum });
     let prod = prodRows[0];
     if (debugPrecio === 'true') {
       console.log('[DEBUG /api/precio]', { codigo, cantidadReal, escalon, found: !!prod });
@@ -1392,7 +1415,7 @@ app.get('/api/precio', async (req, res) => {
     let chosen = prod;
     if (!chosen) {
       // Fallback: buscar el producto con mayor Cantidad <= escalon (ya debería ser escalon) o el máximo disponible para el código
-      const allCode = await db.query('SELECT * FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
+      const allCode = await db.query('SELECT * FROM dbo.products WHERE codigo_siesa = @codigo', { codigo: codigoStr });
       const withQty = allCode.map(p => ({ doc: p, qty: Number(p.cantidad) })).filter(x => Number.isFinite(x.qty));
       const floorCandidates = withQty.filter(x => x.qty <= escalonNum).sort((a, b) => b.qty - a.qty);
       if (floorCandidates.length) chosen = floorCandidates[0].doc; else if (withQty.length) {
@@ -1406,9 +1429,10 @@ app.get('/api/precio', async (req, res) => {
     }
 
     // Precio total almacenado para ese escalón (preferimos el guardado, NO escalamos a cantidadReal)
-    const precioEscalon = (chosen.price != null ? chosen.price : null);
-    const qtyChosen = chosen.cantidad;
-    const precioUnitario = chosen.precio_unitario ?? ((precioEscalon && qtyChosen) ? (precioEscalon / qtyChosen) : null);
+    const qtyChosen = chosen.cantidad ?? chosen.Cantidad ?? 1;
+    const precioUnitario = chosen.price_unit ?? chosen.precio_unitario ?? null;
+    const precioEscalon = (chosen.price != null ? chosen.price : (precioUnitario != null ? precioUnitario * qtyChosen : null));
+    
     if (precioEscalon == null) {
       return res.status(500).json({ message: 'Producto sin Precio total en el escalón', productoId: chosen.id, escalon });
     }
@@ -1508,7 +1532,7 @@ async function fetchInventarioForSku(skuRaw) {
       return result;
     }
 
-    const statusText = inventario > 1000 ? 'En Existencia' : 'Agotado';
+    const statusText = inventario > 0 ? 'En Existencia' : 'Agotado';
     const result = { sku: skuRaw, inventario, estado: statusText };
     inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
     return result;
@@ -1922,6 +1946,27 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     if (categoryResolved != null) { sets.push('category = @category'); params.category = categoryResolved; }
     if (row_empaque != null) { sets.push('row_empaque = @row_empaque'); params.row_empaque = row_empaque; }
     if (description !== '') { sets.push('description = @description'); params.description = description; }
+    if (b.es_personalizado !== undefined) {
+      const esp = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
+      sets.push('es_personalizado = @es_personalizado');
+      params.es_personalizado = esp ? 1 : 0;
+    }
+    if (b.precio_personalizado_2000 !== undefined) {
+      sets.push('precio_personalizado_2000 = @precio_personalizado_2000');
+      params.precio_personalizado_2000 = (b.precio_personalizado_2000 != null && b.precio_personalizado_2000 !== '') ? Number(b.precio_personalizado_2000) : null;
+    }
+    if (b.precio_personalizado_4000 !== undefined) {
+      sets.push('precio_personalizado_4000 = @precio_personalizado_4000');
+      params.precio_personalizado_4000 = (b.precio_personalizado_4000 != null && b.precio_personalizado_4000 !== '') ? Number(b.precio_personalizado_4000) : null;
+    }
+    if (b.precio_personalizado_8000 !== undefined) {
+      sets.push('precio_personalizado_8000 = @precio_personalizado_8000');
+      params.precio_personalizado_8000 = (b.precio_personalizado_8000 != null && b.precio_personalizado_8000 !== '') ? Number(b.precio_personalizado_8000) : null;
+    }
+    if (b.precio_personalizado_20000 !== undefined) {
+      sets.push('precio_personalizado_20000 = @precio_personalizado_20000');
+      params.precio_personalizado_20000 = (b.precio_personalizado_20000 != null && b.precio_personalizado_20000 !== '') ? Number(b.precio_personalizado_20000) : null;
+    }
     if (images !== undefined) {
       sets.push('images = @images'); params.images = JSON.stringify(images);
       params.image2 = images[1] || '';

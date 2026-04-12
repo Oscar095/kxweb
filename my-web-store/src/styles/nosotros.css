@@ -1,0 +1,335 @@
+/* nosotros.css */
+.nosotros-page {
+    background-color: #fafafa;
+    color: #333;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Base resets inside the page */
+.ns-section {
+    padding: 6rem 0;
+    position: relative;
+    z-index: 2;
+}
+
+/* Animated Line variables */
+:root {
+    --ns-line-color: #f17024;
+    --ns-line-width: 4px;
+}
+
+/* HERO SECTION */
+.ns-hero {
+    position: relative;
+    height: calc(100vh - 110px);
+    margin-top: -20px;
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #ffffff;
+    overflow: hidden;
+    z-index: 2;
+}
+
+.ns-hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+}
+
+.ns-hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.ns-hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(20, 50, 90, 0.5) 100%);
+}
+
+.ns-hero-content {
+    max-width: 800px;
+    padding: 2rem;
+    position: relative;
+}
+
+.ns-title-main {
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 800;
+    margin-bottom: 1rem;
+    letter-spacing: 2px;
+    background: -webkit-linear-gradient(#31acf3, #ffffff);
+    -webkit-background-clip: text;
+    opacity: 0;
+    transform: center;
+    animation: ns-fadeUp 1s ease forwards 0.3s;
+}
+
+.ns-hero-text {
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    line-height: 1.6;
+    font-weight: 300;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: ns-fadeUp 1s ease forwards 0.6s;
+}
+
+.ns-icon-wrap {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: ns-fadeUp 1s ease forwards 0.9s;
+}
+
+.ns-icon {
+    display: inline-block;
+    color: #f17024;
+    filter: drop-shadow(0px 0px 8px rgba(241, 112, 36, 0.6));
+    animation: ns-float 4s ease-in-out infinite;
+}
+
+/* ANIMATED STORY LINE */
+.ns-content-wrapper {
+    position: relative;
+    background: #fff;
+    z-index: 2;
+}
+
+.ns-animated-line {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: var(--ns-line-width);
+    background: linear-gradient(180deg, var(--ns-line-color) 0%, #0056b3 100%);
+    z-index: 10;
+    border-radius: 2px;
+    filter: drop-shadow(0 0 4px var(--ns-line-color));
+}
+
+.ns-animated-line.line-1 {
+    top: 50%;
+    bottom: 0;
+    height: 50%;
+}
+
+.ns-animated-line.line-main {
+    top: 0;
+    height: 0%;
+    /* JS will update this */
+    transition: height 0.1s ease-out;
+}
+
+/* SECTIONS GRID */
+.ns-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+}
+
+.ns-grid-reverse {
+    direction: rtl;
+}
+
+.ns-grid-reverse>* {
+    direction: ltr;
+    /* keep text readable */
+}
+
+@media (max-width: 900px) {
+    .ns-grid {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 2rem;
+    }
+
+    .ns-grid-reverse {
+        direction: ltr;
+    }
+
+    .ns-animated-line {
+        left: 20px;
+        transform: none;
+    }
+}
+
+.ns-section {
+    padding: 8rem 0;
+    position: relative;
+    background: #fff;
+}
+
+.ns-section:nth-child(even) {
+    background: #f8fbff;
+    /* subtle blue */
+}
+
+.ns-text-col {
+    padding: 2rem;
+}
+
+.ns-section-title {
+    font-size: 3rem;
+    color: #11345d;
+    /* Brand blue */
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+    position: relative;
+    display: inline-block;
+}
+
+.ns-section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: #f17024;
+    /* Brand orange */
+    border-radius: 2px;
+}
+
+@media (max-width: 900px) {
+    .ns-section-title::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+}
+
+.ns-section-body {
+    font-size: 1.15rem;
+    line-height: 1.8;
+    color: #555;
+}
+
+.ns-visual-col {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ns-large-icon {
+    color: #f17024;
+    filter: drop-shadow(0 15px 25px rgba(241, 112, 36, 0.3));
+}
+
+.ns-float-anim {
+    animation: ns-float 6s ease-in-out infinite;
+}
+
+.ns-float-anim-alt {
+    animation: ns-float 6s ease-in-out infinite reverse;
+}
+
+/* PARALLAX FOOTER EFFECT */
+.ns-final-parallax {
+    position: relative;
+    height: 80vh;
+    /* space revealed behind the content */
+    background: transparent;
+}
+
+/* This div is fixed behind the content so when you scroll, 
+   the content moves up to reveal it */
+.ns-final-bg {
+    position: fixed;
+    top: 20vh;
+    /* center it vertically */
+    left: 0;
+    width: 100vw;
+    height: 80vh;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 1;
+    /* Below everything (the wrapper) */
+    opacity: 0;
+    /* JS or CSS logic: handled by wrapper z-index! wait, let's fix the structural stack */
+}
+
+/* Actually, a simpler and cleaner sticky footer parallax approach: */
+.ns-content-wrapper {
+    position: relative;
+    z-index: 3;
+    background: #fff;
+    box-shadow: 0px 20px 40px rgba(0, 0, 0, 0.5);
+    /* shadow drops into the parachute below */
+    margin-bottom: 0;
+    /* We will let the parallax element handle the gap */
+}
+
+.ns-final-parallax {
+    position: relative;
+    z-index: 1;
+    min-height: 80vh;
+    background-attachment: fixed;
+    background-position: center bottom;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+/* Ensure the site footer has a solid background and sits over the fixed image */
+.site-footer {
+    position: relative !important;
+    z-index: 10 !important;
+    background-color: #11345d !important;
+}
+
+/* ANIMATIONS */
+@keyframes ns-fadeUp {
+    0% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes ns-zoomout {
+    0% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1.0);
+    }
+}
+
+@keyframes ns-float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+/* REVEAL UTILITY */
+.reveal {
+    opacity: 0;
+    transform: translateY(50px);
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}

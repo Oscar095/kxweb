@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 import { formatMoney } from './utils/format.js';
@@ -222,6 +222,15 @@ function renderProduct(p) {
     if (addBtn) {
       addBtn.disabled = !enabled;
       addBtn.title = enabled ? '' : (reason || 'No disponible');
+      if (!enabled) {
+        addBtn.style.setProperty('opacity', '0.5', 'important');
+        addBtn.style.setProperty('pointer-events', 'none', 'important');
+        addBtn.style.setProperty('cursor', 'not-allowed', 'important');
+      } else {
+        addBtn.style.removeProperty('opacity');
+        addBtn.style.removeProperty('pointer-events');
+        addBtn.style.removeProperty('cursor');
+      }
     }
   };
 
@@ -253,9 +262,9 @@ function renderProduct(p) {
 
     // Upstream dice agotado
     if (upstreamEstado !== 'En Existencia') {
-      stock.textContent = 'Agotado';
+      stock.textContent = 'Producto agotado';
       stock.className = 'pd-stock pd-stock--out';
-      setCartEnabled(false, 'Agotado');
+      setCartEnabled(false, 'Producto agotado');
       return;
     }
 
@@ -407,6 +416,12 @@ function renderProduct(p) {
             upstreamEstado = 'En Existencia';
             inventarioExistencia = Number(data?.inventario);
             renderStockAndCartState();
+          } else if (data.error === 'upstream_error' || data.error === 'timeout') {
+            // En caso de error de servidor, bloquear por seguridad
+            stock.textContent = 'Producto agotado';
+            stock.className = 'pd-stock pd-stock--out';
+            upstreamEstado = 'Agotado';
+            setCartEnabled(false, 'Producto agotado');
           } else {
             upstreamEstado = 'Agotado';
             inventarioExistencia = Number(data?.inventario);
@@ -414,11 +429,10 @@ function renderProduct(p) {
           }
         })
         .catch(() => {
-          stock.textContent = 'Agotado';
+          stock.textContent = 'Producto agotado';
           stock.className = 'pd-stock pd-stock--out';
           upstreamEstado = 'Agotado';
-          inventarioExistencia = null;
-          setCartEnabled(false, 'Agotado');
+          setCartEnabled(false, 'Producto agotado');
         });
     }
   }
@@ -454,6 +468,75 @@ function renderProduct(p) {
     updateMain();
   });
 
+  // --- Mobile Lightbox (tap image to view fullscreen with pinch-to-zoom) ---
+  if (window.innerWidth <= 900) {
+    const lightbox = document.getElementById('pd-lightbox');
+    const lbImg = document.getElementById('pd-lightbox-img');
+    const lbClose = document.getElementById('pd-lightbox-close');
+    const lbPrev = document.getElementById('pd-lightbox-prev');
+    const lbNext = document.getElementById('pd-lightbox-next');
+    const lbCounter = document.getElementById('pd-lightbox-counter');
+    let lbIdx = 0;
+
+    const updateLightbox = () => {
+      if (lbImg) lbImg.src = imgs[lbIdx] || '/images/placeholder.svg';
+      if (lbCounter && imgs.length > 1) lbCounter.textContent = `${lbIdx + 1} / ${imgs.length}`;
+      if (lbPrev) lbPrev.style.display = imgs.length > 1 ? 'flex' : 'none';
+      if (lbNext) lbNext.style.display = imgs.length > 1 ? 'flex' : 'none';
+    };
+
+    const openLightbox = () => {
+      lbIdx = idx; // sync with main gallery index
+      updateLightbox();
+      if (lightbox) {
+        lightbox.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+      }
+    };
+
+    const closeLightbox = () => {
+      if (lightbox) {
+        lightbox.classList.remove('is-open');
+        document.body.style.overflow = '';
+      }
+    };
+
+    // Tap main image to open lightbox
+    if (wrap) {
+      wrap.style.cursor = 'zoom-in';
+      wrap.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        openLightbox();
+      });
+
+      // Add zoom hint badge
+      const hint = document.createElement('div');
+      hint.className = 'pd-zoom-hint';
+      hint.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg> Toca para ampliar`;
+      wrap.appendChild(hint);
+    }
+
+    // Close button
+    lbClose?.addEventListener('click', closeLightbox);
+
+    // Close on background tap (not on image or buttons)
+    lightbox?.addEventListener('click', (e) => {
+      if (e.target === lightbox || e.target.classList.contains('pd-lightbox-img-container')) closeLightbox();
+    });
+
+    // Prev/Next in lightbox
+    lbPrev?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      lbIdx = (lbIdx - 1 + imgs.length) % imgs.length;
+      updateLightbox();
+    });
+    lbNext?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      lbIdx = (lbIdx + 1) % imgs.length;
+      updateLightbox();
+    });
+  }
+
   async function recalcDetail() {
     const codigo = price.dataset.codigo;
     if (!codigo) return; // sin código no recalcula
@@ -468,7 +551,8 @@ function renderProduct(p) {
         return;
       }
       const data = await r.json();
-      const BOX_SIZE = 1000;
+      const upbStr = price.getAttribute('data-cantidad') || p.cantidad || p.Cantidad;
+      const BOX_SIZE = (Number.isFinite(Number(upbStr)) && Number(upbStr) > 0) ? Number(upbStr) : 1000;
       let unitario = Number(data.precioUnitario);
       if (!Number.isFinite(unitario) || unitario <= 0) {
         const totalEscalon = Number(data.precio);
@@ -478,8 +562,9 @@ function renderProduct(p) {
         }
       }
       if (!Number.isFinite(unitario) || unitario <= 0) {
-        // fallback: usar p.price / BOX_SIZE
-        unitario = Number(p.price) / BOX_SIZE;
+        // fallback
+        const basePrice = Number(p.price_unit ?? p.precio_unitario ?? ((p.price && p.cantidad) ? p.price / p.cantidad : p.price)) || 0;
+        unitario = basePrice;
       }
       const precioCaja = unitario * BOX_SIZE;
       const precioConIva = Math.round(precioCaja * 1.19);
@@ -676,6 +761,7 @@ async function init() {
       });
       wrap.addEventListener('mousemove', (e) => moveLens(e.clientX, e.clientY));
       wrap.addEventListener('touchstart', (e) => {
+        if (window.innerWidth <= 900) return; // Skip lens on mobile
         if (e.target.closest('button')) return;
         const t = e.touches[0];
         if (!t) return; e.preventDefault();
@@ -683,12 +769,13 @@ async function init() {
         moveLens(t.clientX, t.clientY);
       }, { passive: false });
       wrap.addEventListener('touchmove', (e) => {
+        if (window.innerWidth <= 900) return; // Skip lens on mobile
         if (e.target.closest('button')) return;
         const t = e.touches[0];
         if (!t) return; e.preventDefault();
         moveLens(t.clientX, t.clientY);
       }, { passive: false });
-      wrap.addEventListener('touchend', () => hideLens());
+      wrap.addEventListener('touchend', () => { if (window.innerWidth <= 900) return; hideLens(); });
     }
   } catch (e) {
     console.error(e);
@@ -697,3 +784,28 @@ async function init() {
 }
 
 init();
+
+if (typeof window !== 'undefined' && !window._qtyStepperGlobalListener) {
+  window._qtyStepperGlobalListener = true;
+  document.addEventListener('click', (e) => {
+    const control = e.target.closest('.qty-control-premium');
+    if (control) {
+      e.stopPropagation();
+      const minus = e.target.closest('.qty-btn-minus');
+      const plus = e.target.closest('.qty-btn-plus');
+      if (minus) {
+        const input = minus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Math.max(1, Number(input.value) - 1);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      } else if (plus) {
+        const input = plus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Number(input.value) + 1;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+  });
+}

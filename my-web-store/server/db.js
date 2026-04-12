@@ -207,6 +207,34 @@ async function ensureSchema() {
     END
   `);
 
+  // Ensure es_personalizado column exists on products
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.products','es_personalizado') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD es_personalizado BIT NOT NULL CONSTRAINT DF_products_es_personalizado DEFAULT (0);
+    END
+  `);
+
+  // Ensure precio_personalizado_2000 column exists on products
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.products','precio_personalizado_2000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_2000 FLOAT NULL;
+    END
+    IF COL_LENGTH('dbo.products','precio_personalizado_4000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_4000 FLOAT NULL;
+    END
+    IF COL_LENGTH('dbo.products','precio_personalizado_8000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_8000 FLOAT NULL;
+    END
+    IF COL_LENGTH('dbo.products','precio_personalizado_20000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_20000 FLOAT NULL;
+    END
+  `);
+
   // logos (header/footer)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[logos]') AND type in (N'U'))

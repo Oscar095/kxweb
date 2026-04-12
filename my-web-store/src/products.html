@@ -21,7 +21,7 @@
   <meta property="og:locale" content="es_CO">
   <link rel="preconnect" href="https://datalakekos.blob.core.windows.net">
   <link rel="dns-prefetch" href="https://datalakekos.blob.core.windows.net">
-  <link rel="stylesheet" href="styles/main.css?v=15.0">
+  <link rel="stylesheet" href="/styles/main.css?v=41.0">
 </head>
 
 <body>
@@ -32,78 +32,77 @@
       <div class="bg-orb orb-orange" style="top: 60%; right: 5%;"></div>
 
       <!-- Sidebar for Navigation -->
-      <aside class="category-sidebar">
-        <h2 class="sidebar-title">Categorías</h2>
-        <div class="cat-btn-group sidebar-nav" id="cat-btn-group">
-          <button data-cat="all" class="cat-btn active">Todos</button>
-        </div>
-      </aside>
+
 
       <!-- Main Content Area -->
-      <div class="products-main-content">
-        <!-- Glass Banner Hero -->
-        <div class="products-premium-banner">
-          <div class="banner-glow banner-glow-blue"></div>
-          <div class="banner-glow banner-glow-orange"></div>
-          <div class="banner-content">
-            <h1 id="products-page-title" class="premium-title">Catálogo Completo</h1>
-            <p id="current-category-desc" class="premium-subtitle" style="display: none;"></p>
+      <div class="catalog-v2-main">
+        <div class="v2-header-bar">
+          <div class="v2-header-left">
+            <h1 id="products-page-title">Catálogo Completo</h1>
+            <span class="v2-product-count" id="product-count-badge">0 productos</span>
           </div>
         </div>
 
-        <!-- Custom Filter & Sort Controls (Ultra-Modern UI) -->
+        <!-- Mobile category toggle re-positioned below title -->
+        <div class="mobile-cat-toggle-wrapper mobile-only">
+          <button id="mobile-cat-toggle" class="mobile-cat-toggle custom-dropdown glass">
+            <span class="filter-control-wrap">
+              <span class="filter-label-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"></path></svg>
+              </span>
+              <span class="dropdown-selected-label">Explora por Categoría</span>
+              <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </span>
+          </button>
+        </div>
+
+        <!-- Sidebar for Navigation (Moved inside for mobile accordion) -->
+        <aside class="catalog-v2-sidebar" id="category-sidebar">
+          <h2 class="sidebar-title v2-sidebar-title">Categorías</h2>
+          <div class="v2-cat-list" id="cat-btn-group">
+            <!-- Dynamic category buttons -->
+          </div>
+        </aside>
+
+        <!-- Eye-Catching Premium Filters -->
         <div class="products-filter-premium" id="filter-bar">
-          
-          <div class="glass-segmented-control" id="seg-disponible">
-            <div class="segment-indicator"></div>
-            <div class="segment-pill active" data-value="all">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-              Todos
+          <div class="filter-group-premium">
+            <!-- Custom Dropdown: Availability -->
+            <div class="custom-dropdown glass" id="filter-dropdown">
+              <button class="filter-control-wrap" type="button">
+                <span class="filter-label-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                </span>
+                <span class="dropdown-selected-label">Todo el Inventario</span>
+              </button>
+              <ul class="dropdown-list glass-panel">
+                <li data-value="all" class="is-selected">Todo el Inventario</li>
+                <li data-value="disponible">En Existencia</li>
+              </ul>
             </div>
-            <div class="segment-pill" data-value="disponible">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-              Disponibles
+            
+            <!-- Custom Dropdown: Sort -->
+            <div class="custom-dropdown glass" id="sort-dropdown">
+              <button class="filter-control-wrap" type="button">
+                <span class="filter-label-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                </span>
+                <span class="dropdown-selected-label">Recomendados</span>
+              </button>
+              <ul class="dropdown-list glass-panel">
+                <li data-value="default" class="is-selected">Recomendados</li>
+                <li data-value="asc">Precio: Bajo a Alto</li>
+                <li data-value="desc">Precio: Alto a Bajo</li>
+              </ul>
             </div>
-            <div class="segment-pill" data-value="no-disponible">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-              Agotados
-            </div>
-            <!-- Hidden select to maintain JS compatibility -->
-            <select id="filter-select" class="hidden-select" style="display:none;">
-              <option value="all" selected>Todos</option>
-              <option value="disponible">Disponible</option>
-              <option value="no-disponible">No disponible</option>
-            </select>
           </div>
-
-          <div class="glass-segmented-control" id="seg-sort">
-            <div class="segment-indicator"></div>
-            <div class="segment-pill active" data-value="default">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              Recomendados
-            </div>
-            <div class="segment-pill" data-value="asc">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
-              Precio (Bajo a Alto)
-            </div>
-            <div class="segment-pill" data-value="desc">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-              Precio (Alto a Bajo)
-            </div>
-            <select id="sort-select" class="hidden-select" style="display:none;">
-              <option value="default" selected>Por defecto</option>
-              <option value="asc">Precio: Menor a Mayor</option>
-              <option value="desc">Precio: Mayor a Menor</option>
-            </select>
-          </div>
-
         </div>
 
-        <section id="products" class="product-grid spacious-grid"></section>
+        <section id="products" class="v2-product-grid"></section>
       </div>
     </main>
     <div id="cart-drawer" class="cart-drawer"></div>
-    <script type="module" src="./products-page.js?v=3.0"></script>
+    <script type="module" src="./products-page.js?v=999.1"></script>
     <footer class="site-footer"></footer>
   </div>
   <script src="./utils/tracker.js"></script>

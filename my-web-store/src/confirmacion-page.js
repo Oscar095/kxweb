@@ -1,4 +1,4 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=999';
 
 renderHeader(document.getElementById('site-header'));
 

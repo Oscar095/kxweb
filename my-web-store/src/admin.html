@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/png"
     href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
-  <link rel="stylesheet" href="/styles/main.css" />
+  <link rel="stylesheet" href="/styles/main.css?v=41.0" />
   <link rel="stylesheet" href="/styles/admin.css" />
   <!-- Include Google Fonts for modern typography -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -63,13 +63,15 @@
         </button>
         <button id="nav-pedidos" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
-            <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+            <path
+              d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
           </svg>
           <span>Pedidos</span>
         </button>
         <button id="nav-contacts" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
-            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+            <path
+              d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
           </svg>
           <span>Contactos</span>
         </button>
@@ -131,7 +133,7 @@
     <!-- CONTENT -->
     <main class="admin-content">
 
-      <!-- ================= DASHBOARD VIEW ================= -->
+      <!-- === DASHBOARD VIEW === -->
       <section id="view-dashboard" class="admin-view active">
         <div class="admin-header-row">
           <h2>Dashboard</h2>
@@ -141,7 +143,10 @@
         <div class="dash-kpis" id="dash-kpis">
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:var(--admin-kos-blue);">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-total-pedidos">--</span>
@@ -150,7 +155,10 @@
           </div>
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:var(--admin-success);">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-aprobados">--</span>
@@ -159,7 +167,10 @@
           </div>
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:var(--admin-kos-orange);">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-ingresos">--</span>
@@ -168,7 +179,10 @@
           </div>
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:#8b5cf6;">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-visitas">--</span>
@@ -177,7 +191,10 @@
           </div>
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:#ec4899;">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-contactos">--</span>
@@ -228,7 +245,7 @@
         </div>
       </section>
 
-      <!-- ================= PEDIDOS VIEW ================= -->
+      <!-- === PEDIDOS VIEW === -->
       <section id="view-pedidos" class="admin-view">
         <div class="admin-header-row">
           <h2>Pedidos</h2>
@@ -299,7 +316,7 @@
         </div>
       </section>
 
-      <!-- ================= CONTACTOS VIEW ================= -->
+      <!-- === CONTACTOS VIEW === -->
       <section id="view-contacts" class="admin-view">
         <div class="admin-header-row">
           <h2>Contactos Recibidos</h2>
@@ -336,7 +353,7 @@
         </div>
       </section>
 
-      <!-- ================= PRODUCTOS VIEW ================= -->
+      <!-- === PRODUCTOS VIEW === -->
       <section id="view-products" class="admin-view">
         <div class="admin-header-row">
           <h2>Gestión de Productos</h2>
@@ -366,6 +383,34 @@
                 <div class="field-group">
                   <label for="p-empaque">Tipo de Empaque</label>
                   <select id="p-empaque" name="row_empaque"></select>
+                </div>
+                <div class="field-group">
+                  <label for="p-personalizado">Etiqueta Personalización</label>
+                  <select id="p-personalizado" name="es_personalizado">
+                    <option value="false">No Personalizable</option>
+                    <option value="true">Personalizado</option>
+                  </select>
+                </div>
+                <div id="p-precio-personalizado-group" style="display:none; width:100%; grid-column: 1 / -1; margin-top: 10px;">
+                  <label style="margin-bottom: 10px; display: block; font-weight: bold; color: var(--primary);">Escalas de Precios Personalizados</label>
+                  <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-2000">2.000 unds ($)</label>
+                      <input id="p-precio-personalizado-2000" type="number" name="precio_personalizado_2000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-4000">4.000 unds ($)</label>
+                      <input id="p-precio-personalizado-4000" type="number" name="precio_personalizado_4000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-8000">8.000 unds ($)</label>
+                      <input id="p-precio-personalizado-8000" type="number" name="precio_personalizado_8000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-20000">20.000 unds ($)</label>
+                      <input id="p-precio-personalizado-20000" type="number" name="precio_personalizado_20000" step="0.01" placeholder="0.00" />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="form-grid" style="margin-top:20px;">
@@ -424,7 +469,7 @@
         </div>
       </section>
 
-      <!-- ================= CATEGORÍAS VIEW ================= -->
+      <!-- === CATEGORÍAS VIEW === -->
       <section id="view-categories" class="admin-view">
         <div class="admin-header-row">
           <h2>Categorías</h2>
@@ -455,7 +500,7 @@
         </div>
       </section>
 
-      <!-- ================= BANNERS VIEW ================= -->
+      <!-- === BANNERS VIEW === -->
       <section id="view-banners" class="admin-view">
         <div class="admin-header-row">
           <h2>Gestión de Banners</h2>
@@ -488,7 +533,7 @@
         </div>
       </section>
 
-      <!-- ================= LOGOS VIEW ================= -->
+      <!-- === LOGOS VIEW === -->
       <section id="view-logos" class="admin-view">
         <div class="admin-header-row">
           <h2>Logos y Branding</h2>
@@ -522,7 +567,7 @@
         </div>
       </section>
 
-      <!-- ================= BIBLIOTECA VIEW ================= -->
+      <!-- === BIBLIOTECA VIEW === -->
       <section id="view-library" class="admin-view">
         <div class="admin-header-row">
           <h2>Biblioteca de Imágenes</h2>

@@ -1,7 +1,11 @@
 import { initChatbot } from './chatbot.js';
 import { SITE_CONFIG } from '../utils/config.js';
+import { initPromoPopup } from './promo-popup.js?v=999';
 
 export function renderHeader(container) {
+  // Inicializar Popup Promocional lo antes posible
+  try { initPromoPopup(); } catch(e) { console.error('[Promo] Error de inicio:', e); }
+
   // Animación de rectángulo en nav
   setTimeout(() => {
     const nav = document.querySelector('.nav-animated');
@@ -36,13 +40,14 @@ export function renderHeader(container) {
     </div>
     <div class="announcement-bar">
       <div class="announcement-fade-container">
-        <span class="announce-item active">Precios por caja incluyen IVA</span>
-        <span class="announce-item">Compra fácil y rápido desde nuestra web</span>
-        <span class="announce-item">Envíos a nivel nacional rápidos y seguros</span>
-        <span class="announce-item">La mejor calidad de empaques para tu negocio</span>
+        <span class="announce-item active">🌟 Precios por caja incluyen IVA</span>
+        <span class="announce-item">✨ Personaliza desde 2.000 unidades con tu marca</span>
+        <span class="announce-item">💻 Compra fácil y rápido desde nuestra web</span>
+        <span class="announce-item">📦 Envíos a nivel nacional rápidos y seguros</span>
       </div>
     </div>
     <div class="header-glass-pill">
+      <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menú">☰</button>
       <div class="logo">
         <a href="/">
           <img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/>
@@ -50,13 +55,19 @@ export function renderHeader(container) {
       </div>
       <nav class="nav nav-animated" role="navigation" aria-label="Navegación principal">
         <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
+        <a href="/nosotros" class="nav-link" data-nav="nosotros">Nosotros</a>
         <a href="/products" class="nav-link" data-nav="productos">Productos</a>
         <a href="/personalizados" class="nav-link" data-nav="personalizados">Personalizados</a>
+        <div class="nav-dropdown">
+          <a href="/canal-etico" class="nav-link nav-dropdown-btn" data-nav="canal-etico">Canal Ético</a>
+          <div class="nav-dropdown-content">
+            <a href="/canal-etico" class="nav-link-sub">PTEE</a>
+          </div>
+        </div>
         <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
         <span class="nav-rect"></span>
       </nav>
       <div class="search">
-        <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menú">☰</button>
         <input id="search-input" placeholder="Buscar productos..." aria-label="Buscar productos" />
         <button id="cart-toggle" title="Carrito" class="cart-btn" aria-label="Abrir carrito de compras">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

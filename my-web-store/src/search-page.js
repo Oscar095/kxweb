@@ -1,7 +1,7 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
-import { productItemTemplate, attachDynamicPriceBehavior } from './components/product-item.js';
+import { productItemTemplate, attachDynamicPriceBehavior, applyOutOfStockToCard } from './components/product-item.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,16 @@ async function init() {
   let activeFilter = 'all';
 
   // ── filter ──────────────────────────────────────────────────────────────────
+
+  // ── inventory sync ──────────────────────────────────────────────────────────
+  if (!window._inventoryCache) window._inventoryCache = new Map();
+  const inventoryCache = window._inventoryCache;
+
+  if (!window._inventoryReady) {
+    let _res;
+    window._inventoryReady = new Promise(r => { _res = r; });
+    window._resolveInventoryReady = _res;
+  }
 
   function filterProducts(q) {
     const qL = q.trim().toLowerCase();
@@ -188,7 +198,7 @@ async function init() {
 
     resultsEl.innerHTML = dedup.map(productItemTemplate).join('');
 
-    const cards = Array.from(resultsEl.querySelectorAll('.product'));
+    const cards = Array.from(resultsEl.querySelectorAll('.v2-card'));
     cards.forEach((card, i) => {
       card.style.transitionDelay = `${i * 50}ms`;
       card.classList.add('search-card-anim');
@@ -284,11 +294,11 @@ async function init() {
 
   resultsEl.addEventListener('click', async (e) => {
     const btn = e.target.closest('.add-to-cart');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     const id = Number(btn.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
-    const card = btn.closest('.product');
+    const card = btn.closest('.v2-card');
     const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
     const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
 
@@ -305,7 +315,8 @@ async function init() {
       const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
       if (!r.ok) throw new Error('err');
       const data = await r.json();
-      if ((data.estado || data.status || '') !== 'En Existencia') {
+      const estado = (data && (data.estado || data.status || '')).toString();
+      if (estado !== 'En Existencia') {
         showToast('Producto Agotado', 'error'); return;
       }
       const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
@@ -328,7 +339,7 @@ async function init() {
     const nav = prev || next;
     if (!nav) return;
     e.preventDefault(); e.stopPropagation();
-    const card = nav.closest('.product');
+    const card = nav.closest('.v2-card');
     const id = Number(card?.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;

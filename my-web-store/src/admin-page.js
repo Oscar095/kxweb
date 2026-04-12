@@ -6,10 +6,15 @@ function renderNewPreviews(files) {
   if (!files || files.length === 0) return;
   [...files].forEach(f => {
     const url = URL.createObjectURL(f);
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = f.name;
-    wrap.appendChild(img);
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${url}" alt="${f.name}">
+      <div class="admin-img-preview-overlay">
+        <span style="font-size:0.65rem; color:var(--admin-text-muted); font-weight:600;">NUEVA</span>
+      </div>
+    `;
+    wrap.appendChild(item);
   });
 }
 
@@ -58,6 +63,7 @@ async function loadProducts() {
             <span style="font-weight: 600; color: var(--admin-text-main);">${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</span>
         </div>
         <div style="font-size: 0.85rem; color: #555; margin-top: 4px;"><strong>Stock:</strong> ${safe(p.cantidad ?? p.Cantidad)} | <strong>SKU:</strong> ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
+        ${p.es_personalizado ? '<div style="font-size:0.75rem; color:#d97706; font-weight:700; text-transform:uppercase; margin-top:4px;">✨ Personalizado</div>' : ''}
         ${descHtml}
         <div class="gpc-actions">
           <button data-id="${p.id}" class="toggle-habilitado ${toggleClass}">
@@ -121,6 +127,22 @@ async function loadProducts() {
         // Set empaque select
         const selEmp = form.querySelector('#p-empaque');
         if (selEmp) selEmp.value = prod.row_empaque != null ? prod.row_empaque : '';
+        const selPers = form.querySelector('#p-personalizado');
+        if (selPers) {
+          selPers.value = String(prod.es_personalizado || 'false');
+          // Update visibility
+          const priceGroup = document.getElementById('p-precio-personalizado-group');
+          if (priceGroup) priceGroup.style.display = (selPers.value === 'true') ? 'block' : 'none';
+        }
+        const inputPersPrice2000 = form.querySelector('#p-precio-personalizado-2000');
+        if (inputPersPrice2000) inputPersPrice2000.value = prod.precio_personalizado_2000 != null ? prod.precio_personalizado_2000 : '';
+        const inputPersPrice4000 = form.querySelector('#p-precio-personalizado-4000');
+        if (inputPersPrice4000) inputPersPrice4000.value = prod.precio_personalizado_4000 != null ? prod.precio_personalizado_4000 : '';
+        const inputPersPrice8000 = form.querySelector('#p-precio-personalizado-8000');
+        if (inputPersPrice8000) inputPersPrice8000.value = prod.precio_personalizado_8000 != null ? prod.precio_personalizado_8000 : '';
+        const inputPersPrice20000 = form.querySelector('#p-precio-personalizado-20000');
+        if (inputPersPrice20000) inputPersPrice20000.value = prod.precio_personalizado_20000 != null ? prod.precio_personalizado_20000 : '';
+        
         form.description.value = prod.description || '';
         form.images.value = ''; // limpia selección
 
@@ -130,31 +152,24 @@ async function loadProducts() {
         if (window.__currentImages.length === 0 && prod.image) window.__currentImages.push(prod.image);
 
         window.__currentImages.forEach((url, idx) => {
-          const wrap = document.createElement('div');
-          wrap.style.position = 'relative';
+          const item = document.createElement('div');
+          item.className = 'admin-img-preview-item';
+          
+          item.innerHTML = `
+            <img src="${url}" alt="${prod.name || ''}">
+            <div class="admin-img-preview-overlay">
+              <button type="button" class="admin-btn-icon danger remove-current" data-idx="${idx}" title="Quitar imagen">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
+          `;
 
-          const im = document.createElement('img');
-          im.src = url;
-          im.alt = prod.name || '';
-          im.style.maxHeight = '120px';
-          im.style.width = '100%';
-          im.style.objectFit = 'contain';
-          wrap.appendChild(im);
-
-          const rm = document.createElement('button');
-          rm.textContent = 'Quitar';
-          rm.type = 'button';
-          rm.style.marginTop = '4px';
-          rm.style.width = '100%';
-          rm.className = 'admin-btn-secondary';
-          rm.style.padding = '4px';
-          rm.addEventListener('click', () => {
+          item.querySelector('.remove-current').addEventListener('click', () => {
             window.__currentImages.splice(idx, 1);
-            wrap.remove();
+            item.remove();
           });
-          wrap.appendChild(rm);
 
-          cur.appendChild(wrap);
+          cur.appendChild(item);
         });
 
         // compute total if both values available
@@ -222,6 +237,11 @@ async function submitForm(ev) {
     payload.cantidad = formEl.querySelector('#p-cantidad')?.value || '';
     payload.category = formEl.querySelector('#p-category')?.value || '';
     payload.row_empaque = formEl.querySelector('#p-empaque')?.value || '';
+    payload.es_personalizado = formEl.querySelector('#p-personalizado')?.value || 'false';
+    payload.precio_personalizado_2000 = formEl.querySelector('#p-precio-personalizado-2000')?.value || '';
+    payload.precio_personalizado_4000 = formEl.querySelector('#p-precio-personalizado-4000')?.value || '';
+    payload.precio_personalizado_8000 = formEl.querySelector('#p-precio-personalizado-8000')?.value || '';
+    payload.precio_personalizado_20000 = formEl.querySelector('#p-precio-personalizado-20000')?.value || '';
     payload.description = formEl.querySelector('#p-desc')?.value || '';
 
     // Files selected
@@ -282,6 +302,13 @@ async function submitForm(ev) {
     console.error(e); status.textContent = 'Error guardando producto.';
   }
 }
+
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'p-personalizado') {
+    const priceGroup = document.getElementById('p-precio-personalizado-group');
+    if (priceGroup) priceGroup.style.display = (e.target.value === 'true') ? 'block' : 'none';
+  }
+});
 
 async function uploadFileFromBrowser(file) {
   // Upload via server to avoid CORS issues
@@ -707,21 +734,18 @@ function renderLibrarySelection() {
   if (!wrap) return;
   wrap.innerHTML = '';
   for (const it of (window.__libSelected || [])) {
-    const cell = document.createElement('div');
-    const img = document.createElement('img');
-    img.src = it.url;
-    img.alt = it.nombre || '';
-    img.style.width = '100%';
-    img.style.height = '88px';
-    img.style.objectFit = 'cover';
-    const rm = document.createElement('button');
-    rm.textContent = 'Quitar';
-    rm.type = 'button';
-    rm.style.marginTop = '4px';
-    rm.addEventListener('click', () => removeLibrarySelection(it.id));
-    cell.appendChild(img);
-    cell.appendChild(rm);
-    wrap.appendChild(cell);
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${it.url}" alt="${it.nombre || ''}">
+      <div class="admin-img-preview-overlay">
+        <button type="button" class="admin-btn-icon danger remove-lib" data-id="${it.id}" title="Quitar de selección">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+    `;
+    item.querySelector('.remove-lib').addEventListener('click', () => removeLibrarySelection(it.id));
+    wrap.appendChild(item);
   }
 }
 async function submitLibraryForm(ev) {

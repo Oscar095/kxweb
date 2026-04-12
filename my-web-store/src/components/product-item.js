@@ -21,54 +21,99 @@ export function productItemTemplate(p) {
   const totalPerBox = cantidadNum ? (unitPrice * cantidadNum) : unitPrice;
   const totalConIva = Math.round(totalPerBox * 1.19);
   const imgSrc = (Array.isArray(p.images) && p.images[0]) || p.image || '/images/placeholder.svg';
-  const qtyInputId = `qty-${p.id}`;
+  const qtyInputId = `v2-qty-${p.id}`;
   const skuAttr = p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '';
+
   return /* html */`
-    <article class="product-card-premium" data-id="${p.id}" data-sku="${skuAttr}" onclick="if(!event.target.closest('button') && !event.target.closest('input') && !event.target.closest('a') && !event.target.closest('.qty-label') && !event.target.closest('.qty-input') && !event.target.closest('.product-actions-hover')) { window.location.href='/product?id=${p.id}'; }">
-      
-      <div class="product-media-premium">
-        <div class="product-img-wrap" data-index="0">
-          <div class="out-of-stock-badge premium-badge" style="display: none;">Sin stock</div>
-          <a href="/product?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
-            <img class="product-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
-          </a>
-          ${Array.isArray(p.images) && p.images.length > 1 ? `
-            <button class="img-prev" aria-label="Imagen anterior">‹</button>
-            <button class="img-next" aria-label="Imagen siguiente">›</button>
-          ` : ''}
-        </div>
-        
-        <!-- Hover actions slide up from bottom of image area -->
-        <div class="product-actions-hover">
-          <div class="qty-control-premium">
-            <label for="${qtyInputId}" class="qty-label sr-only">Cant.</label>
-            <button class="qty-btn minus" onclick="event.stopPropagation(); const i = document.getElementById('${qtyInputId}'); i.value = Math.max(1, Number(i.value) - 1); i.dispatchEvent(new Event('input'));" aria-label="Disminuir">-</button>
-            <input id="${qtyInputId}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
-            <button class="qty-btn plus" onclick="event.stopPropagation(); const i = document.getElementById('${qtyInputId}'); i.value = Number(i.value) + 1; i.dispatchEvent(new Event('input'));" aria-label="Aumentar">+</button>
-          </div>
-          <button class="add-to-cart btn-primary btn-add-premium" data-id="${p.id}">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-            Agregar
-          </button>
-        </div>
+    <article class="v2-card reveal" data-id="${p.id}" data-sku="${skuAttr}" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
+      <div class="v2-card-img-wrap">
+        <div class="v2-oos-badge" style="display: none;">AGOTADO</div>
+        <img class="product-img" src="${imgSrc}" alt="${p.name}" loading="lazy" onload="this.classList.add('loaded')" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
+        ${Array.isArray(p.images) && p.images.length > 1 ? `
+          <button class="v2-img-nav prev">‹</button>
+          <button class="v2-img-nav next">›</button>
+        ` : ''}
       </div>
       
-      <div class="product-info-premium">
-        <h3 class="product-title-premium"><a href="/product?id=${p.id}">${p.name}</a></h3>
-        <div class="product-price-premium">
-          <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
+      <div class="v2-card-body">
+        <h3 class="v2-card-name">${p.name}</h3>
+        <div class="v2-card-price">
+          <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${skuAttr}">
             <span class="price-amount">$${formatMoney(totalConIva)}</span>
             <span class="price-unit">/ caja</span>
+            <span class="iva-tag">IVA incluido</span>
           </p>
-          <span class="tax-badge">IVA incluido</span>
         </div>
-        <div class="volume-pricing-hint">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-          Precio mejora por volumen
+      </div>
+
+      <div class="v2-card-actions">
+        <div class="qty-control-premium" style="width: 105px; flex-shrink: 0; height: 36px;">
+          <button type="button" class="qty-btn qty-btn-minus">-</button>
+          <input id="${qtyInputId}" type="number" class="v2-qty-input qty-input" min="1" value="1" data-dynamic-price="1" style="width: 33px; padding: 0; border: none; height: 100%;">
+          <button type="button" class="qty-btn qty-btn-plus">+</button>
         </div>
+        <button class="v2-add-btn add-to-cart" data-id="${p.id}">
+          Agregar
+        </button>
       </div>
     </article>
   `;
+}
+
+/**
+ * Aplica el estilo de "No disponible" a una tarjeta de producto dada.
+ * Se usa desde páginas que hacen su propio bulk-check (ej: search-page.js).
+ * @param {HTMLElement} card - El elemento de la tarjeta de producto
+ */
+/**
+ * Apply out of stock styles to a card element
+ */
+export function applyOutOfStockToCard(card) {
+  if (!card) return;
+  card.classList.add('is-out-of-stock', 'oos-applied');
+
+  // 1. Badge ligero
+  const badge = card.querySelector('.v2-oos-badge') || card.querySelector('.out-of-stock-badge');
+  if (badge) {
+    badge.textContent = 'No disponible';
+    badge.style.cssText = `
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      background: #ef4444 !important;
+      color: #fff !important;
+      padding: 2px 8px !important;
+      border-radius: 4px !important;
+      font-size: 11px !important;
+      position: absolute !important;
+      top: 5px !important;
+      left: 5px !important;
+      z-index: 100 !important;
+      text-transform: uppercase !important;
+    `;
+  }
+
+  // 2. Imagen (solo opacidad suave)
+  const img = card.querySelector('.product-img') || card.querySelector('.bs-card-img') || card.querySelector('img');
+  if (img) {
+    img.style.setProperty('opacity', '0.7', 'important');
+    img.style.setProperty('filter', 'none', 'important');
+  }
+
+  // 3. Botón desactivado
+  const btn = card.querySelector('.add-to-cart') || card.querySelector('.v2-add-btn') || card.querySelector('button');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = 'No disponible';
+    btn.style.cssText = `
+      background-color: #f5f5f5 !important;
+      color: #aaa !important;
+      cursor: not-allowed !important;
+      border: 1px solid #eee !important;
+      box-shadow: none !important;
+      pointer-events: none !important;
+    `;
+  }
 }
 
 export function attachDynamicPriceBehavior(rootEl) {
@@ -79,61 +124,62 @@ export function attachDynamicPriceBehavior(rootEl) {
     const productId = Number(rootEl.dataset.id);
 
     const applyOutOfStock = () => {
-      const badge = rootEl.querySelector('.out-of-stock-badge');
-      const img = rootEl.querySelector('.product-img');
-      const btn = rootEl.querySelector('.add-to-cart');
-      const actionsHover = rootEl.querySelector('.product-actions-hover');
-      const qtyControl = rootEl.querySelector('.qty-control-premium');
-      if (badge) badge.style.setProperty('display', 'block', 'important');
-      if (img) {
-        img.style.setProperty('filter', 'grayscale(1)', 'important');
-        img.style.setProperty('opacity', '0.5', 'important');
-      }
-      if (qtyControl) qtyControl.style.display = 'none';
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Agotado';
-        btn.title = 'Producto agotado';
-        btn.style.backgroundColor = '#DC2626';
-        btn.style.borderColor = '#DC2626';
-        btn.style.color = '#fff';
-        btn.style.cursor = 'not-allowed';
-        btn.style.opacity = '0.85';
-        btn.classList.add('disabled');
-      }
+      applyOutOfStockToCard(rootEl);
     };
 
-    // Non-blocking stock check
+    // Non-blocking stock check: espera al bulk-inventory antes de decidir.
+    // Esto evita la race condition donde el caché aún no está listo y se asume 'Agotado'.
     const checkStock = async () => {
       try {
         const cache = window._inventoryCache;
-        let estado;
+
+        // Si el caché ya tiene este producto, usarlo directamente (sin fetch)
         if (cache && cache.has(productId)) {
-          estado = cache.get(productId) === 'disponible' ? 'En Existencia' : 'Agotado';
-        } else {
-          estado = 'Agotado';
-          const r = await fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`);
-          if (r.ok) {
-            const data = await r.json();
-            estado = (data && (data.estado || data.status || '')).toString();
-          }
+          if (cache.get(productId) !== 'disponible') applyOutOfStock();
+          return;
         }
-        if (estado !== 'En Existencia') applyOutOfStock();
+
+        // Fallback: individual check
+        try {
+          const sku = (rootEl.getAttribute('data-sku') || '').trim();
+          if (!sku) return;
+          const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
+          // Aun si el status es 502, el body puede traer { estado: 'Agotado' }
+          const data = await r.json().catch(() => ({}));
+          const estado = (data && (data.estado || data.status || '')).toString();
+
+          if (estado !== 'En Existencia') {
+            applyOutOfStock();
+            if (cache) {
+              cache.set(productId, 'no-disponible');
+              window.dispatchEvent(new CustomEvent('inventory-updated', { detail: { productId, status: 'no-disponible' } }));
+            }
+          } else {
+            if (cache) {
+              cache.set(productId, 'disponible');
+              window.dispatchEvent(new CustomEvent('inventory-updated', { detail: { productId, status: 'disponible' } }));
+            }
+          }
+        } catch { }
       } catch (e) {
-        applyOutOfStock();
+        // Error inesperado — no marcar como agotado
+        console.warn('[checkStock] Error inesperado:', e);
       }
     };
     checkStock();
   }
 
-  const qtyInput = rootEl.querySelector('.qty-input[data-dynamic-price]');
-  const priceEl = rootEl.querySelector('.price[data-codigo]');
+  const qtyInput = rootEl.querySelector('.v2-qty-input[data-dynamic-price], .qty-input[data-dynamic-price]');
+  const priceEl = rootEl.querySelector('.price');
   if (!qtyInput || !priceEl) return;
-  const codigo = priceEl.getAttribute('data-codigo');
+  
+  const skuAttrFromRoot = rootEl.getAttribute('data-sku');
+  const codigo = priceEl.getAttribute('data-codigo') || skuAttrFromRoot;
   if (!codigo) return;
 
   let controller = null;
-  const BOX_SIZE = 1000;
+  const upbStr = priceEl.getAttribute('data-cantidad');
+  const BOX_SIZE = (Number.isFinite(Number(upbStr)) && Number(upbStr) > 0) ? Number(upbStr) : 1000;
   const fmt = (n) => new Intl.NumberFormat('es-CO').format(Math.round(n));
 
   qtyInput.addEventListener('keydown', (e) => {
@@ -163,12 +209,12 @@ export function attachDynamicPriceBehavior(rootEl) {
       if (Number.isFinite(totalEscalon) && Number.isFinite(escalon) && escalon > 0) {
         unitario = (totalEscalon / escalon);
       } else {
-        unitario = Number(fallbackBase) / BOX_SIZE;
+        unitario = Number(fallbackBase);
       }
     }
     const precioCaja = unitario * BOX_SIZE;
     const precioConIva = Math.round(precioCaja * 1.19);
-    priceEl.innerHTML = '$' + fmt(precioConIva) + ' <span style="font-size:0.7rem;color:#666;">/ caja</span> <span style="font-size:0.65rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
+    priceEl.innerHTML = '$' + fmt(precioConIva) + ' <span class="price-unit">/ caja</span> <span class="iva-tag">IVA incluido</span>';
     priceEl.dataset.precioCaja = String(precioCaja);
     if (data?.escalonUsado) {
       priceEl.dataset.dynamicEscalon = String(data.escalonUsado);
@@ -203,11 +249,93 @@ export function attachDynamicPriceBehavior(rootEl) {
     }
   }
 
+  let localStock = null;
+  let stockFetched = false;
+
+  const validateLimit = () => {
+    const btn = rootEl.querySelector('.add-to-cart');
+    if (!btn || localStock === null) return;
+    
+    // Si la API arrojó NaN o falta inventario (y no está Agotado), asumimos ilimitado.
+    if (!Number.isFinite(localStock)) {
+      btn.disabled = false;
+      btn.textContent = 'Agregar';
+      btn.style.setProperty('opacity', '1', 'important');
+      btn.style.setProperty('pointer-events', 'auto', 'important');
+      btn.style.cursor = 'pointer';
+      return;
+    }
+
+    const upbStr = priceEl?.getAttribute('data-cantidad');
+    const upb = (Number.isFinite(Number(upbStr)) && Number(upbStr) > 0) ? Number(upbStr) : 1000;
+    const req = sanitizeToInteger() * upb;
+
+    if (req > localStock) {
+      btn.disabled = true;
+      btn.textContent = 'Agotado';
+      btn.style.setProperty('opacity', '0.5', 'important');
+      btn.style.setProperty('pointer-events', 'none', 'important');
+      btn.style.cursor = 'not-allowed';
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Agregar';
+      btn.style.setProperty('opacity', '1', 'important');
+      btn.style.setProperty('pointer-events', 'auto', 'important');
+      btn.style.cursor = 'pointer';
+    }
+  };
+
   qtyInput.addEventListener('input', () => {
     sanitizeToInteger();
-    clearTimeout(qtyInput._t);
-    qtyInput._t = setTimeout(recalc, 160);
+    clearTimeout(qtyInput._tTimer);
+    qtyInput._tTimer = setTimeout(recalc, 180);
+
+    const skuAttr = rootEl.getAttribute('data-sku') || priceEl?.getAttribute('data-codigo');
+    if (skuAttr && !stockFetched) {
+      stockFetched = true;
+      fetch(`/api/inventario/${encodeURIComponent(skuAttr)}`).then(r => r.json()).then(data => {
+        if (data && data.estado === 'En Existencia') {
+          localStock = Number(data.inventario);
+        } else if (data && data.estado === 'Agotado') {
+          localStock = 0;
+        } else {
+          localStock = NaN; // Sin cantidad específica, sin límite simulado.
+        }
+        validateLimit();
+      }).catch(() => {
+        localStock = NaN;
+        validateLimit();
+      });
+    } else {
+      validateLimit();
+    }
   });
 
   recalc();
 }
+
+if (typeof window !== 'undefined' && !window._qtyStepperGlobalListener) {
+  window._qtyStepperGlobalListener = true;
+  document.addEventListener('click', (e) => {
+    const control = e.target.closest('.qty-control-premium');
+    if (control) {
+      e.stopPropagation();
+      const minus = e.target.closest('.qty-btn-minus');
+      const plus = e.target.closest('.qty-btn-plus');
+      if (minus) {
+        const input = minus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Math.max(1, Number(input.value) - 1);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      } else if (plus) {
+        const input = plus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Number(input.value) + 1;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+  });
+}
+

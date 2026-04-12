@@ -1,6 +1,6 @@
-/* ==========================================================================
+/* ====
    Admin Dashboard Styles (Glassmorphism & Modern UI)
-   ========================================================================== */
+   ==== */
 
 :root {
     --admin-sidebar-width: 260px;
@@ -39,9 +39,9 @@ body.admin-body {
     box-sizing: border-box;
 }
 
-/* ==========================================================================
+/* ====
    Layout Structure
-   ========================================================================== */
+   ==== */
 .admin-dashboard {
     display: flex;
     width: 100%;
@@ -184,9 +184,9 @@ body.admin-body {
     border-radius: 20px;
 }
 
-/* ==========================================================================
+/* ====
    Views & Cards
-   ========================================================================== */
+   ==== */
 .admin-view {
     display: none;
     animation: fadeIn 0.4s ease forwards;
@@ -235,9 +235,9 @@ body.admin-body {
     margin-bottom: 24px;
 }
 
-/* ==========================================================================
+/* ====
    Forms & Inputs
-   ========================================================================== */
+   ==== */
 .admin-form fieldset {
     border: none;
     padding: 0;
@@ -321,9 +321,9 @@ body.admin-body {
     background: rgba(0, 159, 227, 0.02);
 }
 
-/* ==========================================================================
+/* ====
    Buttons
-   ========================================================================== */
+   ==== */
 .admin-btn-primary {
     background: linear-gradient(135deg, var(--admin-kos-orange), #e56d0d);
     color: white;
@@ -366,9 +366,9 @@ body.admin-body {
     border-color: rgba(0, 0, 0, 0.2);
 }
 
-/* ==========================================================================
+/* ====
    Data Grids & Product Cards (Admin Version)
-   ========================================================================== */
+   ==== */
 .admin-grid-products {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -529,60 +529,94 @@ body.admin-body {
     color: white;
 }
 
-/* ==========================================================================
-   Image Previews
-   ========================================================================== */
 .admin-img-preview-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 12px;
-    margin-top: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 12px;
+    border: 1px dashed rgba(0, 0, 0, 0.05);
 }
 
 .admin-img-preview-item {
     position: relative;
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    background: white;
-    aspect-ratio: 1;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-    transition: var(--admin-transition);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #fff;
+    aspect-ratio: 1 / 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
 }
 
 .admin-img-preview-item:hover {
-    transform: scale(1.05);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 159, 227, 0.15);
+    border-color: var(--admin-kos-blue);
 }
 
 .admin-img-preview-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 85%;
+    max-height: 85%;
+    object-fit: contain;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-img-preview-item:hover img {
+    transform: scale(1.1);
 }
 
 .admin-img-preview-overlay {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 6px;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.85);
     display: flex;
-    justify-content: space-around;
-    backdrop-filter: blur(4px);
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.admin-img-preview-item:hover .admin-img-preview-overlay {
+    opacity: 1;
+}
+
+.admin-img-preview-overlay span {
+    background: var(--admin-kos-blue);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(0, 159, 227, 0.2);
 }
 
 .admin-btn-icon {
-    background: none;
-    border: none;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
     cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
+    padding: 8px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: var(--admin-transition);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .admin-btn-icon.danger {
@@ -590,7 +624,10 @@ body.admin-body {
 }
 
 .admin-btn-icon.danger:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--admin-danger);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 .admin-btn-icon.primary {
@@ -598,12 +635,15 @@ body.admin-body {
 }
 
 .admin-btn-icon.primary:hover {
-    background: rgba(0, 159, 227, 0.1);
+    background: var(--admin-kos-blue);
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 159, 227, 0.3);
 }
 
-/* ==========================================================================
+/* ====
    Login Screen
-   ========================================================================== */
+   ==== */
 .admin-login-wrapper {
     display: flex;
     align-items: center;
@@ -726,9 +766,9 @@ body.admin-body {
     box-shadow: 0 12px 25px rgba(0, 159, 227, 0.5);
 }
 
-/* ==========================================================================
+/* ====
    Responsive
-   ========================================================================== */
+   ==== */
 @media (max-width: 900px) {
     .form-grid {
         grid-template-columns: 1fr;
@@ -818,9 +858,9 @@ body.admin-body {
     }
 }
 
-/* ==========================================================================
+/* ====
    Dashboard KPIs
-   ========================================================================== */
+   ==== */
 .dash-kpis {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -908,9 +948,9 @@ body.admin-body {
     color: var(--admin-text-main);
 }
 
-/* ==========================================================================
+/* ====
    Admin Tables
-   ========================================================================== */
+   ==== */
 .admin-table {
     width: 100%;
     border-collapse: collapse;
@@ -957,9 +997,9 @@ body.admin-body {
     text-decoration: underline;
 }
 
-/* ==========================================================================
+/* ====
    Badges
-   ========================================================================== */
+   ==== */
 .admin-badge {
     display: inline-block;
     padding: 4px 10px;
@@ -991,9 +1031,9 @@ body.admin-body {
     color: #64748b;
 }
 
-/* ==========================================================================
+/* ====
    Pagination
-   ========================================================================== */
+   ==== */
 .admin-pagination {
     display: flex;
     justify-content: center;
@@ -1025,18 +1065,18 @@ body.admin-body {
     border-color: var(--admin-kos-blue);
 }
 
-/* ==========================================================================
+/* ====
    Small Button variant
-   ========================================================================== */
+   ==== */
 .admin-btn-sm {
     padding: 6px 14px;
     font-size: 0.8rem;
     border-radius: 8px;
 }
 
-/* ==========================================================================
+/* ====
    Modal
-   ========================================================================== */
+   ==== */
 .admin-modal {
     position: fixed;
     inset: 0;
