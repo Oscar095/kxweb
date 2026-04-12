@@ -2,6 +2,7 @@ import { renderHeader } from './components/header.js?v=2';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 import { formatMoney } from './utils/format.js';
+import { SITE_CONFIG } from './utils/config.js';
 
 function parseProductDescription(text) {
   if (!text) return { subtitle: '', specsHtml: '', recommendationsHtml: '', brandHtml: '', remainingHtml: '' };
@@ -289,8 +290,72 @@ function renderProduct(p) {
   price.innerHTML = '$' + formatMoney(precioConIvaInicial) + ' <span style="font-size:0.75rem;color:#666;">/ caja</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
   price.dataset.codigo = p.codigo || '';
 
+  // SEO: Update title and meta description dynamically
+  document.title = `${p.name || 'Producto'} — KosXpress | Empaques al por mayor`;
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) {
+    metaDesc.content = `${p.name || 'Producto'} — ${p.description ? p.description.substring(0, 120) : 'Empaques desechables y biodegradables'}. Compra al por mayor en KosXpress Colombia.`;
+  }
+  // SEO: Update OG meta tags
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  const ogDesc = document.querySelector('meta[property="og:description"]');
+  const ogImg = document.querySelector('meta[property="og:image"]');
+  if (ogTitle) ogTitle.content = p.name || 'Producto - KosXpress';
+  if (ogDesc) ogDesc.content = p.description ? p.description.substring(0, 200) : 'Empaques desechables y biodegradables en Colombia.';
+  const mainImg = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : (p.image || '');
+  if (ogImg && mainImg) ogImg.content = mainImg;
+
+  // SEO: Inject Schema.org Product JSON-LD
+  const existingSchema = document.getElementById('product-schema-ld');
+  if (existingSchema) existingSchema.remove();
+  const sku = (p.codigo_siesa || p.sku || p.SKU || p.item_ext || '').toString().trim();
+  const schemaData = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.name || '',
+    description: p.description ? p.description.substring(0, 300) : '',
+    image: mainImg || '',
+    sku: sku || undefined,
+    brand: {
+      '@type': 'Brand',
+      name: 'KOS Colombia'
+    },
+    offers: {
+      '@type': 'Offer',
+      price: precioConIvaInicial,
+      priceCurrency: 'COP',
+      availability: 'https://schema.org/InStock',
+      seller: {
+        '@type': 'Organization',
+        name: 'KosXpress'
+      },
+      url: window.location.href
+    }
+  };
+  if (categoriaNombre) {
+    schemaData.category = categoriaNombre;
+  }
+  const schemaScript = document.createElement('script');
+  schemaScript.id = 'product-schema-ld';
+  schemaScript.type = 'application/ld+json';
+  schemaScript.textContent = JSON.stringify(schemaData);
+  document.head.appendChild(schemaScript);
+
   const subtitleEl = document.getElementById('pd-subtitle');
   const descLeft = document.getElementById('pd-desc-left');
+
+  // Delivery info badge
+  const actionsRow = document.querySelector('.pd-actions-row');
+  if (actionsRow && !document.querySelector('.pd-delivery-badge')) {
+    const deliveryBadge = document.createElement('div');
+    deliveryBadge.className = 'pd-delivery-badge';
+    deliveryBadge.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+      <span>Entrega <strong>${SITE_CONFIG.DELIVERY_TIME}</strong> a ${SITE_CONFIG.DELIVERY_SCOPE}</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#4CAF50;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    `;
+    actionsRow.parentNode.insertBefore(deliveryBadge, actionsRow.nextSibling);
+  }
 
   if (p.description) {
     const parsed = parseProductDescription(p.description);

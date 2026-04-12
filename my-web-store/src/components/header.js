@@ -1,4 +1,5 @@
 import { initChatbot } from './chatbot.js';
+import { SITE_CONFIG } from '../utils/config.js';
 
 export function renderHeader(container) {
   // Animación de rectángulo en nav
@@ -29,10 +30,13 @@ export function renderHeader(container) {
     });
   }, 100);
   container.innerHTML = `
+    <div class="free-shipping-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+      Entrega <strong>${SITE_CONFIG.DELIVERY_TIME}</strong> a ${SITE_CONFIG.DELIVERY_SCOPE}
+    </div>
     <div class="announcement-bar">
       <div class="announcement-fade-container">
         <span class="announce-item active">Precios por caja incluyen IVA</span>
-        <span class="announce-item">Después de una compra de $500.000 domicilio gratis</span>
         <span class="announce-item">Compra fácil y rápido desde nuestra web</span>
         <span class="announce-item">Envíos a nivel nacional rápidos y seguros</span>
         <span class="announce-item">La mejor calidad de empaques para tu negocio</span>
@@ -44,7 +48,7 @@ export function renderHeader(container) {
           <img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/>
         </a>
       </div>
-      <nav class="nav nav-animated">
+      <nav class="nav nav-animated" role="navigation" aria-label="Navegación principal">
         <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
         <a href="/products" class="nav-link" data-nav="productos">Productos</a>
         <a href="/personalizados" class="nav-link" data-nav="personalizados">Personalizados</a>
@@ -53,8 +57,8 @@ export function renderHeader(container) {
       </nav>
       <div class="search">
         <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menú">☰</button>
-        <input id="search-input" placeholder="Buscar productos..." />
-        <button id="cart-toggle" title="Carrito" class="cart-btn">
+        <input id="search-input" placeholder="Buscar productos..." aria-label="Buscar productos" />
+        <button id="cart-toggle" title="Carrito" class="cart-btn" aria-label="Abrir carrito de compras">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="cartGrid" width="3" height="3" patternUnits="userSpaceOnUse">
@@ -97,6 +101,76 @@ export function renderHeader(container) {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && input.value.trim()) {
         window.location.href = '/search?q=' + encodeURIComponent(input.value.trim());
+        closeAutocomplete();
+      }
+      if (e.key === 'Escape') closeAutocomplete();
+    });
+
+    // Autocomplete dropdown
+    let acDropdown = null;
+    let acProducts = null;
+    let acDebounce = null;
+
+    const createDropdown = () => {
+      if (acDropdown) return acDropdown;
+      acDropdown = document.createElement('div');
+      acDropdown.className = 'search-autocomplete';
+      acDropdown.id = 'search-autocomplete';
+      input.parentElement.style.position = 'relative';
+      input.parentElement.appendChild(acDropdown);
+      return acDropdown;
+    };
+
+    const closeAutocomplete = () => {
+      if (acDropdown) { acDropdown.style.display = 'none'; acDropdown.innerHTML = ''; }
+    };
+
+    const fetchProducts = async () => {
+      if (acProducts) return acProducts;
+      try {
+        const r = await fetch('/api/products');
+        if (r.ok) acProducts = await r.json();
+      } catch { acProducts = []; }
+      return acProducts || [];
+    };
+
+    input.addEventListener('input', async () => {
+      const query = input.value.trim().toLowerCase();
+      if (query.length < 2) { closeAutocomplete(); return; }
+      clearTimeout(acDebounce);
+      acDebounce = setTimeout(async () => {
+        const products = await fetchProducts();
+        const matches = products.filter(p =>
+          (p.name || '').toLowerCase().includes(query) ||
+          (p.category_name || p.category?.nombre || '').toLowerCase().includes(query)
+        ).slice(0, 5);
+
+        const dd = createDropdown();
+        if (matches.length === 0) {
+          dd.innerHTML = '<div class="ac-empty">No se encontraron productos</div>';
+          dd.style.display = 'block';
+          return;
+        }
+
+        dd.innerHTML = matches.map(p => {
+          const img = Array.isArray(p.images) && p.images.length ? p.images[0] : (p.image || '/images/placeholder.svg');
+          const catName = p.category?.nombre || p.category_name || '';
+          return `<a href="/product?id=${p.id}" class="ac-item">
+            <img src="${img}" alt="${p.name}" class="ac-img" loading="lazy" />
+            <div class="ac-info">
+              <span class="ac-name">${p.name}</span>
+              <span class="ac-cat">${catName}</span>
+            </div>
+          </a>`;
+        }).join('');
+        dd.style.display = 'block';
+      }, 200);
+    });
+
+    // Close on click outside
+    document.addEventListener('click', (e) => {
+      if (!input.contains(e.target) && !(acDropdown && acDropdown.contains(e.target))) {
+        closeAutocomplete();
       }
     });
   }
@@ -161,8 +235,27 @@ export function renderHeader(container) {
     if (window.innerWidth > 900) closeNav();
   });
 
-  // Inicializar Chatbot Global
-  initChatbot();
+  // Inicializar Chatbot Lazy — defer until first user interaction
+  let chatbotLoaded = false;
+  const loadChatbot = () => {
+    if (chatbotLoaded) return;
+    chatbotLoaded = true;
+    initChatbot();
+    ['scroll', 'click', 'touchstart'].forEach(evt => 
+      window.removeEventListener(evt, loadChatbot, { passive: true })
+    );
+  };
+  // If page is already scrolled or after 5s idle, load immediately
+  if (window.scrollY > 100) {
+    initChatbot();
+    chatbotLoaded = true;
+  } else {
+    ['scroll', 'click', 'touchstart'].forEach(evt =>
+      window.addEventListener(evt, loadChatbot, { passive: true, once: true })
+    );
+    // Fallback: load after 5 seconds anyway
+    setTimeout(loadChatbot, 5000);
+  }
 
   // Mark active link
   try {

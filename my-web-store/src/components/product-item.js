@@ -28,7 +28,7 @@ export function productItemTemplate(p) {
       
       <div class="product-media-premium">
         <div class="product-img-wrap" data-index="0">
-          <div class="out-of-stock-badge premium-badge" style="display: none;">Agotado</div>
+          <div class="out-of-stock-badge premium-badge" style="display: none;">Sin stock</div>
           <a href="/product?id=${p.id}" class="product-image-link" aria-label="Ver ${p.name}">
             <img class="product-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
           </a>
@@ -62,6 +62,10 @@ export function productItemTemplate(p) {
           </p>
           <span class="tax-badge">IVA incluido</span>
         </div>
+        <div class="volume-pricing-hint">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          Precio mejora por volumen
+        </div>
       </div>
     </article>
   `;
@@ -78,19 +82,23 @@ export function attachDynamicPriceBehavior(rootEl) {
       const badge = rootEl.querySelector('.out-of-stock-badge');
       const img = rootEl.querySelector('.product-img');
       const btn = rootEl.querySelector('.add-to-cart');
+      const actionsHover = rootEl.querySelector('.product-actions-hover');
+      const qtyControl = rootEl.querySelector('.qty-control-premium');
       if (badge) badge.style.setProperty('display', 'block', 'important');
       if (img) {
         img.style.setProperty('filter', 'grayscale(1)', 'important');
         img.style.setProperty('opacity', '0.5', 'important');
       }
+      if (qtyControl) qtyControl.style.display = 'none';
       if (btn) {
         btn.disabled = true;
-        btn.textContent = 'No disponible';
-        btn.title = 'No disponible';
-        btn.style.backgroundColor = '#ccc';
-        btn.style.borderColor = '#ccc';
-        btn.style.color = '#777';
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> Agotado';
+        btn.title = 'Producto agotado';
+        btn.style.backgroundColor = '#DC2626';
+        btn.style.borderColor = '#DC2626';
+        btn.style.color = '#fff';
         btn.style.cursor = 'not-allowed';
+        btn.style.opacity = '0.85';
         btn.classList.add('disabled');
       }
     };

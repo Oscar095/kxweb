@@ -1,5 +1,6 @@
 import { cartService } from '../services/cart-service.js';
 import { formatMoney } from '../utils/format.js';
+import { SITE_CONFIG } from '../utils/config.js';
 
 export function renderCartDrawer(mount) {
   mount.className = 'cart-drawer';
@@ -13,11 +14,16 @@ export function renderCartDrawer(mount) {
     </div>
     <div class="cart-body" id="cart-body"></div>
     <div class="cart-footer">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div id="cart-shipping-bar" class="cart-shipping-bar"></div>
+      <div class="cart-delivery-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+        Entrega ${SITE_CONFIG.DELIVERY_TIME} a ${SITE_CONFIG.DELIVERY_SCOPE}
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <span style="font-size:1.1rem; color:var(--muted); font-weight:600;">Total a Pagar:</span>
         <strong id="cart-total" style="font-size:1.6rem; color:var(--text-main);">$0,00</strong>
       </div>
-      <button id="checkout" class="btn-primary" style="width: 100%; font-size: 1.15rem; padding: 14px; border-radius: 12px; box-sizing: border-box; text-align:center;">Procesar Pago</button>
+      <button id="checkout" class="btn-primary" style="width: 100%; font-size: 1.15rem; padding: 14px; border-radius: 12px; box-sizing: border-box; text-align:center;">Finalizar compra</button>
     </div>
   `;
 
@@ -72,6 +78,14 @@ export function renderCartDrawer(mount) {
 
     const total = grouped.reduce((s, it) => s + Math.round(it.subtotal * 1.19), 0);
     document.getElementById('cart-total').innerHTML = `Total: $${formatMoney(total)} <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>`;
+
+    // Shipping bar: short message only (no free-shipping progress)
+    const shippingBar = document.getElementById('cart-shipping-bar');
+    if (shippingBar) {
+      shippingBar.innerHTML = grouped.length > 0
+        ? `<div class="cart-shipping-message">Entrega ${SITE_CONFIG.DELIVERY_TIME} a ${SITE_CONFIG.DELIVERY_SCOPE}</div>`
+        : '';
+    }
   }
 
   cartService.onChange = update;

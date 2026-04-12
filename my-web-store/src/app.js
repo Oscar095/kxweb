@@ -34,7 +34,7 @@ function renderBestSellers(products, mount) {
     return `
       <article class="bs-card" data-id="${p.id}" data-sku="${skuAttr}" style="opacity:1;">
         <div class="bs-card-visual" style="position:relative; cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
-          <div class="out-of-stock-badge" style="display: none; position: absolute; top: 8px; left: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.70rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
+          <div class="out-of-stock-badge" style="display: none; position: absolute; top: 8px; left: 8px; background-color: #DC2626; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase;">Sin stock</div>
           <span class="bs-card-rank">#${idx + 1}</span>
           <img class="bs-card-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
           <span class="bs-card-flame">🔥</span>
@@ -73,19 +73,22 @@ function renderBestSellers(products, mount) {
           const badge = it.querySelector('.out-of-stock-badge');
           const img = it.querySelector('.bs-card-img');
           const btn = it.querySelector('.add-to-cart');
+          const qtyInput = it.querySelector('.qty-input');
           if (badge) badge.style.setProperty('display', 'block', 'important');
           if (img) {
             img.style.setProperty('filter', 'grayscale(1)', 'important');
             img.style.setProperty('opacity', '0.5', 'important');
           }
+          if (qtyInput) qtyInput.style.display = 'none';
           if (btn) {
             btn.disabled = true;
-            btn.textContent = 'No disponible';
-            btn.title = 'No disponible';
-            btn.style.backgroundColor = '#ccc';
-            btn.style.borderColor = '#ccc';
-            btn.style.color = '#777';
+            btn.textContent = 'Agotado';
+            btn.title = 'Producto agotado';
+            btn.style.backgroundColor = '#DC2626';
+            btn.style.borderColor = '#DC2626';
+            btn.style.color = '#fff';
             btn.style.cursor = 'not-allowed';
+            btn.style.opacity = '0.85';
           }
         }
       });

@@ -1833,6 +1833,60 @@ app.get('/api/admin/dashboard', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Sitemap ──
+app.get('/sitemap.xml', async (_req, res) => {
+  const hostname = 'https://kosxpress.com';
+  const today = new Date().toISOString().split('T')[0];
+
+  const staticUrls = [
+    { url: '/',              changefreq: 'daily',   priority: '1.0' },
+    { url: '/products',      changefreq: 'daily',   priority: '0.9' },
+    { url: '/contact',       changefreq: 'monthly', priority: '0.5' },
+    { url: '/about',         changefreq: 'monthly', priority: '0.5' },
+    { url: '/personalizados',changefreq: 'weekly',  priority: '0.6' },
+  ];
+
+  const categories = [
+    'Bebidas calientes', 'Bebidas Frías', 'Contenedores', 'Empaques',
+    'Platos', 'Porta vasos', 'Tapas para Contenedores', 'Tapas para Vasos', 'Accesorios'
+  ];
+  const categoryUrls = categories.map(cat => ({
+    url: `/products?cat=${encodeURIComponent(cat)}`,
+    changefreq: 'weekly',
+    priority: '0.8'
+  }));
+
+  let productUrls = [];
+  try {
+    const rows = await db.query('SELECT id FROM dbo.products WHERE habilitado = 1 ORDER BY id');
+    productUrls = (rows || []).map(r => ({
+      url: `/product?id=${r.id}`,
+      changefreq: 'weekly',
+      priority: '0.7'
+    }));
+  } catch (e) {
+    console.warn('sitemap: error obteniendo productos', e && e.message);
+  }
+
+  const allUrls = [...staticUrls, ...categoryUrls, ...productUrls];
+
+  const urlEntries = allUrls.map(({ url, changefreq, priority }) => `
+  <url>
+    <loc>${hostname}${url}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>
+  </url>`).join('');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urlEntries}
+</urlset>`;
+
+  res.setHeader('Content-Type', 'application/xml');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.send(xml);
+});
+
 app.listen(PORT, () => console.log(`API server listening on ${PORT}`));
 
 app.put('/api/products/:id', requireAdmin, async (req, res) => {

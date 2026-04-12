@@ -310,9 +310,11 @@
                     <span>Tarjeta crédito/débito · Transferencia · Nequi · PSE</span>
                   </div>
                   <div class="co-payment-icons">
-                    <span class="co-pay-icon">VISA</span>
-                    <span class="co-pay-icon">MC</span>
-                    <span class="co-pay-icon">PSE</span>
+                    <span class="co-pay-icon" title="Visa" style="background:#1A1F71;color:#fff;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">VISA</span>
+                    <span class="co-pay-icon" title="Mastercard" style="background:#EB001B;color:#fff;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">MC</span>
+                    <span class="co-pay-icon" title="PSE" style="background:#004B87;color:#fff;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">PSE</span>
+                    <span class="co-pay-icon" title="Nequi" style="background:#E8308A;color:#fff;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">Nequi</span>
+                    <span class="co-pay-icon" title="Bancolombia" style="background:#FFDD00;color:#003366;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">Bancol</span>
                   </div>
                 </label>
               </div>
@@ -327,6 +329,12 @@
 
             <!-- Message & submit -->
             <div id="checkout-message" class="co-message" aria-live="polite"></div>
+
+            <div class="co-delivery-reminder">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+              Entrega <strong>1-3 días</strong> a ciudades principales
+            </div>
+            <div id="co-delivery-estimate" class="co-delivery-estimate" aria-live="polite"></div>
 
             <button type="submit" id="pay-btn" class="co-pay-btn btn-primary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
@@ -343,6 +351,11 @@
               </svg>
               Encriptación SSL · Pago 100% seguro y verificado
             </p>
+
+            <div class="co-return-policy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+              <span>Política de cambios y devoluciones: aceptamos devoluciones dentro de los 5 días posteriores a la entrega si el producto presenta defectos de fábrica. Para más detalles, contáctanos vía WhatsApp.</span>
+            </div>
           </form>
         </div>
 
