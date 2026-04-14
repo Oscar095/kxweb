@@ -40,7 +40,7 @@ export function productItemTemplate(p) {
         <div class="v2-card-price">
           <p class="price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${skuAttr}">
             <span class="price-amount">$${formatMoney(totalConIva)}</span>
-            <span class="price-unit">/ caja</span>
+            <span class="price-unit">${cantidadNum ? '/ ' + new Intl.NumberFormat('es-CO').format(cantidadNum) + ' und caja' : '/ caja'}</span>
             <span class="iva-tag">IVA incluido</span>
           </p>
         </div>
@@ -214,7 +214,9 @@ export function attachDynamicPriceBehavior(rootEl) {
     }
     const precioCaja = unitario * BOX_SIZE;
     const precioConIva = Math.round(precioCaja * 1.19);
-    priceEl.innerHTML = '$' + fmt(precioConIva) + ' <span class="price-unit">/ caja</span> <span class="iva-tag">IVA incluido</span>';
+    const hasCantidad = !!priceEl.getAttribute('data-cantidad');
+    const labelTexto = hasCantidad ? '/ ' + new Intl.NumberFormat('es-CO').format(BOX_SIZE) + ' und caja' : '/ caja';
+    priceEl.innerHTML = '$' + fmt(precioConIva) + ` <span class="price-unit">${labelTexto}</span> <span class="iva-tag">IVA incluido</span>`;
     priceEl.dataset.precioCaja = String(precioCaja);
     if (data?.escalonUsado) {
       priceEl.dataset.dynamicEscalon = String(data.escalonUsado);

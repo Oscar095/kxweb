@@ -295,7 +295,8 @@ function renderProduct(p) {
   const unitario = unitarioRaw != null ? Number(unitarioRaw) : (cantidadNum && p.price ? Number(p.price) / cantidadNum : null);
   const precioCajaInicial = (Number.isFinite(unitario) && cantidadNum) ? (unitario * cantidadNum) : Number(p.price || 0);
   const precioConIvaInicial = Math.round(precioCajaInicial * 1.19);
-  price.innerHTML = '$' + formatMoney(precioConIvaInicial) + ' <span style="font-size:0.75rem;color:#666;">/ caja</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
+  const labelTextoTop = cantidadNum ? '/ ' + new Intl.NumberFormat('es-CO').format(cantidadNum) + ' und caja' : '/ caja';
+  price.innerHTML = '$' + formatMoney(precioConIvaInicial) + ` <span style="font-size:0.75rem;color:#666;">${labelTextoTop}</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>`;
   price.dataset.codigo = p.codigo || '';
 
   const subtitleEl = document.getElementById('pd-subtitle');
@@ -503,7 +504,9 @@ function renderProduct(p) {
       }
       const precioCaja = unitario * BOX_SIZE;
       const precioConIva = Math.round(precioCaja * 1.19);
-      price.innerHTML = '$' + formatMoney(precioConIva) + ' <span style="font-size:0.75rem;color:#666;">/ caja</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
+      const hasCantidadTop = !!(price.getAttribute('data-cantidad') || p.cantidad || p.Cantidad);
+      const labelText = hasCantidadTop ? '/ ' + new Intl.NumberFormat('es-CO').format(BOX_SIZE) + ' und caja' : '/ caja';
+      price.innerHTML = '$' + formatMoney(precioConIva) + ` <span style="font-size:0.75rem;color:#666;">${labelText}</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>`;
       price.classList.remove('loading');
     } catch { price.classList.remove('loading'); }
   }
