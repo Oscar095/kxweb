@@ -1,6 +1,7 @@
 import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
+import { SITE_CONFIG } from './utils/config.js';
 
 renderHeader(document.getElementById('site-header'));
 renderCartDrawer(document.getElementById('cart-drawer'));
@@ -432,6 +433,33 @@ function setStep(n) {
   });
 }
 
+// ── delivery estimate by city (main cities = 1-3 days) ────────────────────────
+
+function normalizeCityForCompare(name) {
+  return (name || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toUpperCase();
+}
+
+function updateDeliveryEstimate() {
+  const citySelect = document.getElementById('city');
+  const el = document.getElementById('co-delivery-estimate');
+  if (!citySelect || !el) return;
+  const city = String(citySelect.value || '').trim();
+  if (!city) {
+    el.textContent = '';
+    return;
+  }
+  const mainCities = SITE_CONFIG.MAIN_CITIES || [];
+  const cityNorm = normalizeCityForCompare(city);
+  const isMain = mainCities.some(c => normalizeCityForCompare(c) === cityNorm);
+  el.textContent = isMain
+    ? 'Entrega estimada: 1-3 días'
+    : 'Otras ciudades: plazos variables según destino';
+}
+
 // ── departamento / ciudad cascading dropdowns ────────────────────────────────
 
 async function loadDepartamentos() {
@@ -462,6 +490,8 @@ async function loadDepartamentos() {
 
       if (!deptoId) {
         citySelect.innerHTML = '<option value="">Primero selecciona departamento</option>';
+        citySelect.disabled = false;
+        updateDeliveryEstimate();
         return;
       }
 
@@ -478,9 +508,12 @@ async function loadDepartamentos() {
           citySelect.appendChild(opt);
         }
         citySelect.disabled = false;
+        updateDeliveryEstimate();
       } catch (e) {
         console.error('Error cargando ciudades:', e);
         citySelect.innerHTML = '<option value="">Error cargando ciudades</option>';
+        citySelect.disabled = false;
+        updateDeliveryEstimate();
       }
     });
   } catch (e) {
@@ -513,9 +546,12 @@ document.addEventListener('DOMContentLoaded', () => {
   cartService.subscribe(() => calcularFlete());
   window.addEventListener('storage', e => { if (e.key === 'cart') calcularFlete(); });
 
-  // Recalculate flete when city changes
+  // Recalculate flete and delivery estimate when city changes
   const citySelect = document.getElementById('city');
-  citySelect?.addEventListener('change', () => calcularFlete());
+  citySelect?.addEventListener('change', () => {
+    calcularFlete();
+    updateDeliveryEstimate();
+  });
 
   // Tipo documento: mostrar/ocultar DV y ajustar validación del número
   tipoDocSelect?.addEventListener('change', () => {

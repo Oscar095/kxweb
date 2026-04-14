@@ -461,9 +461,10 @@ export function initChatbot() {
       <div class="kos-chatbot-messages" id="chatbot-msg-container">
         <div class="chatbot-msg bot">Hola! Soy Koski, tu asistente de IA. Estoy aqui para ayudarte en lo que necesites.</div>
         <div class="kos-chatbot-suggestions" id="chatbot-suggestions">
-          <button class="kos-suggestion-chip" data-msg="Quiero hacer un pedido">Hacer un pedido</button>
-          <button class="kos-suggestion-chip" data-msg="Necesito informacion sobre sus productos">Informacion de productos</button>
-          <button class="kos-suggestion-chip" data-msg="Necesito ayuda con mi pedido">Ayuda con mi pedido</button>
+          <button class="kos-suggestion-chip" data-msg="Quiero cotizar al por mayor">📦 Cotizar al por mayor</button>
+          <button class="kos-suggestion-chip" data-msg="Necesito hablar con un asesor humano">👤 Hablar con asesor</button>
+          <button class="kos-suggestion-chip" data-msg="Quiero seguir el estado de mi pedido">📋 Seguir mi pedido</button>
+          <button class="kos-suggestion-chip" data-msg="Necesito informacion sobre sus productos">ℹ️ Info de productos</button>
         </div>
         <div class="typing-indicator" id="chatbot-typing">
           <span class="typing-label">Escribiendo</span>

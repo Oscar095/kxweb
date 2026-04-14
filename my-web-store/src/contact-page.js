@@ -1,5 +1,6 @@
 import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
+import { escapeHtml } from './utils/format.js';
 
 renderHeader(document.getElementById('site-header'));
 renderCartDrawer(document.getElementById('cart-drawer'));
@@ -49,7 +50,7 @@ if (fileInput && uploadText) {
   fileInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length > 0) {
       if (e.target.files.length === 1) {
-        uploadText.innerHTML = `<strong>${e.target.files[0].name}</strong><br>Listo para enviar.`;
+        uploadText.innerHTML = `<strong>${escapeHtml(e.target.files[0].name)}</strong><br>Listo para enviar.`;
       } else {
         uploadText.innerHTML = `<strong>${e.target.files.length} archivos seleccionados</strong><br>Listos para enviar.`;
       }
@@ -75,11 +76,11 @@ form.addEventListener('submit', async (e) => {
     const r = await fetch('/api/contacts', { method: 'POST', body: fd });
     if (!r.ok) {
       const msg = await r.text();
-      result.innerHTML = `<div class="contact-error">No se pudo enviar: ${msg}</div>`;
+      result.innerHTML = `<div class="contact-error">No se pudo enviar: ${escapeHtml(msg)}</div>`;
       return;
     }
-    const name = fd.get('name');
-    const email = fd.get('email');
+    const name = escapeHtml(fd.get('name') || '');
+    const email = escapeHtml(fd.get('email') || '');
     result.innerHTML = `<div class="contact-success">Gracias ${name}, tu mensaje fue recibido. Te contactaremos al ${email}.</div>`;
     form.reset();
   } catch (err) {
