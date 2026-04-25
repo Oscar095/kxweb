@@ -124,10 +124,12 @@
 }
 
 .ns-animated-line.line-main {
-    top: 0;
+    top: 50px; /* Small offset from top */
     height: 0%;
-    /* JS will update this */
-    transition: height 0.1s ease-out;
+    transition: height 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    background: linear-gradient(to bottom, #f17024 0%, #009fe3 80%, rgba(0, 159, 227, 0) 100%);
+    box-shadow: 0 0 15px rgba(241, 112, 36, 0.4);
+    will-change: height;
 }
 
 /* SECTIONS GRID */
@@ -172,11 +174,12 @@
 
 .ns-section:nth-child(even) {
     background: #f8fbff;
-    /* subtle blue */
 }
 
 .ns-text-col {
     padding: 2rem;
+    position: relative;
+    z-index: 11;
 }
 
 .ns-section-title {
@@ -218,11 +221,49 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+    z-index: 11;
 }
 
 .ns-large-icon {
     color: #f17024;
     filter: drop-shadow(0 15px 25px rgba(241, 112, 36, 0.3));
+}
+
+.ns-visual-img {
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    aspect-ratio: 16 / 11;
+    object-fit: cover;
+    border-radius: 30px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: #fff;
+    padding: 10px;
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+    position: relative;
+    z-index: 12; /* Ensure image is even higher */
+}
+
+.ns-visual-img:hover {
+    transform: scale(1.05) rotate(1deg);
+    box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+}
+
+/* Fix específico para la foto de Visión si se ve pixeleada */
+.ns-img-vision {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+@media (max-width: 900px) {
+    .ns-visual-img {
+        max-width: 400px;
+        margin-top: 2rem;
+    }
 }
 
 .ns-float-anim {

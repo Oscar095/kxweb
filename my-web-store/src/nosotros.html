@@ -6,6 +6,8 @@
     <title>Nosotros - KosXpress</title>
     <meta name="description" content="Somos una empresa comprometida con el cuidado del medio ambiente, especializada en empaques reciclables.">
     <link rel="canonical" href="https://kosxpress.com/nosotros">
+    <link rel="icon" type="image/png"
+        href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Nosotros - KosXpress | Empaques Biodegradables Colombia">
     <meta property="og:description" content="Somos una empresa comprometida con el cuidado del medio ambiente, especializada en empaques reciclables.">
@@ -50,34 +52,27 @@
                 <div class="ns-animated-line line-main"></div>
 
                 <!-- SECCION: Misión -->
-                <section class="ns-section ns-mision reveal container">
+                <section class="ns-section ns-mision container">
                     <div class="ns-grid">
-                        <div class="ns-text-col">
+                        <div class="ns-text-col reveal">
                             <h2 class="ns-section-title">Misión</h2>
                             <p class="ns-section-body">Somos una organización dedicada al desarrollo de soluciones en empaques y envases del sector de alimentos, generando experiencias que aumentan la percepción de valor de nuestros clientes, en pro de la conservación del medio ambiente, operando nacional e internacionalmente en beneficio de todas las partes interesadas y adaptándonos a las necesidades del mercado.</p>
                         </div>
-                        <div class="ns-visual-col ns-float-anim">
-                            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" class="ns-large-icon" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10" />
-                                <circle cx="12" cy="12" r="6" />
-                                <circle cx="12" cy="12" r="2" />
-                            </svg>
+                        <div class="ns-visual-col ns-float-anim reveal">
+                            <img src="/images/us/mision.JPEG" alt="Misión KosXpress" class="ns-visual-img">
                         </div>
                     </div>
                 </section>
 
                 <!-- SECCION: Visión -->
-                <section class="ns-section ns-vision reveal container">
+                <section class="ns-section ns-vision container">
                     <div class="ns-grid ns-grid-reverse">
-                        <div class="ns-text-col">
+                        <div class="ns-text-col reveal">
                             <h2 class="ns-section-title">Visión</h2>
                             <p class="ns-section-body">Para el 2026 queremos ser una organización con amplia percepción de marca, líderes en empaques y envases del sector de alimentos, creando soluciones que disminuyan el impacto al medio ambiente, siendo reconocidos por nuestra dinámica para resolver las necesidades de nuestros clientes, con una participación superior al 50% del mercado nacional y reconocimiento importante en los mercados internacionales.</p>
                         </div>
-                        <div class="ns-visual-col ns-float-anim-alt">
-                            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" class="ns-large-icon" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                <circle cx="12" cy="12" r="3" />
-                            </svg>
+                        <div class="ns-visual-col ns-float-anim-alt reveal">
+                            <img src="/images/us/vision.jpg" alt="Visión KosXpress" class="ns-visual-img ns-img-vision">
                         </div>
                     </div>
                 </section>
@@ -117,13 +112,22 @@
         const wrapper = document.querySelector('.ns-content-wrapper');
         const mainLine = document.querySelector('.line-main');
         if (mainLine && wrapper) {
-            window.addEventListener('scroll', () => {
+            const handleScroll = () => {
                 const rect = wrapper.getBoundingClientRect();
-                const progress = (window.innerHeight - rect.top) / rect.height;
-                // Mult by 1.25 so it finishes slightly before the absolute bottom
-                const percentage = Math.max(0, Math.min(progress * 130, 100)); 
+                const viewportHeight = window.innerHeight;
+                
+                // Calculate how much of the wrapper has passed the middle of the screen
+                const scrollTrigger = viewportHeight / 2;
+                const totalHeight = rect.height;
+                const distanceScrolled = scrollTrigger - rect.top;
+                
+                let percentage = (distanceScrolled / totalHeight) * 100;
+                percentage = Math.max(0, Math.min(percentage, 100));
+                
                 mainLine.style.height = percentage + '%';
-            });
+            };
+            window.addEventListener('scroll', handleScroll);
+            handleScroll(); // Call it once on load
         }
     </script>
     <script src="./utils/tracker.js"></script>

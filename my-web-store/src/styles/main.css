@@ -4549,6 +4549,18 @@ img.bs-card-img {
 	flex-shrink: 0
 }
 
+@media (max-width: 480px) {
+	.co-step-label {
+		display: none;
+	}
+	.co-step-line {
+		width: 30px;
+	}
+	.co-steps {
+		margin-bottom: 24px;
+	}
+}
+
 /* ──── Two-column layout ──── */
 .co-layout {
 	display: grid;
@@ -4723,7 +4735,8 @@ img.bs-card-img {
 	border-radius: 14px;
 	cursor: pointer;
 	transition: all .2s;
-	background: rgba(255, 255, 255, .5)
+	background: rgba(255, 255, 255, .5);
+	flex-wrap: wrap
 }
 
 .co-payment-opt:has(input:checked) {
@@ -4789,7 +4802,22 @@ img.bs-card-img {
 	display: flex;
 	gap: 5px;
 	margin-left: auto;
-	flex-shrink: 0
+	flex-shrink: 0;
+	flex-wrap: wrap;
+	justify-content: flex-end
+}
+
+@media (max-width: 480px) {
+	.co-payment-opt {
+		padding: 16px;
+		gap: 12px;
+	}
+
+	.co-payment-icons {
+		margin-left: 34px; /* Offset to align with text (radio width 20 + gap 14) */
+		justify-content: flex-start;
+		width: 100%;
+	}
 }
 
 .co-pay-icon {
