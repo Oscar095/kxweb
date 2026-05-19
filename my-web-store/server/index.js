@@ -599,6 +599,20 @@ app.post('/api/chatbot', async (req, res) => {
 
 // Servir frontend estático
 const staticDir = path.resolve(__dirname, '..', 'src');
+
+// Ruta dedicada para feed.xml: sin caché y Content-Type correcto para XML
+app.get('/feed.xml', (req, res) => {
+  const feedPath = path.join(staticDir, 'feed.xml');
+  if (!require('fs').existsSync(feedPath)) {
+    return res.status(404).send('feed.xml no encontrado. Ejecuta: node generate-feed.js');
+  }
+  res.setHeader('Content-Type', 'application/xml; charset=UTF-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(feedPath);
+});
+
 app.use(express.static(staticDir, {
   extensions: ['html'],
   maxAge: '7d',
