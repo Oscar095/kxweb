@@ -4,7 +4,9 @@
   "description": "A virtual store to showcase and sell products online.",
   "main": "src/app.js",
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "feed": "node generate-feed.js",
+    "feed:watch": "node generate-feed.js --watch"
   },
   "keywords": [
     "store",

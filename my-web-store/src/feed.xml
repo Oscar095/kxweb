@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>KosXpress - Empaques Desechables</title>
+    <link>https://kosxpress.com</link>
+    <description>Empaques desechables y biodegradables para empresas en Colombia. Vasos, platos, porta comidas y más.</description>
+    <language>es-co</language>
+    <lastBuildDate>Tue, 19 May 2026 16:25:18 GMT</lastBuildDate>
+    
+    <item>
+      <g:id>VASO-4OZ</g:id>
+      <g:title><![CDATA[Vaso Desechable 4oz]]></g:title>
+      <g:description><![CDATA[Vaso desechable de 4oz ideal para bebidas calientes y frías. Material resistente y de alta calidad. Caja por 1000 unidades.]]></g:description>
+      <g:link>https://kosxpress.com/product?id=1</g:link>
+      <g:image_link>https://datalakekos.blob.core.windows.net/images/site-assets/4oz.webp</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>85000.00 COP</g:price>
+      <g:brand>KosXpress</g:brand>
+      <g:condition>new</g:condition>
+      <g:google_product_category>Vasos</g:google_product_category>
+    </item>
+
+    <item>
+      <g:id>VASO-7OZ</g:id>
+      <g:title><![CDATA[Vaso Desechable 7oz]]></g:title>
+      <g:description><![CDATA[Vaso desechable de 7oz perfecto para bebidas de tamaño mediano. Alta resistencia. Caja por 1000 unidades.]]></g:description>
+      <g:link>https://kosxpress.com/product?id=2</g:link>
+      <g:image_link>https://datalakekos.blob.core.windows.net/images/site-assets/7oz.webp</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>110000.00 COP</g:price>
+      <g:brand>KosXpress</g:brand>
+      <g:condition>new</g:condition>
+      <g:google_product_category>Vasos</g:google_product_category>
+    </item>
+
+    <item>
+      <g:id>VASO-9OZ</g:id>
+      <g:title><![CDATA[Vaso Desechable 9oz]]></g:title>
+      <g:description><![CDATA[Vaso desechable de 9oz para bebidas grandes. Ideal para jugos y refrescos. Caja por 1000 unidades.]]></g:description>
+      <g:link>https://kosxpress.com/product?id=3</g:link>
+      <g:image_link>https://datalakekos.blob.core.windows.net/images/site-assets/9onza.webp</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>130000.00 COP</g:price>
+      <g:brand>KosXpress</g:brand>
+      <g:condition>new</g:condition>
+      <g:google_product_category>Vasos</g:google_product_category>
+    </item>
+
+    <item>
+      <g:id>PORTA-PAPA</g:id>
+      <g:title><![CDATA[Porta Papa Desechable]]></g:title>
+      <g:description><![CDATA[Porta papas desechable resistente al calor. Ideal para restaurantes de comida rápida. Caja por 500 unidades.]]></g:description>
+      <g:link>https://kosxpress.com/product?id=4</g:link>
+      <g:image_link>https://datalakekos.blob.core.windows.net/images/site-assets/PortaPAPA.webp</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>95000.00 COP</g:price>
+      <g:brand>KosXpress</g:brand>
+      <g:condition>new</g:condition>
+      <g:google_product_category>Porta Comidas</g:google_product_category>
+    </item>
+
+    <item>
+      <g:id>PORTA-HAMBURGUESA</g:id>
+      <g:title><![CDATA[Porta Hamburguesa Desechable]]></g:title>
+      <g:description><![CDATA[Porta hamburguesa desechable de alta resistencia. Perfecto para restaurantes y cadenas de comida rápida. Caja por 500 unidades.]]></g:description>
+      <g:link>https://kosxpress.com/product?id=5</g:link>
+      <g:image_link>https://datalakekos.blob.core.windows.net/images/site-assets/portahamburguesa.webp</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>120000.00 COP</g:price>
+      <g:brand>KosXpress</g:brand>
+      <g:condition>new</g:condition>
+      <g:google_product_category>Porta Comidas</g:google_product_category>
+    </item>
+
+    <item>
+      <g:id>PLATO-ECO</g:id>
+      <g:title><![CDATA[Plato Desechable Ecológico]]></g:title>
+      <g:description><![CDATA[Plato ecológico biodegradable fabricado con materiales sostenibles. Ideal para eventos y restaurantes. Caja por 1000 unidades.]]></g:description>
+      <g:link>https://kosxpress.com/product?id=6</g:link>
+      <g:image_link>https://datalakekos.blob.core.windows.net/images/site-assets/Productos.webp</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>75000.00 COP</g:price>
+      <g:brand>KosXpress</g:brand>
+      <g:condition>new</g:condition>
+      <g:google_product_category>Platos</g:google_product_category>
+    </item>
+  </channel>
+</rss>
