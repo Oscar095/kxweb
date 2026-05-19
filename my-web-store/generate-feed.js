@@ -5,50 +5,46 @@
  * Genera un feed XML compatible con Google Merchant Center (RSS 2.0 + g: namespace).
  *
  * Fuentes de datos (en orden de prioridad):
- *   1. API live en http://localhost:3000/api/products  (si el servidor está corriendo)
- *   2. Fallback: data/products.json  (copia local de los productos)
+ *   1. SQL Server directo  → lee TODOS los productos activos sin ningún límite
+ *   2. API live            → http://localhost:3000/api/products (si el server está corriendo)
+ *   3. Fallback local      → data/products.json (última caché guardada)
+ *
+ * La consulta SQL NO tiene TOP, LIMIT, ni slice — devuelve la tabla completa.
  *
  * Uso:
- *   node generate-feed.js              → guarda en src/feed.xml  (ruta pública del sitio)
- *   node generate-feed.js --out path   → guarda en la ruta especificada
- *   node generate-feed.js --watch      → regenera automáticamente cuando cambia products.json
- *
- * El feed resultante valida en Google Merchant Center.
+ *   node generate-feed.js              → guarda en src/feed.xml
+ *   node generate-feed.js --out <ruta> → salida personalizada
+ *   node generate-feed.js --watch      → regenera cuando cambia products.json
+ *   node generate-feed.js --source api → fuerza uso de la API (omite SQL directo)
+ *   node generate-feed.js --source json→ fuerza uso del JSON local
+ *   node generate-feed.js --dry-run    → imprime resumen sin escribir feed.xml
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 'use strict';
 
-const fs   = require('fs');
-const path = require('path');
-const http = require('http');
+const fs    = require('fs');
+const path  = require('path');
+const http  = require('http');
 const https = require('https');
 
 // ─── Configuración ────────────────────────────────────────────────────────────
 
-const BASE_URL        = 'https://kosxpress.com';
-const STORE_TITLE     = 'KosXpress - Empaques Desechables';
-const STORE_DESC      = 'Empaques desechables y biodegradables para empresas en Colombia. Vasos, platos, porta comidas y más.';
-const BRAND           = 'KosXpress';
-const CONDITION       = 'new';
-const CURRENCY        = 'COP';
+const BASE_URL    = 'https://kosxpress.com';
+const STORE_TITLE = 'KosXpress - Empaques Desechables';
+const STORE_DESC  = 'Empaques desechables y biodegradables para empresas en Colombia. Vasos, platos, porta comidas y más.';
+const BRAND       = 'KosXpress';
+const CONDITION   = 'new';
+const CURRENCY    = 'COP';
 
-/** Ruta del JSON local (fallback / caché) */
-const DATA_FILE = path.resolve(__dirname, 'data', 'products.json');
-
-/** Ruta de salida del XML (dentro de src/ para que el servidor Express lo sirva) */
+const DATA_FILE   = path.resolve(__dirname, 'data', 'products.json');
 const DEFAULT_OUT = path.resolve(__dirname, 'src', 'feed.xml');
+const API_URL     = 'http://localhost:3000/api/products';
 
-/** URL de la API local (cuando el servidor está corriendo) */
-const API_URL = 'http://localhost:3000/api/products';
+// ─── Helpers XML ─────────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Escapa caracteres XML especiales fuera de CDATA
- */
 function escapeXml(str) {
-  if (!str) return '';
+  if (!str && str !== 0) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -57,22 +53,147 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
-/**
- * Envuelve texto en CDATA (y escapa el cierre de CDATA si aparece en el texto)
- */
 function cdata(str) {
   if (!str) return '';
-  // Divide secuencias "]]>" que romperían CDATA
+  // Neutraliza cualquier "]]>" dentro del texto para no romper CDATA
   return `<![CDATA[${String(str).replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;
 }
 
+// ─── Fuente 1: SQL Server directo ─────────────────────────────────────────────
+
 /**
- * Hace fetch por HTTP/HTTPS devolviendo una Promise<string>
+ * Lee TODOS los productos activos directamente desde SQL Server.
+ * Sin TOP, sin LIMIT, sin paginación — tabla completa.
+ *
+ * Consulta verificada:
+ *   SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion
+ *   FROM dbo.products p
+ *   LEFT JOIN dbo.categories c ON p.category = c.Id
+ *   LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id
+ *   WHERE p.habilitado = 1 AND p.price_unit > 0
+ *   ORDER BY p.id
+ *
+ * No hay TOP, LIMIT, FETCH NEXT, ni ninguna cláusula de restricción de filas.
  */
+async function fetchFromDb() {
+  let sql;
+  try {
+    sql = require('mssql');
+  } catch (e) {
+    console.warn('[feed] mssql no disponible, omitiendo fuente DB directa.');
+    return null;
+  }
+
+  const dotenv = require('dotenv');
+  dotenv.config({ path: path.resolve(__dirname, '.env.local') });
+  dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+  const config = {
+    user:     process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    server:   process.env.SERVER,
+    database: process.env.DB_NAME,
+    options:  { encrypt: true, enableArithAbort: true },
+    pool:     { max: 3, min: 0, idleTimeoutMillis: 10000 },
+    connectionTimeout: 15000,
+    requestTimeout:    30000
+  };
+
+  if (!config.user || !config.server || !config.database) {
+    console.warn('[feed] Variables DB_USER / SERVER / DB_NAME no configuradas, omitiendo DB directa.');
+    return null;
+  }
+
+  let pool;
+  try {
+    console.log(`[feed] 🔌 Conectando a SQL Server: ${config.server} / ${config.database}`);
+    pool = await sql.connect(config);
+
+    // ── CONSULTA COMPLETA SIN NINGÚN LÍMITE ──────────────────────────────────
+    // No hay TOP, LIMIT, FETCH NEXT ni OFFSET.
+    // WHERE filtra solo productos habilitados y con precio mayor a 0.
+    // ORDER BY p.id garantiza orden estable.
+    const result = await pool.request().query(`
+      SELECT
+        p.id,
+        p.codigo_siesa,
+        p.name,
+        p.price_unit,
+        p.description,
+        p.images,
+        p.image2,
+        p.image3,
+        p.image4,
+        p.habilitado,
+        p.es_personalizado,
+        p.category,
+        p.row_empaque,
+        c.descripcion  AS category_name,
+        te.descripcion AS empaque_descripcion,
+        q.cantidad     AS cantidad
+      FROM dbo.products p
+      LEFT JOIN dbo.categories      c  ON p.category   = c.Id
+      LEFT JOIN dbo.tipos_empaques  te ON p.row_empaque = te.id
+      LEFT JOIN dbo.cantidad        q  ON q.id          = 1
+      WHERE p.habilitado = 1
+        AND p.price_unit > 0
+      ORDER BY p.id
+    `);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const rows = result.recordset || [];
+
+    console.log(`[feed] ✓ SQL Server → ${rows.length} productos activos (habilitado=1, price_unit>0)`);
+    console.log(`[feed]   (sin TOP, sin LIMIT, sin slice — tabla completa)`);
+
+    // Mapear al mismo formato que devuelve la API
+    const products = rows.map(d => {
+      let imgs = [];
+      if (d.images) {
+        try { imgs = JSON.parse(d.images); } catch { imgs = []; }
+      }
+      if (d.image2 && !imgs.includes(d.image2)) imgs.push(d.image2);
+      if (d.image3 && !imgs.includes(d.image3)) imgs.push(d.image3);
+      if (d.image4 && !imgs.includes(d.image4)) imgs.push(d.image4);
+
+      return {
+        id:               d.id,
+        codigo_siesa:     d.codigo_siesa || '',
+        name:             d.name || '',
+        price_unit:       d.price_unit != null ? Number(d.price_unit) : null,
+        cantidad:         d.cantidad   != null ? Number(d.cantidad)   : null,
+        category:         d.category,
+        category_name:    d.category_name || '',
+        empaque_descripcion: d.empaque_descripcion || '',
+        description:      d.description || '',
+        habilitado:       !!d.habilitado,
+        es_personalizado: !!d.es_personalizado,
+        images:           imgs,
+        image:            imgs[0] || '',
+        image2:           d.image2 || '',
+        image3:           d.image3 || '',
+        image4:           d.image4 || ''
+      };
+    });
+
+    return products;
+
+  } catch (e) {
+    console.warn(`[feed] Error conectando a SQL Server: ${e.message}`);
+    return null;
+  } finally {
+    if (pool) {
+      try { await pool.close(); } catch { /* ignore */ }
+    }
+  }
+}
+
+// ─── Fuente 2: API live ────────────────────────────────────────────────────────
+
 function fetchUrl(url) {
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
-    const req = mod.get(url, { timeout: 8000 }, (res) => {
+    const req = mod.get(url, { timeout: 10000 }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', chunk => { body += chunk; });
@@ -83,37 +204,34 @@ function fetchUrl(url) {
   });
 }
 
-/**
- * Intenta obtener los productos desde la API live.
- * Si falla, retorna null.
- */
 async function fetchFromApi() {
   try {
+    console.log(`[feed] 🌐 Intentando API: ${API_URL}`);
     const body = await fetchUrl(API_URL);
     const data = JSON.parse(body);
     if (Array.isArray(data) && data.length > 0) {
-      console.log(`[feed] ✓ ${data.length} productos obtenidos desde la API (${API_URL})`);
+      console.log(`[feed] ✓ API → ${data.length} productos recibidos`);
       return data;
     }
+    console.warn('[feed] API devolvió array vacío.');
     return null;
   } catch (e) {
-    console.warn(`[feed] API no disponible (${e.message}), usando fallback local.`);
+    console.warn(`[feed] API no disponible: ${e.message}`);
     return null;
   }
 }
 
-/**
- * Lee los productos desde el JSON local.
- */
+// ─── Fuente 3: JSON local ─────────────────────────────────────────────────────
+
 function readLocalProducts() {
   try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const raw  = fs.readFileSync(DATA_FILE, 'utf8');
     const data = JSON.parse(raw);
     if (Array.isArray(data) && data.length > 0) {
-      console.log(`[feed] ✓ ${data.length} productos leídos desde ${DATA_FILE}`);
+      console.log(`[feed] 📄 JSON local → ${data.length} productos en ${DATA_FILE}`);
       return data;
     }
-    console.warn('[feed] products.json está vacío o no es un array.');
+    console.warn('[feed] products.json vacío o no es array.');
     return [];
   } catch (e) {
     console.error(`[feed] Error leyendo ${DATA_FILE}: ${e.message}`);
@@ -121,10 +239,7 @@ function readLocalProducts() {
   }
 }
 
-/**
- * Guarda los productos en el JSON local (para mantener caché actualizado)
- */
-function saveLocalProducts(products) {
+function saveLocalCache(products) {
   try {
     fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
     fs.writeFileSync(DATA_FILE, JSON.stringify(products, null, 2), 'utf8');
@@ -134,84 +249,93 @@ function saveLocalProducts(products) {
   }
 }
 
-/**
- * Normaliza un producto (tanto de la API como del JSON local) al formato del feed.
- */
-function normalizeProduct(p) {
-  // Precio: en la API es price_unit (precio por unidad COP)
-  // El feed requiere precio total por caja cuando corresponda
-  const priceUnit = Number(p.price_unit || p.price || 0);
-  const cantidad  = Number(p.cantidad || 1);
+// ─── Normalización de producto ────────────────────────────────────────────────
 
-  // Google Merchant requiere precio con 2 decimales + moneda
+function normalizeProduct(p) {
+  const priceUnit      = Number(p.price_unit || p.price || 0);
   const priceFormatted = `${priceUnit.toFixed(2)} ${CURRENCY}`;
 
-  // Imagen principal
+  // ── Imagen principal ──────────────────────────────────────────────────────
   let imageUrl = '';
   if (Array.isArray(p.images) && p.images.length > 0) {
-    imageUrl = p.images[0];
-  } else if (p.image) {
-    imageUrl = p.image;
+    // Tomar la primera imagen del array (ya incluye image2/3/4)
+    imageUrl = p.images.find(u => u && String(u).startsWith('http')) || p.images[0] || '';
   }
+  if (!imageUrl && p.image) imageUrl = p.image;
 
-  // Si la imagen no tiene protocolo (es relativa), la hacemos absoluta
+  // Si es relativa, convertir a absoluta
   if (imageUrl && !imageUrl.startsWith('http')) {
     imageUrl = `${BASE_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
   }
 
-  // Disponibilidad
-  const available = p.habilitado !== false; // default true si no existe
-  const availability = available ? 'in_stock' : 'out_of_stock';
+  // ── Disponibilidad ────────────────────────────────────────────────────────
+  const availability = (p.habilitado !== false) ? 'in_stock' : 'out_of_stock';
 
-  // SKU/ID único: usar codigo_siesa si existe, sino id
-  const sku = p.codigo_siesa
+  // ── ID / SKU único ────────────────────────────────────────────────────────
+  // Preferir codigo_siesa; si está vacío usar KXP-{id}
+  const sku = (p.codigo_siesa && String(p.codigo_siesa).trim())
     ? String(p.codigo_siesa).trim()
     : `KXP-${p.id}`;
 
-  // URL del producto individual
+  // ── URLs de producto ──────────────────────────────────────────────────────
+  // Formato: https://kosxpress.com/product?id=<id>
   const productUrl = `${BASE_URL}/product?id=${p.id}`;
 
-  // Título limpio (sin HTML)
-  const title = String(p.name || '').trim();
-
-  // Descripción limpia (sin HTML)
-  const rawDesc = String(p.description || '').trim();
-  const description = rawDesc || title;
-
-  // Categoría Google (google_product_category — usamos la categoría del producto)
-  const category = String(p.category_name || p.category || 'Empaques').trim();
+  // ── Textos ────────────────────────────────────────────────────────────────
+  const title       = String(p.name || '').trim();
+  const description = String(p.description || '').trim() || title;
+  const category    = String(p.category_name || p.category || 'Empaques').trim();
 
   return {
-    id: sku,
+    id:           sku,
     title,
     description,
-    link: productUrl,
-    imageLink: imageUrl,
+    link:         productUrl,
+    imageLink:    imageUrl,
     availability,
-    price: priceFormatted,
-    brand: BRAND,
-    condition: CONDITION,
+    price:        priceFormatted,
+    brand:        BRAND,
+    condition:    CONDITION,
     category,
-    productId: p.id
+    // para logging
+    _productId:  p.id,
+    _rawPrice:   priceUnit,
+    _hasImage:   !!imageUrl
   };
 }
 
-/**
- * Genera el XML del feed.
- */
+// ─── Construcción del XML ─────────────────────────────────────────────────────
+
 function buildXml(products) {
   const now = new Date().toUTCString();
-  const items = products
-    .filter(p => {
-      // Solo productos habilitados y con precio válido
-      const price = Number(p.price_unit || p.price || 0);
-      return p.habilitado !== false && price > 0;
-    })
-    .map(normalizeProduct);
 
-  if (items.length === 0) {
-    console.warn('[feed] ⚠ No hay productos válidos para incluir en el feed.');
+  // Filtro de seguridad (la DB ya filtra, pero por si viene de la API o del JSON)
+  const valid = products.filter(p => {
+    const price = Number(p.price_unit || p.price || 0);
+    return p.habilitado !== false && price > 0;
+  });
+
+  const skipped = products.length - valid.length;
+  if (skipped > 0) {
+    console.log(`[feed]   Filtrados ${skipped} productos sin precio o deshabilitados.`);
   }
+
+  const items = valid.map(normalizeProduct);
+
+  // ── Log de verificación de URLs e imágenes ────────────────────────────────
+  const sinImagen = items.filter(i => !i._hasImage);
+  if (sinImagen.length > 0) {
+    console.warn(`[feed] ⚠ ${sinImagen.length} producto(s) sin imagen:`);
+    sinImagen.forEach(i => console.warn(`       → id=${i._productId} "${i.title}"`));
+  } else {
+    console.log(`[feed]   Todos los productos tienen imagen ✓`);
+  }
+
+  console.log(`[feed]   Muestra de URLs generadas:`);
+  items.slice(0, 3).forEach(i => {
+    console.log(`         [id=${i._productId}] link=${i.link}`);
+    console.log(`                  image=${i.imageLink || '(sin imagen)'}`);
+  });
 
   const itemsXml = items.map(item => `
     <item>
@@ -228,7 +352,8 @@ function buildXml(products) {
     </item>`
   ).join('\n');
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  return {
+    xml: `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
   <channel>
     <title>${escapeXml(STORE_TITLE)}</title>
@@ -238,85 +363,112 @@ function buildXml(products) {
     <lastBuildDate>${now}</lastBuildDate>
     ${itemsXml}
   </channel>
-</rss>`;
+</rss>`,
+    count: items.length
+  };
 }
 
-/**
- * Pipeline principal: obtiene productos → genera XML → guarda archivo.
- */
-async function generate(outFile) {
-  console.log('\n[feed] 🚀 Iniciando generación del feed...');
+// ─── Pipeline principal ───────────────────────────────────────────────────────
 
-  // 1. Intentar API live primero
-  let products = await fetchFromApi();
+async function generate(outFile, opts = {}) {
+  const { dryRun = false, forceSource = null } = opts;
 
-  // 2. Si la API falló, usar JSON local
-  if (!products) {
-    products = readLocalProducts();
+  console.log('\n[feed] ════════════════════════════════════════════════════');
+  console.log('[feed] 🚀 Generando feed Google Merchant Center...');
+  console.log(`[feed]    Salida: ${outFile}`);
+  console.log('[feed] ════════════════════════════════════════════════════');
+
+  let products   = null;
+  let sourceUsed = '';
+
+  if (forceSource === 'json') {
+    products   = readLocalProducts();
+    sourceUsed = 'JSON local (forzado)';
+
+  } else if (forceSource === 'api') {
+    products   = await fetchFromApi();
+    sourceUsed = 'API live (forzado)';
+    if (products) saveLocalCache(products);
+
   } else {
-    // Si la API tuvo éxito, actualizar el JSON local como caché
-    saveLocalProducts(products);
+    // Orden de prioridad: DB directa → API → JSON local
+    products = await fetchFromDb();
+    if (products) {
+      sourceUsed = 'SQL Server directo';
+      saveLocalCache(products);
+    } else {
+      products = await fetchFromApi();
+      if (products) {
+        sourceUsed = 'API live';
+        saveLocalCache(products);
+      } else {
+        products   = readLocalProducts();
+        sourceUsed = 'JSON local (fallback)';
+      }
+    }
   }
 
   if (!products || products.length === 0) {
-    console.error('[feed] ✗ No se encontraron productos. El feed NO fue generado.');
+    console.error('[feed] ✗ Sin productos. El feed NO fue generado.');
     process.exit(1);
   }
 
-  // 3. Construir XML
-  const xml = buildXml(products);
+  console.log(`[feed]   Fuente usada: ${sourceUsed}`);
+  console.log(`[feed]   Total de productos recibidos: ${products.length}`);
 
-  // 4. Guardar
+  const { xml, count } = buildXml(products);
+
+  if (dryRun) {
+    console.log('\n[feed] 🔍 DRY-RUN — feed.xml NO escrito.');
+    console.log(`[feed]    Items que se generarían: ${count}`);
+    return;
+  }
+
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, xml, 'utf8');
 
   const sizeKb = (Buffer.byteLength(xml, 'utf8') / 1024).toFixed(1);
-  console.log(`[feed] ✅ feed.xml generado: ${outFile}`);
-  console.log(`[feed]    Productos en feed: ${products.filter(p => p.habilitado !== false && Number(p.price_unit || p.price || 0) > 0).length}`);
-  console.log(`[feed]    Tamaño: ${sizeKb} KB`);
-  console.log(`[feed]    URL pública: ${BASE_URL}/feed.xml\n`);
+
+  console.log('\n[feed] ════════════════════════════════════════════════════');
+  console.log(`[feed] ✅ feed.xml generado correctamente`);
+  console.log(`[feed]    Archivo  : ${outFile}`);
+  console.log(`[feed]    Items    : ${count} productos`);
+  console.log(`[feed]    Tamaño   : ${sizeKb} KB`);
+  console.log(`[feed]    URL pública: ${BASE_URL}/feed.xml`);
+  console.log('[feed] ════════════════════════════════════════════════════\n');
 }
 
-// ─── Modo watch ───────────────────────────────────────────────────────────────
+// ─── Modo watch ────────────────────────────────────────────────────────────────
 
-function startWatch(outFile) {
-  console.log(`[feed] 👁  Modo watch activo — observando ${DATA_FILE}`);
+function startWatch(outFile, opts) {
+  console.log(`[feed] 👁  Modo watch — observando: ${DATA_FILE}`);
+  console.log('[feed]    Ctrl+C para detener.\n');
   let debounce = null;
-
-  const runGenerate = () => {
-    clearTimeout(debounce);
-    debounce = setTimeout(() => generate(outFile), 500);
-  };
-
-  // Observar el archivo JSON local
-  try {
-    fs.watchFile(DATA_FILE, { interval: 2000 }, (curr, prev) => {
-      if (curr.mtime !== prev.mtime) {
-        console.log(`[feed] 🔄 Cambio detectado en products.json`);
-        runGenerate();
-      }
-    });
-    console.log(`[feed]    Ctrl+C para detener.\n`);
-  } catch (e) {
-    console.error(`[feed] Error iniciando watch: ${e.message}`);
-  }
+  fs.watchFile(DATA_FILE, { interval: 2000 }, (curr, prev) => {
+    if (curr.mtime !== prev.mtime) {
+      console.log('[feed] 🔄 Cambio detectado en products.json — regenerando...');
+      clearTimeout(debounce);
+      debounce = setTimeout(() => generate(outFile, opts), 500);
+    }
+  });
 }
 
-// ─── Entrada principal ────────────────────────────────────────────────────────
+// ─── CLI ──────────────────────────────────────────────────────────────────────
 
 (async () => {
-  const args = process.argv.slice(2);
-  const watchMode = args.includes('--watch') || args.includes('-w');
-  const outIdx = args.indexOf('--out');
-  const outFile = outIdx !== -1 && args[outIdx + 1]
+  const args        = process.argv.slice(2);
+  const watchMode   = args.includes('--watch') || args.includes('-w');
+  const dryRun      = args.includes('--dry-run');
+  const srcIdx      = args.indexOf('--source');
+  const forceSource = srcIdx !== -1 ? args[srcIdx + 1] : null;
+  const outIdx      = args.indexOf('--out');
+  const outFile     = outIdx !== -1 && args[outIdx + 1]
     ? path.resolve(args[outIdx + 1])
     : DEFAULT_OUT;
 
-  // Generar siempre al inicio
-  await generate(outFile);
+  const opts = { dryRun, forceSource };
 
-  // Si --watch, mantenerse observando cambios en el JSON local
-  if (watchMode) {
-    startWatch(outFile);
-  }
+  await generate(outFile, opts);
+
+  if (watchMode) startWatch(outFile, opts);
 })();
