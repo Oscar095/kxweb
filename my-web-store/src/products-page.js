@@ -231,9 +231,42 @@ async function init() {
     });
   }
 
-  // Parse URL parameter
+  // ── URL slug helpers ──
+  // Convierte nombre de categoría a slug para la URL
+  function toSlug(name) {
+    return String(name || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
+      .replace(/[^a-z0-9]+/g, '-')  // reemplaza no-alfanuméricos con guion
+      .replace(/^-+|-+$/g, '');     // recorta guiones al inicio/fin
+  }
+
+  // Busca la categoría cuyo slug coincide con el hash dado
+  function catFromSlug(slug) {
+    if (!slug) return null;
+    const s = slug.toLowerCase();
+    return categories.find(c => toSlug(c.nombre || c.descripcion || '') === s) || null;
+  }
+
+  // Parse URL: primero el hash (#slug), luego ?cat= como fallback
+  const rawHash = window.location.hash.replace(/^#/, '').trim();
   const params = new URLSearchParams(window.location.search);
-  const initialCat = params.get('cat') || 'all';
+  let initialCat = 'all';
+  if (rawHash) {
+    // Intentar resolver el hash como slug de categoría
+    const matchedCat = catFromSlug(rawHash);
+    if (matchedCat) {
+      initialCat = matchedCat.nombre || matchedCat.descripcion || 'all';
+    } else if (rawHash !== 'all') {
+      // Intentar coincidencia directa por nombre (legacy)
+      const direct = categories.find(c =>
+        toSlug(c.nombre || '') === rawHash || toSlug(c.descripcion || '') === rawHash
+      );
+      initialCat = direct ? (direct.nombre || direct.descripcion || 'all') : 'all';
+    }
+  } else {
+    initialCat = params.get('cat') || 'all';
+  }
 
   // Toggle categories on mobile (accordion style)
   const mobileCatToggle = document.getElementById('mobile-cat-toggle');
@@ -256,10 +289,17 @@ async function init() {
   }
 
   // Create a function to filter and update the UI
-  const applyCategoryFilter = (cat) => {
+  const applyCategoryFilter = (cat, skipUrlUpdate) => {
     currentCat = cat;
     // Close sidebar on mobile
     if (sidebar) sidebar.classList.remove('is-expanded');
+
+    // ── Actualizar URL con hash de categoría ──
+    if (!skipUrlUpdate) {
+      const newHash = cat === 'all' ? '' : '#' + toSlug(cat);
+      const newUrl = window.location.pathname + window.location.search + newHash;
+      window.history.pushState({ cat }, '', newUrl);
+    }
 
     // Auto-scroll to top of product section on change (unless initial load)
     const productsSection = document.getElementById('products-page-title') || document.getElementById('products');
@@ -327,7 +367,22 @@ async function init() {
   let currentCat = initialCat;
   let currentSearch = '';
 
-  applyCategoryFilter(initialCat);
+  // Carga inicial: no actualizar URL (ya viene del hash/param)
+  applyCategoryFilter(initialCat, true);
+
+  // Manejar el botón Atrás/Adelante del navegador
+  window.addEventListener('popstate', (e) => {
+    const hash = window.location.hash.replace(/^#/, '').trim();
+    let cat = 'all';
+    if (hash) {
+      const matched = catFromSlug(hash);
+      if (matched) cat = matched.nombre || matched.descripcion || 'all';
+    } else {
+      const p = new URLSearchParams(window.location.search);
+      cat = p.get('cat') || 'all';
+    }
+    applyCategoryFilter(cat, true); // skipUrlUpdate=true para no crear otro estado
+  });
 
   // Toast notification system
   const showToast = (msg, type = 'success') => {
@@ -534,10 +589,7 @@ async function init() {
       const searchInput = document.getElementById('search-input');
       if (searchInput) searchInput.value = '';
 
-      applyCategoryFilter(cat);
-
-      const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + (cat === 'all' ? '' : '?cat=' + encodeURIComponent(cat));
-      window.history.pushState({ path: newurl }, '', newurl);
+      applyCategoryFilter(cat); // applyCategoryFilter ya actualiza la URL con hash
     });
 
     // Handle window resize to keep indicator in place
