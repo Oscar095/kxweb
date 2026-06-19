@@ -34,6 +34,9 @@ mount.innerHTML = `
         <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple class="file-input-hidden" />
       </div>
     </div>
+    <div class="form-group full-width" style="margin-top: 24px; margin-bottom: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+      <div class="g-recaptcha" data-sitekey="6LetrigtAAAAAMm9bIxo_5cQXM-s8SosaZ1Ajh-s"></div>
+    </div>
     <div class="actions full-width" style="margin-top: 12px;">
       <button type="submit" class="btn-primary btn-submit" style="width: 100%; border-radius: 30px; font-size: 1.15rem; padding: 14px 24px;">Enviar mensaje</button>
     </div>
@@ -63,14 +66,26 @@ if (fileInput && uploadText) {
 const form = document.getElementById('contact-form');
 const result = document.getElementById('contact-result');
 
+// Inyectar script de reCAPTCHA dinámicamente
+const recaptchaScript = document.createElement('script');
+recaptchaScript.src = "https://www.google.com/recaptcha/api.js";
+recaptchaScript.async = true;
+recaptchaScript.defer = true;
+document.head.appendChild(recaptchaScript);
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(form);
-  // Normaliza strings
   fd.set('name', (fd.get('name') || '').toString().trim());
   fd.set('email', (fd.get('email') || '').toString().trim());
   fd.set('phone', (fd.get('phone') || '').toString().trim());
   fd.set('message', (fd.get('message') || '').toString().trim());
+
+  const recaptchaResponse = fd.get('g-recaptcha-response');
+  if (!recaptchaResponse) {
+    result.innerHTML = `<div class="contact-error">Por favor, marca la casilla "No soy un robot".</div>`;
+    return;
+  }
 
   try {
     const r = await fetch('/api/contacts', { method: 'POST', body: fd });

@@ -470,9 +470,31 @@ const contactUpload = multer({
 app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res) => {
   try {
     const { name, email, phone, message } = req.body || {};
+    const recaptchaResponse = req.body['g-recaptcha-response'];
+    
     if (!name || !email || !message) {
       return res.status(400).json({ message: 'name, email y message son requeridos' });
     }
+
+    if (!recaptchaResponse) {
+      return res.status(400).json({ message: 'Por favor, verifica que no eres un robot.' });
+    }
+
+    // Verificar con Google
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET || '6LetrigtAAAAAFdEZ0HO4z9mXZblhHMTEwVMtQTO';
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${recaptchaResponse}`;
+    
+    try {
+      const gRes = await fetch(verifyUrl, { method: 'POST' });
+      const gData = await gRes.json();
+      if (!gData.success) {
+        return res.status(400).json({ message: 'Error de validación reCAPTCHA. Intenta nuevamente.' });
+      }
+    } catch (gErr) {
+      console.error('Error verificando reCAPTCHA:', gErr);
+      return res.status(500).json({ message: 'Error comunicándose con el servicio de validación de reCAPTCHA.' });
+    }
+
     const files = Array.isArray(req.files) ? req.files : [];
 
     // Subir cada adjunto a Azure Blob Storage → Contactos/
