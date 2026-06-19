@@ -34,8 +34,22 @@ mount.innerHTML = `
         <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple class="file-input-hidden" />
       </div>
     </div>
+    <style>
+      @keyframes shakeError {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-5px); }
+        40%, 80% { transform: translateX(5px); }
+      }
+      .shake-animation {
+        animation: shakeError 0.4s ease-in-out;
+      }
+    </style>
     <div class="form-group full-width" style="margin-top: 24px; margin-bottom: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-      <div class="g-recaptcha" data-sitekey="6LetrigtAAAAAMm9bIxo_5cQXM-s8SosaZ1Ajh-s"></div>
+      <div id="recaptcha-error" style="display: none; color: #d93025; background: #fce8e6; border: 1px solid #fad2cf; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; font-weight: 500; font-size: 0.95rem; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(217, 48, 37, 0.15);">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <span>Por favor, verifica que no eres un robot</span>
+      </div>
+      <div id="recaptcha-container" class="g-recaptcha" data-sitekey="6LetrigtAAAAAMm9bIxo_5cQXM-s8SosaZ1Ajh-s"></div>
     </div>
     <div class="actions full-width" style="margin-top: 12px;">
       <button type="submit" class="btn-primary btn-submit" style="width: 100%; border-radius: 30px; font-size: 1.15rem; padding: 14px 24px;">Enviar mensaje</button>
@@ -82,9 +96,22 @@ form.addEventListener('submit', async (e) => {
   fd.set('message', (fd.get('message') || '').toString().trim());
 
   const recaptchaResponse = fd.get('g-recaptcha-response');
+  const recaptchaError = document.getElementById('recaptcha-error');
+  const recaptchaContainer = document.getElementById('recaptcha-container');
+
   if (!recaptchaResponse) {
-    result.innerHTML = `<div class="contact-error">Por favor, marca la casilla "No soy un robot".</div>`;
+    if (recaptchaError) {
+      recaptchaError.style.display = 'flex';
+      // Animación de agitación para llamar fuertemente la atención
+      recaptchaContainer.classList.remove('shake-animation');
+      void recaptchaContainer.offsetWidth; // trigger reflow
+      recaptchaContainer.classList.add('shake-animation');
+    } else {
+      result.innerHTML = `<div class="contact-error">Por favor, marca la casilla "No soy un robot".</div>`;
+    }
     return;
+  } else {
+    if (recaptchaError) recaptchaError.style.display = 'none';
   }
 
   try {
