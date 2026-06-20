@@ -5820,6 +5820,22 @@ img.bs-card-img {
 
 	.glass-form-panel {
 		padding: 24px;
+		overflow-x: hidden;
+	}
+}
+
+/* reCAPTCHA responsive fix: escala el widget en pantallas pequeñas */
+@media (max-width: 400px) {
+	.g-recaptcha {
+		transform: scale(0.82);
+		transform-origin: center top;
+	}
+}
+
+@media (min-width: 401px) and (max-width: 500px) {
+	.g-recaptcha {
+		transform: scale(0.91);
+		transform-origin: center top;
 	}
 }
 
