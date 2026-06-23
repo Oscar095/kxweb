@@ -144,44 +144,84 @@
         /* 2. Ajustes exclusivos para celulares (máximo 430px) */
         @media screen and (max-width: 430px) {
 
-          /* Centrar el título y el subtítulo de la columna izquierda */
+          /* Liberar los contenedores principales y la columna del formulario */
+          .contact-layout-modern,
+          .contact-info-col,
+          .contact-form-col {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 0 !important;
+            margin: 0 auto !important;
+          }
+
+          /* Forzar la tarjeta blanca al ancho completo */
+          .glass-form-panel {
+            width: 100% !important;
+            max-width: 100vw !important;
+            box-sizing: border-box !important;
+            padding: 12px !important;
+            overflow-x: hidden !important;
+            margin-top: 20px !important;
+          }
+
+          /* Asegurar que el formulario interno use todo el espacio de la tarjeta */
+          #contact-root .contact-form {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 10px !important;
+            box-sizing: border-box !important;
+          }
+
+          /* Centrar el título y el subtítulo con márgenes limpios */
           .contact-page-title,
           .contact-page-subtitle {
             text-align: center !important;
             width: 100% !important;
+            box-sizing: border-box !important;
+            padding-left: 15px !important;
+            padding-right: 15px !important;
           }
 
-          /* Forzar a que todas las tarjetas ocupen el mismo ancho y se alineen */
+          /* Estirar el bloque de tarjetas de contacto de lado a lado */
           .contact-cards {
             display: flex !important;
             flex-direction: column !important;
-            align-items: center !important;
+            align-items: stretch !important;
             width: 100% !important;
+            max-width: 100% !important;
             box-sizing: border-box !important;
+            padding-left: 15px !important;
+            padding-right: 15px !important;
+            margin: 25px auto !important;
           }
 
-          /* Unificar el tamaño de cada tarjeta individual */
+          /* Mantener las tarjetas de info con simetría perfecta */
           .contact-info-card {
             width: 100% !important;
+            max-width: 100% !important;
             box-sizing: border-box !important;
+            margin-bottom: 16px !important;
           }
 
-          /* Forzamos al contenedor del reCAPTCHA a medir el tamaño nativo del widget */
+          /* CENTRADO CENTRÍFUGO PERFECTO PARA RECAPTCHA EN PANTALLAS ULTRA-PEQUEÑAS */
           #recaptcha-container {
-            margin: 12px auto !important;
-            display: block !important;
-            width: 304px !important;
-            /* Ancho exacto de la caja de Google */
+            margin: 16px auto !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            width: 100% !important;
+            /* Cambiado de 304px a 100% para que Flexbox pueda centrar */
+            overflow: visible !important;
+          }
 
-            /* Lo encogemos un 15% de forma simétrica para que quepa perfecto */
+          /* Aplicamos el escalado directamente a la estructura interna para evitar desvíos */
+          #recaptcha-container>div {
             transform: scale(0.85) !important;
             transform-origin: center center !important;
-          }
-
-          /* Evitamos de raíz que la tarjeta de cristal genere scroll hacia la derecha */
-          .glass-form-panel {
-            max-width: 100vw !important;
-            overflow-x: hidden !important;
+            margin: 0 auto !important;
           }
         }
       </style>
