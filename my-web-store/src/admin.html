@@ -83,11 +83,24 @@
           </svg>
           <span>Productos</span>
         </button>
+        <button id="nav-products-en" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-.68.07-1.34.19-2h3.13c-.08.66-.13 1.32-.13 2s.05 1.34.13 2H4.19C4.07 13.34 4 12.68 4 12zm.86 4h2.68c.34 1.15.79 2.24 1.35 3.24A8.05 8.05 0 0 1 4.86 16zm2.68-8H4.86a8.05 8.05 0 0 1 4.03-3.24A14.7 14.7 0 0 0 7.54 8zM12 19.94c-.7-1-1.28-2.14-1.68-3.94h3.36c-.4 1.8-.98 2.94-1.68 3.94zM10.03 14c-.09-.65-.14-1.32-.14-2s.05-1.35.14-2h3.94c.09.65.14 1.32.14 2s-.05 1.35-.14 2h-3.94zM12 4.06c.7 1 1.28 2.14 1.68 3.94h-3.36c.4-1.8.98-2.94 1.68-3.94zM16.46 8c-.34-1.15-.79-2.24-1.35-3.24A8.05 8.05 0 0 1 19.14 8h-2.68zm.99 6c.08-.66.13-1.32.13-2s-.05-1.34-.13-2h3.13c.12.66.19 1.32.19 2s-.07 1.34-.19 2h-3.13zm-.99 2h2.68a8.05 8.05 0 0 1-4.03 3.24c.56-1 1.01-2.09 1.35-3.24z" />
+          </svg>
+          <span>Productos (Inglés)</span>
+        </button>
         <button id="nav-categories" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
             <path d="M12 2l-5.5 9h11z M17.5 13h-11l5.5 9z" />
           </svg>
           <span>Categorias</span>
+        </button>
+        <button id="nav-categories-en" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2l-5.5 9h11z M17.5 13h-11l5.5 9z" />
+          </svg>
+          <span>Categorías (Inglés)</span>
         </button>
         <button id="nav-banners" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
@@ -109,6 +122,13 @@
               d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM10.9 12.9l-1.4-1.4-2.5 3.5h10l-3.5-4.5z" />
           </svg>
           <span>Biblioteca</span>
+        </button>
+        <button id="nav-bonos" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M20 12c0-1.1-.9-2-2-2V7c0-1.1-.9-2-2-2H4C2.9 5 2 5.9 2 7v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3c1.1 0 2-.9 2-2zM4 7h12v3.05c-1.14.2-2 1.19-2 2.4v.1c0 1.21.86 2.2 2 2.4V17H4V7zm9 5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5S13 12.83 13 12z" />
+          </svg>
+          <span>Bonos</span>
         </button>
         <a href="/index.html" class="admin-nav-item" style="margin-top:auto" target="_blank">
           <svg viewBox="0 0 24 24">
@@ -469,6 +489,127 @@
         </div>
       </section>
 
+      <!-- === PRODUCTOS (INGLÉS) VIEW === -->
+      <section id="view-products-en" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Productos (Inglés)</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:20px;">Busca un producto abajo y presiona "Editar Inglés" para agregar su nombre, descripción y (si lo necesitas) fotos distintas para la versión en inglés. No modifica ni reemplaza la versión en español.</p>
+
+        <div id="product-en-form-container" class="glass-card" style="display:none;">
+          <form id="product-en-form" class="admin-form">
+            <input type="hidden" id="pt-product-id" />
+
+            <fieldset>
+              <legend>Referencia (Español)</legend>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label>SKU</label>
+                  <input id="pt-sku-ref" type="text" readonly />
+                </div>
+                <div class="field-group">
+                  <label>Nombre (Español)</label>
+                  <input id="pt-name-ref" type="text" readonly />
+                </div>
+              </div>
+              <div class="field-group" style="margin-top:16px;">
+                <label>Descripción (Español)</label>
+                <textarea id="pt-desc-ref" rows="3" readonly></textarea>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Traducción al Inglés</legend>
+              <div class="field-group">
+                <label for="pt-name-en">Nombre en Inglés</label>
+                <input id="pt-name-en" type="text" placeholder="Ej: 4 Oz Cup" />
+              </div>
+              <div class="field-group" style="margin-top:16px;">
+                <label for="pt-desc-en">Descripción en Inglés</label>
+                <textarea id="pt-desc-en" rows="4" placeholder="Product description in English..."></textarea>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Fotos para la Versión en Inglés (Opcional — máx. 4)</legend>
+              <p style="margin-top:0; color:var(--admin-text-muted); font-size:0.85rem;">Si no subes fotos aquí, la versión en inglés seguirá mostrando las mismas fotos que la versión en español.</p>
+              <div class="field-group">
+                <label for="pt-images">Subir desde PC</label>
+                <input id="pt-images" type="file" accept="image/*" multiple />
+              </div>
+              <div id="pt-new-previews" class="admin-img-preview-grid" aria-live="polite"></div>
+              <div style="margin-top:16px;">
+                <label style="font-weight:500; display:block; margin-bottom:10px;">Fotos en Inglés Actuales:</label>
+                <div id="pt-current-images" class="admin-img-preview-grid"></div>
+              </div>
+            </fieldset>
+
+            <div style="display:flex; gap:16px; align-items:center; margin-top:24px;">
+              <button type="submit" class="admin-btn-primary">Guardar Traducción</button>
+              <button type="button" id="pt-delete-btn" class="admin-btn-secondary" style="display:none;">Eliminar Traducción</button>
+              <button type="button" id="pt-cancel-btn" class="admin-btn-secondary">Cerrar</button>
+              <p id="product-en-status" style="margin:0; font-weight:500;"></p>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:16px; flex-wrap:wrap;">
+            <h3 style="margin:0;">Productos</h3>
+            <input id="pt-search" type="text" placeholder="Buscar por nombre o SKU..." style="max-width:280px;" />
+          </div>
+          <div id="products-en-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+      <!-- === CATEGORÍAS (INGLÉS) VIEW === -->
+      <section id="view-categories-en" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Categorías (Inglés)</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:20px;">Agrega el nombre en inglés y, si quieres reemplazar la imagen (por ejemplo si la actual tiene el nombre en español dibujado), sube una nueva desde tu equipo. Si no subes una, la versión en inglés sigue mostrando la imagen actual.</p>
+
+        <div id="category-en-form-container" class="glass-card" style="display:none;">
+          <form id="category-en-form" class="admin-form">
+            <input type="hidden" id="ct-category-id" />
+            <fieldset>
+              <legend>Referencia (Español)</legend>
+              <div class="field-group">
+                <label>Nombre (Español)</label>
+                <input id="ct-name-ref" type="text" readonly />
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Traducción al Inglés</legend>
+              <div class="field-group">
+                <label for="ct-name-en">Nombre en Inglés</label>
+                <input id="ct-name-en" type="text" placeholder="Ej: Food Tubs" />
+              </div>
+              <div class="field-group" style="margin-top:16px;">
+                <label for="ct-image">Imagen en Inglés (Opcional)</label>
+                <input id="ct-image" type="file" accept="image/*" />
+              </div>
+              <div id="ct-new-preview" class="admin-img-preview-grid" aria-live="polite"></div>
+              <div style="margin-top:16px;">
+                <label style="font-weight:500; display:block; margin-bottom:10px;">Imagen en Inglés Actual:</label>
+                <div id="ct-current-image" class="admin-img-preview-grid"></div>
+              </div>
+            </fieldset>
+            <div style="display:flex; gap:16px; align-items:center; margin-top:24px;">
+              <button type="submit" class="admin-btn-primary">Guardar Traducción</button>
+              <button type="button" id="ct-delete-btn" class="admin-btn-secondary" style="display:none;">Eliminar Traducción</button>
+              <button type="button" id="ct-cancel-btn" class="admin-btn-secondary">Cerrar</button>
+              <p id="category-en-status" style="margin:0; font-weight:500;"></p>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <h3 style="margin-top:0;">Categorías</h3>
+          <div id="categories-en-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
       <!-- === CATEGORÍAS VIEW === -->
       <section id="view-categories" class="admin-view">
         <div class="admin-header-row">
@@ -597,6 +738,70 @@
         <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
           <h3 style="margin-top:0;">Todas las Imágenes</h3>
           <div id="library-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+      <!-- === BONOS VIEW === -->
+      <section id="view-bonos" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Bonos / Promociones</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Administra el popup promocional que aparece
+          después de navegar unos segundos por la web. Puedes guardar varios bonos, pero solo <strong>uno puede
+          estar activo</strong> a la vez. El porcentaje de descuento por ahora solo se muestra en el popup — aún no
+          se aplica en el carrito.</p>
+
+        <div class="glass-card">
+          <form id="bono-form" class="admin-form" enctype="multipart/form-data">
+            <input type="hidden" id="bono-id" />
+            <fieldset>
+              <legend>Crear / Editar Bono</legend>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label for="bono-nombre">Nombre interno (referencia)</label>
+                  <input id="bono-nombre" type="text" placeholder="Ej: Promo Diciembre" required />
+                </div>
+                <div class="field-group">
+                  <label for="bono-porcentaje">Porcentaje de Descuento (%)</label>
+                  <input id="bono-porcentaje" type="number" min="0" max="100" step="0.1" placeholder="Ej: 10" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-titulo">Título del Popup (Español)</label>
+                  <input id="bono-titulo" type="text" placeholder="Ej: Conoce nuestros envases" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-titulo-en">Título del Popup (Inglés, opcional)</label>
+                  <input id="bono-titulo-en" type="text" placeholder="Ej: Discover Our Packaging" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-texto-boton">Texto del Botón (Español)</label>
+                  <input id="bono-texto-boton" type="text" placeholder="Ver Categoría" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-texto-boton-en">Texto del Botón (Inglés, opcional)</label>
+                  <input id="bono-texto-boton-en" type="text" placeholder="View Category" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-categoria">Categoría a la que enlaza el botón</label>
+                  <select id="bono-categoria"></select>
+                </div>
+                <div class="field-group">
+                  <label for="bono-imagen">Imagen del Popup</label>
+                  <input id="bono-imagen" type="file" accept="image/*" />
+                </div>
+              </div>
+            </fieldset>
+            <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
+              <button type="submit" class="admin-btn-primary">Guardar Bono</button>
+              <button type="button" id="bono-cancel" class="admin-btn-secondary">Cancelar</button>
+              <span id="bono-status" style="font-weight:500;"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <h3 style="margin-top:0;">Bonos Guardados</h3>
+          <div id="bonos-grid" class="admin-grid-products"></div>
         </div>
       </section>
 

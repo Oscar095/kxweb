@@ -3,9 +3,16 @@
  * All business constants in one place.
  */
 export const SITE_CONFIG = {
+  // Sitio en inglés: en construcción (aún cargando productos/imágenes en inglés).
+  // Poner en `true` cuando esté listo para publicarse — muestra el botón de idioma
+  // en el header y reactiva el sitemap/robots del sitio en inglés.
+  EN_SITE_ENABLED: false,
+
   // Shipping (always charged; no free shipping)
   DELIVERY_TIME: '1-3 días',
   DELIVERY_SCOPE: 'ciudades principales',
+  DELIVERY_TIME_EN: '1-3 days',
+  DELIVERY_SCOPE_EN: 'major cities',
   MAIN_CITIES: ['BOGOTÁ', 'MEDELLÍN', 'CALI', 'BARRANQUILLA', 'CARTAGENA', 'BUCARAMANGA', 'CÚCUTA', 'PEREIRA', 'IBAGUÉ', 'VILLAVICENCIO', 'MANIZALES'],
 
   // Pricing

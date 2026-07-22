@@ -549,10 +549,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     { nav: 'nav-pedidos', view: 'view-pedidos', load: loadPedidos },
     { nav: 'nav-contacts', view: 'view-contacts', load: loadContacts },
     { nav: 'nav-products', view: 'view-products' },
+    { nav: 'nav-products-en', view: 'view-products-en', load: loadProductsEnList },
     { nav: 'nav-categories', view: 'view-categories', load: loadCategoriesList },
+    { nav: 'nav-categories-en', view: 'view-categories-en', load: loadCategoriesEnList },
     { nav: 'nav-banners', view: 'view-banners', load: loadBanners },
     { nav: 'nav-logos', view: 'view-logos', load: loadLogos },
     { nav: 'nav-library', view: 'view-library', load: loadLibrary },
+    { nav: 'nav-bonos', view: 'view-bonos', load: loadBonosAdmin },
   ];
 
   function switchView(viewId) {
@@ -604,6 +607,130 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('cat-id').value = '';
     document.getElementById('cat-desc').value = '';
   });
+
+  // Product English-translation form handlers
+  document.getElementById('pt-cancel-btn')?.addEventListener('click', closeProductEnForm);
+
+  document.getElementById('pt-images')?.addEventListener('change', (e) => renderPtNewPreviews(e.target.files));
+
+  document.getElementById('product-en-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = document.getElementById('product-en-status');
+    const product_id = Number(document.getElementById('pt-product-id').value);
+    if (!product_id) return;
+    const name_en = document.getElementById('pt-name-en').value.trim();
+    const description_en = document.getElementById('pt-desc-en').value.trim();
+    status.textContent = 'Guardando...';
+    try {
+      const fileInput = document.getElementById('pt-images');
+      const files = fileInput ? Array.from(fileInput.files) : [];
+      if (ptCurrentImages.length + files.length > 4) {
+        status.textContent = 'No se pueden agregar más de 4 fotos.';
+        return;
+      }
+      const uploadedUrls = [];
+      for (const f of files) {
+        uploadedUrls.push(await uploadFileFromBrowser(f));
+      }
+      const images_en = [...ptCurrentImages, ...uploadedUrls];
+
+      const r = await fetch('/api/product-translations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id, name_en, description_en, images_en }),
+        credentials: 'same-origin'
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        status.textContent = 'Error: ' + txt;
+        return;
+      }
+      status.innerHTML = '<strong style="color:green">Traducción guardada.</strong>';
+      await loadProductsEnList();
+      closeProductEnForm();
+    } catch (err) { console.error(err); status.textContent = 'Error guardando la traducción'; }
+  });
+
+  document.getElementById('pt-delete-btn')?.addEventListener('click', async () => {
+    const status = document.getElementById('product-en-status');
+    const product_id = Number(document.getElementById('pt-product-id').value);
+    if (!product_id) return;
+    if (!confirm('¿Eliminar la traducción en inglés de este producto (nombre, descripción y fotos)?')) return;
+    try {
+      const r = await fetch(`/api/product-translations/${encodeURIComponent(product_id)}`, { method: 'DELETE', credentials: 'same-origin' });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        status.textContent = 'Error: ' + txt;
+        return;
+      }
+      status.textContent = 'Traducción eliminada.';
+      await loadProductsEnList();
+      closeProductEnForm();
+    } catch (err) { console.error(err); status.textContent = 'Error eliminando la traducción'; }
+  });
+
+  document.getElementById('pt-search')?.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    const filtered = !q ? ptAllProducts : ptAllProducts.filter(p =>
+      (p.name || '').toLowerCase().includes(q) || (p.codigo_siesa || '').toLowerCase().includes(q)
+    );
+    renderProductsEnGrid(filtered);
+  });
+
+  // Bonos form handlers
+  document.getElementById('bono-form')?.addEventListener('submit', submitBonoForm);
+  document.getElementById('bono-cancel')?.addEventListener('click', resetBonoForm);
+
+  // Category English-translation form handlers
+  document.getElementById('ct-cancel-btn')?.addEventListener('click', closeCategoryEnForm);
+  document.getElementById('ct-image')?.addEventListener('change', (e) => renderCtNewPreview(e.target.files));
+
+  document.getElementById('category-en-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = document.getElementById('category-en-status');
+    const category_id = Number(document.getElementById('ct-category-id').value);
+    if (!category_id) return;
+    const nombre_en = document.getElementById('ct-name-en').value.trim();
+    status.textContent = 'Guardando...';
+    try {
+      const fileInput = document.getElementById('ct-image');
+      const file = fileInput && fileInput.files[0];
+      const imagen_en = file ? await uploadFileFromBrowser(file) : ctCurrentImageUrl;
+
+      const r = await fetch('/api/category-translations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category_id, nombre_en, imagen_en: imagen_en || '' }),
+        credentials: 'same-origin'
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        status.textContent = 'Error: ' + txt;
+        return;
+      }
+      status.innerHTML = '<strong style="color:green">Traducción guardada.</strong>';
+      await loadCategoriesEnList();
+      closeCategoryEnForm();
+    } catch (err) { console.error(err); status.textContent = 'Error guardando la traducción'; }
+  });
+
+  document.getElementById('ct-delete-btn')?.addEventListener('click', async () => {
+    const status = document.getElementById('category-en-status');
+    const category_id = Number(document.getElementById('ct-category-id').value);
+    if (!category_id) return;
+    if (!confirm('¿Eliminar la traducción en inglés de esta categoría (nombre e imagen)?')) return;
+    try {
+      const r = await fetch(`/api/category-translations/${encodeURIComponent(category_id)}`, { method: 'DELETE', credentials: 'same-origin' });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        status.textContent = 'Error: ' + txt;
+        return;
+      }
+      status.textContent = 'Traducción eliminada.';
+      await loadCategoriesEnList();
+      closeCategoryEnForm();
+    } catch (err) { console.error(err); status.textContent = 'Error eliminando la traducción'; }
+  });
 });
 
 // Load categories into the categories-list panel
@@ -641,6 +768,151 @@ async function loadCategoriesList() {
       wrap.appendChild(row);
     }
   } catch (e) { console.error('loadCategoriesList error', e); }
+}
+
+// ---- Productos (Inglés) — card grid + edit form ----
+// Does not touch dbo.products — only reads/writes the name_en/description_en/images_en
+// overlay that the server joins into GET /api/products and stores via
+// POST /api/product-translations.
+let ptAllProducts = [];
+let ptCurrentImages = [];
+
+async function loadProductsEnList() {
+  const grid = document.getElementById('products-en-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/products', { cache: 'no-store' });
+    ptAllProducts = r.ok ? await r.json() : [];
+    renderProductsEnGrid(ptAllProducts);
+  } catch (e) {
+    console.error('loadProductsEnList error', e);
+    grid.innerHTML = '<p>Error cargando productos.</p>';
+  }
+}
+
+function renderProductsEnGrid(products) {
+  const grid = document.getElementById('products-en-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const safe = (v) => (v == null ? '' : v);
+
+  for (const p of products) {
+    const card = document.createElement('div');
+    card.className = 'glass-product-card';
+
+    const img = document.createElement('img');
+    img.className = 'gpc-image';
+    img.alt = p.name || '';
+    img.loading = 'lazy';
+    img.src = (p.images_en && p.images_en[0]) || (p.images && p.images[0]) || p.image || '/images/placeholder.svg';
+    img.onerror = () => { img.src = '/images/placeholder.svg'; };
+
+    const details = document.createElement('div');
+    details.className = 'gpc-content';
+    const isTranslated = !!(p.name_en || p.description_en || (p.images_en && p.images_en.length));
+    const statusBadge = isTranslated
+      ? '<span style="font-size:0.72rem; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:10px;">Traducido</span>'
+      : '<span style="font-size:0.72rem; font-weight:700; color:#92400e; background:#fef3c7; padding:2px 8px; border-radius:10px;">Sin traducir</span>';
+
+    details.innerHTML = `
+      <h3 class="gpc-title">${safe(p.name)}</h3>
+      <div class="gpc-meta">
+        <span class="gpc-tag">${safe(p.codigo_siesa) || 'Sin SKU'}</span>
+        ${statusBadge}
+      </div>
+      ${p.name_en ? `<div style="font-size:0.85rem; color:#555; margin-top:6px;"><strong>EN:</strong> ${safe(p.name_en)}</div>` : ''}
+      <div class="gpc-actions">
+        <button type="button" data-id="${p.id}" class="fill-form-en gpc-btn-edit">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          Editar Inglés
+        </button>
+      </div>
+    `;
+
+    card.appendChild(img);
+    card.appendChild(details);
+    grid.appendChild(card);
+  }
+
+  grid.querySelectorAll('.fill-form-en').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const prod = ptAllProducts.find(x => String(x.id) === String(id));
+      if (prod) openProductEnForm(prod);
+    });
+  });
+}
+
+function openProductEnForm(product) {
+  document.getElementById('pt-product-id').value = product.id;
+  document.getElementById('pt-sku-ref').value = product.codigo_siesa || '';
+  document.getElementById('pt-name-ref').value = product.name || '';
+  document.getElementById('pt-desc-ref').value = product.description || '';
+  document.getElementById('pt-name-en').value = product.name_en || '';
+  document.getElementById('pt-desc-en').value = product.description_en || '';
+  document.getElementById('pt-images').value = '';
+  document.getElementById('pt-new-previews').innerHTML = '';
+  renderPtCurrentImages(product.images_en || []);
+
+  const deleteBtn = document.getElementById('pt-delete-btn');
+  if (deleteBtn) deleteBtn.style.display = (product.name_en || product.description_en || (product.images_en && product.images_en.length)) ? 'inline-block' : 'none';
+  document.getElementById('product-en-status').textContent = '';
+  document.getElementById('product-en-form-container').style.display = 'block';
+  document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeProductEnForm() {
+  document.getElementById('product-en-form')?.reset();
+  document.getElementById('pt-product-id').value = '';
+  document.getElementById('pt-new-previews').innerHTML = '';
+  document.getElementById('pt-current-images').innerHTML = '';
+  document.getElementById('pt-delete-btn').style.display = 'none';
+  document.getElementById('product-en-status').textContent = '';
+  document.getElementById('product-en-form-container').style.display = 'none';
+  ptCurrentImages = [];
+}
+
+function renderPtCurrentImages(urls) {
+  const wrap = document.getElementById('pt-current-images');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  ptCurrentImages = [...(urls || [])];
+  ptCurrentImages.forEach((url, idx) => {
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${url}" alt="">
+      <div class="admin-img-preview-overlay">
+        <button type="button" class="admin-btn-icon danger remove-pt-current" data-idx="${idx}" title="Quitar imagen">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+    `;
+    item.querySelector('.remove-pt-current').addEventListener('click', () => {
+      ptCurrentImages.splice(idx, 1);
+      renderPtCurrentImages(ptCurrentImages);
+    });
+    wrap.appendChild(item);
+  });
+}
+
+function renderPtNewPreviews(files) {
+  const wrap = document.getElementById('pt-new-previews');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!files || files.length === 0) return;
+  [...files].forEach(f => {
+    const url = URL.createObjectURL(f);
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${url}" alt="${f.name}">
+      <div class="admin-img-preview-overlay">
+        <span style="font-size:0.65rem; color:var(--admin-text-muted); font-weight:600;">NUEVA</span>
+      </div>
+    `;
+    wrap.appendChild(item);
+  });
 }
 
 // ---- Biblioteca ----
@@ -1498,6 +1770,308 @@ async function loadContacts(page) {
     const tbody = document.getElementById('contacts-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--admin-danger);">Error cargando contactos</td></tr>';
   }
+}
+
+// ---- Bonos (promotional popup campaigns) ----
+
+async function loadBonoCategoriaOptions() {
+  const sel = document.getElementById('bono-categoria');
+  if (!sel) return;
+  const currentVal = sel.value;
+  try {
+    const r = await fetch('/api/categories', { cache: 'no-store' });
+    const cats = r.ok ? await r.json() : [];
+    // categoria_link must be the category NAME (matches p.category_name on the storefront filter),
+    // not the numeric id used elsewhere for dbo.products.category.
+    sel.innerHTML = '<option value="">(usar categoría por defecto del popup)</option>' +
+      cats.map(c => {
+        const label = c.descripcion || c.nombre || '';
+        return `<option value="${label.replace(/"/g, '&quot;')}">${label}</option>`;
+      }).join('');
+    if (currentVal) sel.value = currentVal;
+  } catch (e) { console.error('No se pudieron cargar categorías para bonos', e); }
+}
+
+async function loadBonosAdmin() {
+  await loadBonoCategoriaOptions();
+  const grid = document.getElementById('bonos-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/bonos', { cache: 'no-store' });
+    const items = r.ok ? await r.json() : [];
+    renderBonosGrid(items);
+  } catch (e) {
+    console.error('Error cargando bonos', e);
+    grid.innerHTML = '<p>Error cargando bonos.</p>';
+  }
+}
+
+function renderBonosGrid(items) {
+  const grid = document.getElementById('bonos-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  for (const b of items) {
+    const card = document.createElement('div');
+    card.className = 'glass-product-card';
+    if (!b.activo) card.style.opacity = '0.6';
+
+    const img = document.createElement('img');
+    img.className = 'gpc-image';
+    img.alt = b.nombre || 'Bono';
+    img.loading = 'lazy';
+    img.src = b.url || '/images/placeholder.svg';
+    img.onerror = () => { img.src = '/images/placeholder.svg'; };
+
+    const details = document.createElement('div');
+    details.className = 'gpc-content';
+    const activeBadge = b.activo
+      ? '<span style="font-size:0.72rem; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:10px;">Activo</span>'
+      : '<span style="font-size:0.72rem; font-weight:700; color:#555; background:#eee; padding:2px 8px; border-radius:10px;">Inactivo</span>';
+    const pct = (b.porcentaje_descuento != null) ? `${b.porcentaje_descuento}% OFF` : '';
+
+    details.innerHTML = `
+      <h3 class="gpc-title">${b.nombre || ''}</h3>
+      <div class="gpc-meta">
+        ${activeBadge}
+        ${pct ? `<span class="gpc-tag">${pct}</span>` : ''}
+      </div>
+      ${b.titulo ? `<div style="font-size:0.85rem; color:#555; margin-top:6px;">${b.titulo}</div>` : ''}
+      <div class="gpc-actions">
+        ${!b.activo ? `<button type="button" data-id="${b.id}" class="activate-bono gpc-btn-toggle-on">Activar</button>` : ''}
+        <button type="button" data-id="${b.id}" class="edit-bono gpc-btn-edit">Editar</button>
+        <button type="button" data-id="${b.id}" class="delete-bono gpc-btn-delete">Eliminar</button>
+      </div>
+    `;
+
+    card.appendChild(img);
+    card.appendChild(details);
+    grid.appendChild(card);
+  }
+
+  grid.querySelectorAll('.activate-bono').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      try {
+        const r = await fetch(`/api/bonos/${encodeURIComponent(id)}/activate`, { method: 'PATCH', credentials: 'same-origin' });
+        if (!r.ok) return alert('Error activando bono');
+        await loadBonosAdmin();
+      } catch (err) { console.error(err); alert('Error activando bono'); }
+    });
+  });
+
+  grid.querySelectorAll('.edit-bono').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const b = items.find(x => String(x.id) === String(id));
+      if (!b) return;
+      document.getElementById('bono-id').value = b.id;
+      document.getElementById('bono-nombre').value = b.nombre || '';
+      document.getElementById('bono-porcentaje').value = b.porcentaje_descuento != null ? b.porcentaje_descuento : '';
+      document.getElementById('bono-titulo').value = b.titulo || '';
+      document.getElementById('bono-titulo-en').value = b.titulo_en || '';
+      document.getElementById('bono-texto-boton').value = b.texto_boton || '';
+      document.getElementById('bono-texto-boton-en').value = b.texto_boton_en || '';
+      document.getElementById('bono-categoria').value = b.categoria_link || '';
+      document.getElementById('bono-imagen').value = '';
+      document.getElementById('bono-status').textContent = '';
+      document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  grid.querySelectorAll('.delete-bono').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      if (!confirm(`Eliminar bono #${id}?`)) return;
+      try {
+        const r = await fetch(`/api/bonos/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin' });
+        if (!r.ok) return alert('Error eliminando bono');
+        await loadBonosAdmin();
+      } catch (err) { console.error(err); alert('Error eliminando bono'); }
+    });
+  });
+}
+
+async function submitBonoForm(ev) {
+  ev.preventDefault();
+  const status = document.getElementById('bono-status');
+  status.textContent = 'Guardando...';
+  try {
+    const id = document.getElementById('bono-id').value;
+    const imgInput = document.getElementById('bono-imagen');
+    if (!id && !imgInput.files[0]) {
+      status.textContent = 'La imagen es obligatoria para crear un bono nuevo.';
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('nombre', document.getElementById('bono-nombre').value.trim());
+    fd.append('porcentaje_descuento', document.getElementById('bono-porcentaje').value || '');
+    fd.append('titulo', document.getElementById('bono-titulo').value.trim());
+    fd.append('titulo_en', document.getElementById('bono-titulo-en').value.trim());
+    fd.append('texto_boton', document.getElementById('bono-texto-boton').value.trim());
+    fd.append('texto_boton_en', document.getElementById('bono-texto-boton-en').value.trim());
+    fd.append('categoria_link', document.getElementById('bono-categoria').value || '');
+    if (imgInput.files[0]) fd.append('imagen', imgInput.files[0]);
+
+    const url = id ? `/api/bonos/${encodeURIComponent(id)}` : '/api/bonos';
+    const method = id ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, body: fd, credentials: 'same-origin' });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      status.textContent = 'Error: ' + txt;
+      return;
+    }
+    status.innerHTML = '<strong style="color:green">Bono guardado.</strong>';
+    resetBonoForm();
+    await loadBonosAdmin();
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'Error guardando el bono';
+  }
+}
+
+function resetBonoForm() {
+  document.getElementById('bono-form')?.reset();
+  document.getElementById('bono-id').value = '';
+  document.getElementById('bono-status').textContent = '';
+}
+
+// ---- Categorías (Inglés) — card grid + edit form ----
+// Does not touch dbo.categories — only reads/writes the nombre_en/imagen_en
+// overlay that the server joins into GET /api/categories and stores via
+// POST /api/category-translations.
+let ctAllCategories = [];
+let ctCurrentImageUrl = null;
+
+async function loadCategoriesEnList() {
+  const grid = document.getElementById('categories-en-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/categories', { cache: 'no-store' });
+    ctAllCategories = r.ok ? await r.json() : [];
+    renderCategoriesEnGrid(ctAllCategories);
+  } catch (e) {
+    console.error('loadCategoriesEnList error', e);
+    grid.innerHTML = '<p>Error cargando categorías.</p>';
+  }
+}
+
+function renderCategoriesEnGrid(categories) {
+  const grid = document.getElementById('categories-en-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const safe = (v) => (v == null ? '' : v);
+
+  for (const c of categories) {
+    const label = c.descripcion || c.nombre || '';
+    const card = document.createElement('div');
+    card.className = 'glass-product-card';
+
+    const img = document.createElement('img');
+    img.className = 'gpc-image';
+    img.alt = label;
+    img.loading = 'lazy';
+    img.src = c.imagen_en || '/images/placeholder.svg';
+    img.onerror = () => { img.src = '/images/placeholder.svg'; };
+
+    const details = document.createElement('div');
+    details.className = 'gpc-content';
+    const isTranslated = !!(c.nombre_en || c.imagen_en);
+    const statusBadge = isTranslated
+      ? '<span style="font-size:0.72rem; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:10px;">Traducido</span>'
+      : '<span style="font-size:0.72rem; font-weight:700; color:#92400e; background:#fef3c7; padding:2px 8px; border-radius:10px;">Sin traducir</span>';
+
+    details.innerHTML = `
+      <h3 class="gpc-title">${safe(label)}</h3>
+      <div class="gpc-meta">${statusBadge}</div>
+      ${c.nombre_en ? `<div style="font-size:0.85rem; color:#555; margin-top:6px;"><strong>EN:</strong> ${safe(c.nombre_en)}</div>` : ''}
+      <div class="gpc-actions">
+        <button type="button" data-id="${c.id}" class="fill-form-cat-en gpc-btn-edit">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          Editar Inglés
+        </button>
+      </div>
+    `;
+
+    card.appendChild(img);
+    card.appendChild(details);
+    grid.appendChild(card);
+  }
+
+  grid.querySelectorAll('.fill-form-cat-en').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const cat = ctAllCategories.find(x => String(x.id) === String(id));
+      if (cat) openCategoryEnForm(cat);
+    });
+  });
+}
+
+function openCategoryEnForm(cat) {
+  document.getElementById('ct-category-id').value = cat.id;
+  document.getElementById('ct-name-ref').value = cat.descripcion || cat.nombre || '';
+  document.getElementById('ct-name-en').value = cat.nombre_en || '';
+  document.getElementById('ct-image').value = '';
+  document.getElementById('ct-new-preview').innerHTML = '';
+  renderCtCurrentImage(cat.imagen_en || '');
+
+  const deleteBtn = document.getElementById('ct-delete-btn');
+  if (deleteBtn) deleteBtn.style.display = (cat.nombre_en || cat.imagen_en) ? 'inline-block' : 'none';
+  document.getElementById('category-en-status').textContent = '';
+  document.getElementById('category-en-form-container').style.display = 'block';
+  document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeCategoryEnForm() {
+  document.getElementById('category-en-form')?.reset();
+  document.getElementById('ct-category-id').value = '';
+  document.getElementById('ct-new-preview').innerHTML = '';
+  document.getElementById('ct-current-image').innerHTML = '';
+  document.getElementById('ct-delete-btn').style.display = 'none';
+  document.getElementById('category-en-status').textContent = '';
+  document.getElementById('category-en-form-container').style.display = 'none';
+  ctCurrentImageUrl = null;
+}
+
+function renderCtCurrentImage(url) {
+  const wrap = document.getElementById('ct-current-image');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  ctCurrentImageUrl = url || null;
+  if (!ctCurrentImageUrl) return;
+  const item = document.createElement('div');
+  item.className = 'admin-img-preview-item';
+  item.innerHTML = `
+    <img src="${ctCurrentImageUrl}" alt="">
+    <div class="admin-img-preview-overlay">
+      <button type="button" class="admin-btn-icon danger remove-ct-current" title="Quitar imagen">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      </button>
+    </div>
+  `;
+  item.querySelector('.remove-ct-current').addEventListener('click', () => {
+    renderCtCurrentImage('');
+  });
+  wrap.appendChild(item);
+}
+
+function renderCtNewPreview(files) {
+  const wrap = document.getElementById('ct-new-preview');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!files || files.length === 0) return;
+  const f = files[0];
+  const url = URL.createObjectURL(f);
+  const item = document.createElement('div');
+  item.className = 'admin-img-preview-item';
+  item.innerHTML = `
+    <img src="${url}" alt="${f.name}">
+    <div class="admin-img-preview-overlay">
+      <span style="font-size:0.65rem; color:var(--admin-text-muted); font-weight:600;">NUEVA</span>
+    </div>
+  `;
+  wrap.appendChild(item);
 }
 
 window.__loadContactsPage = (p) => loadContacts(p);

@@ -7,23 +7,23 @@ export function initPromoPopup() {
   }
 
   const REQUIRED_TIME_MS = 10000;
-  
+
   let sessionStart = sessionStorage.getItem('kx_promo_v3_start');
   if (!sessionStart) {
     sessionStart = Date.now().toString();
     sessionStorage.setItem('kx_promo_v3_start', sessionStart);
-    console.log('[Promo] Nueva sesión iniciada.');
+    console.log('[Promo] New session started.');
   }
-  
+
   const startTime = parseInt(sessionStart, 10);
 
   const checkPopup = () => {
     const elapsed = Date.now() - startTime;
     const seconds = Math.floor(elapsed / 1000);
-    
-    // Log para que el usuario vea el progreso en consola
+
+    // Log so the developer can see progress in the console
     if (seconds <= 12) {
-      console.log(`[Promo] Tiempo acumulado: ${seconds}s / 10s`);
+      console.log(`[Promo] Elapsed time: ${seconds}s / 10s`);
     }
 
     if (elapsed >= REQUIRED_TIME_MS) {
@@ -129,8 +129,12 @@ async function showPromoPopup() {
   if (document.getElementById('promo-v3-modal')) return; // avoid a double-open race
 
   const imgSrc = (bono && bono.url) || '/images/banner-bc-cel.jpg';
-  const titulo = (bono && bono.titulo) || 'Conoce nuestros envases';
-  const textoBoton = (bono && bono.texto_boton) || 'Ver Categoría';
+  // English title/button prefer the bono's English fields, then fall back to
+  // its Spanish fields, then to this file's own default copy.
+  const titulo = (bono && (bono.titulo_en || bono.titulo)) || 'Discover Our Packaging';
+  const textoBoton = (bono && (bono.texto_boton_en || bono.texto_boton)) || 'View Category';
+  // NOTE: category value must stay in Spanish — it's matched against the
+  // DB's category_name column by the products-page filter (pMatcher).
   const categoriaLink = (bono && bono.categoria_link) || 'Bebidas calientes';
   const pctBadge = (bono && bono.porcentaje_descuento != null)
     ? `<span class="promo-v3-badge">${bono.porcentaje_descuento}% OFF</span>`
@@ -141,17 +145,17 @@ async function showPromoPopup() {
   overlay.className = 'promo-v3-overlay';
   overlay.innerHTML = `
     <div class="promo-v3-content">
-      <button class="promo-v3-close" aria-label="Cerrar">&times;</button>
+      <button class="promo-v3-close" aria-label="Close">&times;</button>
       <div class="promo-v3-img-wrap">
         ${pctBadge}
-        <img src="${imgSrc}" alt="Promoción">
+        <img src="${imgSrc}" alt="Promotion">
       </div>
       <div class="promo-v3-body">
         <h3>${titulo}</h3>
         <button class="promo-v3-btn" id="promo-btn-cta">${textoBoton}</button>
         <div class="promo-v3-optout">
           <label>
-            <input type="checkbox" id="promo-dont-show-checkbox"> No mostrar otra vez
+            <input type="checkbox" id="promo-dont-show-checkbox"> Don't show again
           </label>
         </div>
       </div>
@@ -159,7 +163,7 @@ async function showPromoPopup() {
   `;
 
   document.body.appendChild(overlay);
-  console.log('[Promo] Modal inyectado en el DOM con éxito.');
+  console.log('[Promo] Modal successfully injected into the DOM.');
 
   setTimeout(() => overlay.classList.add('active'), 100);
 
@@ -174,10 +178,10 @@ async function showPromoPopup() {
 
   overlay.querySelector('.promo-v3-close').onclick = closePopup;
 
-  // Nuevo: Cerrar al hacer clic en el botón de categoría
+  // Close when clicking the category button
   const ctaBtn = overlay.querySelector('#promo-btn-cta');
   ctaBtn.onclick = () => {
-    window.location.href = '/products?cat=' + encodeURIComponent(categoriaLink);
+    window.location.href = '/en/products?cat=' + encodeURIComponent(categoriaLink);
     closePopup();
   };
 

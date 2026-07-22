@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <!-- Google Tag Manager -->
+  <script>(function (w, d, s, l, i) {
+      w[l] = w[l] || []; w[l].push({
+        'gtm.start':
+          new Date().getTime(), event: 'gtm.js'
+      }); var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+          'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-WM5BCLWN');</script>
+  <!-- End Google Tag Manager -->
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Checkout - KosXpress</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png"
+    href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
+  <link rel="preconnect" href="https://datalakekos.blob.core.windows.net">
+  <link rel="dns-prefetch" href="https://datalakekos.blob.core.windows.net">
+  <link rel="stylesheet" href="/styles/main.css?v=41.0">
+  <!-- Meta Pixel Code -->
+  <script>
+    !function (f, b, e, v, n, t, s) {
+      if (f.fbq) return; n = f.fbq = function () {
+        n.callMethod ?
+          n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+      };
+      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+      n.queue = []; t = b.createElement(e); t.async = !0;
+      t.src = v; s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s)
+    }(window, document, 'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '385489602659855');
+    fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=385489602659855&ev=PageView&noscript=1" /></noscript>
+  <!-- End Meta Pixel Code -->
+</head>
+
+<body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WM5BCLWN" height="0" width="0"
+      style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
+  <header id="site-header"></header>
+
+  <!-- Security trust bar -->
+  <div class="co-trust-bar">
+    <div class="container co-trust-bar-inner">
+      <span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <rect x="3" y="11" width="18" height="11" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        256-bit SSL Connection
+      </span>
+      <span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        100% Encrypted Data
+      </span>
+      <span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <rect x="1" y="4" width="22" height="16" rx="2" />
+          <line x1="1" y1="10" x2="23" y2="10" />
+        </svg>
+        Payment processed by Wompi
+      </span>
+      <span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        Verified Transactions
+      </span>
+    </div>
+  </div>
+
+  <main class="co-main">
+    <div class="container">
+
+      <!-- Progress steps -->
+      <div class="co-steps">
+        <div class="co-step active" id="step-1">
+          <span class="co-step-num">1</span>
+          <span class="co-step-label">Your Details</span>
+        </div>
+        <div class="co-step-line"></div>
+        <div class="co-step" id="step-2">
+          <span class="co-step-num">2</span>
+          <span class="co-step-label">Review</span>
+        </div>
+        <div class="co-step-line"></div>
+        <div class="co-step" id="step-3">
+          <span class="co-step-num">3</span>
+          <span class="co-step-label">Payment</span>
+        </div>
+      </div>
+
+      <!-- Two-column layout -->
+      <div class="co-layout">
+
+        <!-- ── Left: Form ── -->
+        <div class="co-form-col">
+          <div class="co-col-header">
+            <h1>Checkout</h1>
+            <p>Complete your details to continue with payment</p>
+          </div>
+
+          <form id="checkout-form" class="co-form glass-panel" novalidate autocomplete="on">
+
+            <!-- Shipping section -->
+            <div class="co-section">
+              <h3 class="co-section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                Identification
+              </h3>
+
+              <div class="co-fields-grid">
+
+                <!-- Tipo de persona -->
+                <div class="co-field">
+                  <label for="tipoPersona">Person Type *</label>
+                  <select id="tipoPersona" name="tipoPersona" required>
+                    <option value="N">Individual</option>
+                  </select>
+                </div>
+
+                <!-- Tipo de documento -->
+                <div class="co-field">
+                  <label for="tipoDocumento">Document Type *</label>
+                  <select id="tipoDocumento" name="tipoDocumento" required>
+                    <option value="" disabled selected>-- Select --</option>
+                    <option value="CC">ID Card (Cédula de Ciudadanía)</option>
+                    <option value="NIT">Tax ID (NIT)</option>
+                    <option value="CE">Foreigner ID (Cédula de Extranjería)</option>
+                    <option value="TI">Minor ID (Tarjeta de Identidad)</option>
+                    <option value="PA">Passport</option>
+                  </select>
+                </div>
+
+                <!-- Número de documento -->
+                <div class="co-field">
+                  <label for="nitId">Document Number *</label>
+                  <input id="nitId" name="nitId" required placeholder="E.g. 1234567890" inputmode="numeric"
+                    autocomplete="off" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <!-- Dígito de verificación (solo NIT) -->
+                <div class="co-field" id="dv-field" style="display:none;">
+                  <label for="digitoVerificacion">DV</label>
+                  <input id="digitoVerificacion" name="digitoVerificacion" placeholder="0" maxlength="1"
+                    inputmode="numeric" pattern="\d" autocomplete="off" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <!-- Nombres / Razón social -->
+                <div class="co-field">
+                  <label for="nombres" id="nombres-label">First Name *</label>
+                  <input id="nombres" name="nombres" required placeholder="E.g. John" autocomplete="given-name" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <!-- Apellidos (solo persona natural) -->
+                <div class="co-field" id="apellidos-field">
+                  <label for="apellidos">Last Name</label>
+                  <input id="apellidos" name="apellidos" placeholder="E.g. Doe Smith" autocomplete="family-name" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <!-- Fecha de nacimiento -->
+                <div class="co-field">
+                  <label for="fechaNacimiento">Date of Birth</label>
+                  <input id="fechaNacimiento" name="fechaNacimiento" type="date" />
+                </div>
+              </div>
+
+              <!-- Sección Contacto -->
+              <h3 class="co-section-title" style="margin-top:1.5rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                  <path
+                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
+                Contact
+              </h3>
+              <div class="co-fields-grid">
+                <div class="co-field co-field-full">
+                  <label for="email">Email Address *</label>
+                  <input id="email" name="email" type="email" required placeholder="email@example.com"
+                    autocomplete="email" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <div class="co-field">
+                  <label for="phone">Mobile Phone *</label>
+                  <input id="phone" name="phone" required placeholder="E.g. 3001234567" type="tel" autocomplete="tel" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <div class="co-field">
+                  <label for="telefonoFijo">Landline Phone</label>
+                  <input id="telefonoFijo" name="telefonoFijo" placeholder="E.g. 6012345678" type="tel"
+                    autocomplete="tel" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Sección Dirección -->
+              <h3 class="co-section-title" style="margin-top:1.5rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                Shipping Address
+              </h3>
+              <div class="co-fields-grid">
+                <div class="co-field co-field-full">
+                  <label for="address">Address *</label>
+                  <input id="address" name="address" required placeholder="E.g. Calle 123 #45-67"
+                    autocomplete="street-address" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <div class="co-field">
+                  <label for="departamento">State/Department *</label>
+                  <select id="departamento" name="departamento" required>
+                    <option value="">Select a state/department</option>
+                  </select>
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <div class="co-field">
+                  <label for="city">City *</label>
+                  <select id="city" name="city" required disabled>
+                    <option value="">First select state/department</option>
+                  </select>
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+
+                <div class="co-field">
+                  <label for="pais">Country</label>
+                  <input id="pais" name="pais" placeholder="E.g. CO" value="CO" autocomplete="country" />
+                  <span class="co-field-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Sección Facturación -->
+              <h3 class="co-section-title" style="margin-top:1.5rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                Billing Info
+              </h3>
+              <div class="co-fields-grid">
+                <div class="co-field">
+                  <label for="regimen">Tax Regime</label>
+                  <select id="regimen" name="regimen">
+                    <option value="">-- Select --</option>
+                    <option value="Simplificado">Simplified</option>
+                    <option value="Comun">Common</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Notas -->
+              <div class="co-fields-grid" style="margin-top:1rem;">
+                <div class="co-field co-field-full">
+                  <label for="notes">Additional notes (optional)</label>
+                  <textarea id="notes" name="notes" placeholder="Special delivery instructions..."
+                    rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment method section -->
+            <div class="co-section">
+              <h3 class="co-section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                  <rect x="1" y="4" width="22" height="16" rx="2" />
+                  <line x1="1" y1="10" x2="23" y2="10" />
+                </svg>
+                Payment Method
+              </h3>
+
+              <div class="co-payment-options">
+                <label class="co-payment-opt">
+                  <input type="radio" name="paymentMethod" value="wompi" checked />
+                  <div class="co-payment-radio"></div>
+                  <div class="co-payment-info">
+                    <strong>Wompi</strong>
+                    <span>Credit/Debit Card · Bank Transfer · Nequi · PSE</span>
+                  </div>
+                  <div class="co-payment-icons">
+                    <span class="co-pay-icon" title="Visa"
+                      style="background:#1A1F71;color:#fff;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">VISA</span>
+                    <span class="co-pay-icon" title="Mastercard"
+                      style="background:#EB001B;color:#fff;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">MC</span>
+                    <span class="co-pay-icon" title="PSE"
+                      style="background:#004B87;color:#fff;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">PSE</span>
+                    <span class="co-pay-icon" title="Nequi"
+                      style="background:#E8308A;color:#fff;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">Nequi</span>
+                    <span class="co-pay-icon" title="Bancolombia"
+                      style="background:#FFDD00;color:#003366;font-weight:800;font-size:0.65rem;padding:4px 8px;border-radius:4px;">Bancol</span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="co-wompi-note">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                Your financial data is never stored on our servers.
+              </div>
+            </div>
+
+            <!-- Message & submit -->
+            <div id="checkout-message" class="co-message" aria-live="polite"></div>
+
+            <div class="co-delivery-reminder">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1" y="3" width="15" height="13"></rect>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+              </svg>
+              Delivery <strong>1-3 days</strong> to major cities
+            </div>
+            <div id="co-delivery-estimate" class="co-delivery-estimate" aria-live="polite"></div>
+
+            <button type="submit" id="pay-btn" class="co-pay-btn btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Place Secure Order
+            </button>
+
+            <p class="co-secure-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              SSL Encryption · 100% secure and verified payment
+            </p>
+
+            <div class="co-return-policy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+              <span>Exchange and return policy: we accept returns within 5 days of delivery if the product has manufacturing defects. For more details, contact us via WhatsApp.</span>
+            </div>
+          </form>
+        </div>
+
+        <!-- ── Right: Summary + Badges ── -->
+        <div class="co-summary-col">
+
+          <!-- Order summary -->
+          <div id="order-summary"></div>
+
+          <!-- Trust badges -->
+          <div class="co-trust-card glass-panel">
+            <div class="co-trust-items">
+              <div class="co-trust-item">
+                <div class="co-trust-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
+                <div class="co-trust-text">
+                  <strong>100% Secure Payment</strong>
+                  <span>256-bit SSL encryption</span>
+                </div>
+              </div>
+              <div class="co-trust-item">
+                <div class="co-trust-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </div>
+                <div class="co-trust-text">
+                  <strong>Protected Data</strong>
+                  <span>Privacy and confidentiality</span>
+                </div>
+              </div>
+              <div class="co-trust-item">
+                <div class="co-trust-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <path d="M5 12h14" />
+                    <path d="M12 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <div class="co-trust-text">
+                  <strong>Reliable Shipping</strong>
+                  <span>Track your order</span>
+                </div>
+              </div>
+              <div class="co-trust-item">
+                <div class="co-trust-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </div>
+                <div class="co-trust-text">
+                  <strong>Support Available</strong>
+                  <span>Personalized customer service</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Related products -->
+      <section class="co-related">
+        <div class="co-related-header">
+          <h2>You May Also Like</h2>
+          <a href="/en/products">View full catalog →</a>
+        </div>
+        <div class="co-related-grid" id="related-products">
+          <!-- filled by JS -->
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div id="cart-drawer" class="cart-drawer"></div>
+  <footer class="site-footer"></footer>
+
+  <script type="module" src="./checkout-page.js"></script>
+  <script src="../utils/tracker.js"></script>
+</body>
+
+</html>

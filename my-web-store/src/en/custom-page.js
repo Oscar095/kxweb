@@ -1,0 +1,215 @@
+import { renderHeader } from './components/header.js?v=999';
+import { renderCartDrawer } from './components/cart-drawer.js';
+import { initChatbot } from './components/chatbot.js';
+import { withEnglishCopyList } from './utils/product-i18n.js';
+
+console.log('en/custom-page.js loaded');
+
+// Dynamic product data loaded from API
+let productsData = [];
+
+function formatCurrency(num) {
+    return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+async function loadProducts() {
+    try {
+        const res = await fetch('/api/products');
+        productsData = withEnglishCopyList(await res.json());
+    } catch (e) {
+        console.warn("Couldn't load products:", e);
+    }
+}
+
+function populateSelect(select) {
+    select.innerHTML = '';
+
+    if (!productsData.length) {
+        select.innerHTML = '<option value="">No products found</option>';
+        return;
+    }
+
+    // Group by category, filtering only personalized products
+    const groups = {};
+    productsData.filter(p => p.es_personalizado === true || p.es_personalizado === 1).forEach(p => {
+        const cat = p.category_name || 'Other';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(p);
+    });
+
+    // Sort categories and build select
+    Object.keys(groups).sort().forEach(catName => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = catName;
+        groups[catName].forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            opt.dataset.priceUnit = p.price_unit;
+            opt.dataset.cantidad = p.cantidad;
+            opt.dataset.precioPersonalizado2000 = p.precio_personalizado_2000;
+            opt.dataset.precioPersonalizado4000 = p.precio_personalizado_4000;
+            opt.dataset.precioPersonalizado8000 = p.precio_personalizado_8000;
+            opt.dataset.precioPersonalizado20000 = p.precio_personalizado_20000;
+            optgroup.appendChild(opt);
+        });
+        select.appendChild(optgroup);
+    });
+}
+
+function initCotizador() {
+    const select = document.getElementById('producto-select');
+    const slider = document.getElementById('cantidad-slider');
+    const displayCant = document.getElementById('cantidad-display');
+    const displayUnitario = document.getElementById('precio-unitario-display');
+    const displayTotal = document.getElementById('precio-total-display');
+    const badgeAhorro = document.getElementById('ahorro-badge');
+    const btnWhatsapp = document.getElementById('btn-whatsapp-cotizar');
+
+    if (!select || !slider) return;
+
+    // Populate the select with API data
+    populateSelect(select);
+
+    const QUANTITY_MAP = [2000, 4000, 8000, 20000];
+
+    function calcular() {
+        const selectedOpt = select.options[select.selectedIndex];
+        const stepIndex = parseInt(slider.value, 10);
+        const cantidad = QUANTITY_MAP[stepIndex] || 2000;
+
+        const prices = [
+            parseFloat(selectedOpt.dataset.precioPersonalizado2000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado4000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado8000),
+            parseFloat(selectedOpt.dataset.precioPersonalizado20000)
+        ];
+
+        const precioEspecífico = prices[stepIndex];
+        const hasPrecioEspecífico = !isNaN(precioEspecífico) && precioEspecífico > 0;
+
+        // Base price for savings calculation (usually the 2k price or unit price)
+        const basePrice = !isNaN(prices[0]) && prices[0] > 0 ? prices[0] : parseFloat(selectedOpt.dataset.priceUnit);
+
+        // Logic: use the specific price if available, otherwise fall back to base unit price
+        let unitarioActual = hasPrecioEspecífico ? precioEspecífico : parseFloat(selectedOpt.dataset.priceUnit);
+
+        const total = unitarioActual * cantidad;
+        const ahorro = (basePrice - unitarioActual) * cantidad;
+
+        // Update UI
+        displayCant.textContent = formatCurrency(cantidad);
+        displayUnitario.innerHTML = `$${formatCurrency(unitarioActual)} <span class="currency">COP</span>`;
+        displayTotal.innerHTML = `$${formatCurrency(Math.round(total))} <span class="currency">COP</span>`;
+
+        // Pulse animation
+        displayCant.classList.remove('pulse-val');
+        displayUnitario.classList.remove('pulse-val');
+        displayTotal.classList.remove('pulse-val');
+        void displayTotal.offsetWidth;
+        displayCant.classList.add('pulse-val');
+        displayUnitario.classList.add('pulse-val');
+        displayTotal.classList.add('pulse-val');
+        setTimeout(() => {
+            displayCant.classList.remove('pulse-val');
+            displayUnitario.classList.remove('pulse-val');
+            displayTotal.classList.remove('pulse-val');
+        }, 200);
+
+        if (ahorro > 0) {
+            badgeAhorro.textContent = `You save $${formatCurrency(Math.round(ahorro))} COP total`;
+            badgeAhorro.style.display = 'inline-block';
+        } else {
+            badgeAhorro.style.display = 'none';
+        }
+
+        // WhatsApp CTA
+        const nombreProducto = selectedOpt.text;
+        const mensaje = `Hi KosXpress! 👋%0AI'd like a quote for a custom order:%0A%0A📦 Product: *${nombreProducto}*%0A🔢 Quantity: *${formatCurrency(cantidad)} units*%0A💰 Approx. Investment: *$${formatCurrency(Math.round(total))} COP*%0A%0ACould you help me with the design and delivery times?`;
+
+        btnWhatsapp.onclick = () => {
+            window.open(`https://wa.me/573225227073?text=${mensaje}`, '_blank');
+        };
+    }
+
+    // Events
+    select.addEventListener('change', calcular);
+    slider.addEventListener('input', calcular);
+
+    // Slider track gradient
+    slider.addEventListener('input', function () {
+        const value = (this.value - this.min) / (this.max - this.min) * 100;
+        this.style.background = `linear-gradient(to right, var(--primary) 0%, var(--primary) ${value}%, #333 ${value}%, #333 100%)`;
+    });
+
+    calcular();
+    slider.dispatchEvent(new Event('input'));
+}
+
+// Intersection Observer for scroll-reveal animations
+function initScrollAnimations() {
+    const reveals = document.querySelectorAll('.scroll-reveal, .reveal-on-scroll');
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target); // Animate only once
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: "0px 0px -50px 0px"
+    });
+
+    reveals.forEach(el => observer.observe(el));
+}
+
+// Parallax Native Animation for the Story Flow Background
+function initParallax() {
+    const parallaxElements = document.querySelectorAll('.parallax-shape, .parallax-dot, .parallax-img, .cta-blob[data-speed]');
+
+    window.addEventListener('scroll', () => {
+        const scrollY = window.scrollY;
+
+        parallaxElements.forEach(el => {
+            const speed = el.getAttribute('data-speed') || 1;
+            // Y offset by speed mapping
+            const yPos = -(scrollY * speed * 0.1);
+            el.style.transform = `translateY(${yPos}px)`;
+        });
+    });
+}
+
+// Init Page
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const headerMount = document.getElementById('site-header');
+        if (headerMount) renderHeader(headerMount);
+
+        const drawerMount = document.getElementById('cart-drawer');
+        if (drawerMount) renderCartDrawer(drawerMount);
+
+        // Render shared footer
+        const footerContainer = document.querySelector('.site-footer');
+        if (footerContainer) {
+            import('./components/footer.js').then(mod => {
+                try { mod.renderFooter(footerContainer); } catch (e) { console.warn(e); }
+            }).catch(() => { });
+        }
+
+        // Load products from API then init calculator
+        await loadProducts();
+
+        requestAnimationFrame(() => {
+            initCotizador();
+            initScrollAnimations();
+            initParallax();
+        });
+
+
+    } catch (error) {
+        console.error('Error initializing en/custom-page.js:', error);
+    }
+});

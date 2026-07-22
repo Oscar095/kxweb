@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-WM5BCLWN');</script>
+<!-- End Google Tag Manager -->
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Product Details - KosXpress</title>
+  <meta name="description" content="Product details - KosXpress. Disposable and biodegradable packaging in Colombia.">
+  <link rel="icon" type="image/png"
+    href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
+  <link rel="apple-touch-icon"
+    href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
+  <meta property="og:type" content="product">
+  <meta property="og:title" content="Product - KosXpress">
+  <meta property="og:description" content="Disposable and biodegradable packaging in Colombia.">
+  <meta property="og:image" content="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
+  <meta property="og:site_name" content="KosXpress">
+  <meta property="og:locale" content="en_US">
+  <link rel="preconnect" href="https://datalakekos.blob.core.windows.net">
+  <link rel="dns-prefetch" href="https://datalakekos.blob.core.windows.net">
+  <link rel="stylesheet" href="/styles/main.css?v=41.0">
+  <style>
+    .product-detail {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 24px
+    }
+
+    .pd-gallery {
+      display: flex;
+      flex-direction: column;
+      gap: 12px
+    }
+
+    .pd-gallery .product-img-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 10px
+    }
+
+    .pd-main {
+      width: 100%;
+      height: 420px;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 8px;
+      display: block;
+      transition: transform .2s ease
+    }
+
+    .pd-gallery .product-img-wrap:hover .pd-main {
+      transform: scale(1.15)
+    }
+
+    .pd-gallery .img-lens {
+      position: absolute;
+      pointer-events: none;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 0, 0, 0.25);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .25);
+      display: none;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 500% 500%;
+      z-index: 3
+    }
+
+    .pd-gallery .img-prev,
+    .pd-gallery .img-next {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(0, 0, 0, 0.45);
+      color: #fff;
+      border: none;
+      width: 36px;
+      height: 40px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 4
+    }
+
+    .pd-gallery .img-prev {
+      left: 8px
+    }
+
+    .pd-gallery .img-next {
+      right: 8px
+    }
+
+    .pd-thumbs {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 10px
+    }
+
+    .pd-thumbs img {
+      width: 100%;
+      height: 80px;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 4px;
+      cursor: pointer
+    }
+
+    .pd-info h1 {
+      margin: 0 0 6px 0
+    }
+
+    .pd-price {
+      font-size: 1.4rem;
+      color: var(--primary);
+      font-weight: 700;
+      margin: 10px 0
+    }
+
+    .pd-stock {
+      margin: -6px 0 10px 0;
+      font-weight: 700
+    }
+
+    .pd-stock--loading {
+      color: #666;
+      font-weight: 600
+    }
+
+    .pd-stock--ok {
+      color: #0a7a28
+    }
+
+    .pd-stock--out {
+      color: #b00020
+    }
+
+    .pd-desc {
+      color: #333;
+      line-height: 1.5;
+      white-space: pre-line;
+      text-align: justify;
+      text-justify: inter-word
+    }
+
+    @media (max-width: 900px) {
+      .product-detail {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+        overflow-x: hidden;
+        max-width: 100vw;
+        box-sizing: border-box;
+      }
+
+      .pd-gallery,
+      .pd-info {
+        display: contents;
+      }
+
+      .product-img-wrap {
+        order: 1;
+      }
+
+      .pd-gallery .product-img-wrap:hover .pd-main {
+        transform: none;
+      }
+
+      .pd-gallery .img-lens {
+        display: none !important;
+      }
+
+      .pd-main {
+        height: auto;
+        max-height: 320px;
+      }
+
+      .pd-zoom-hint {
+        display: flex;
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.55);
+        color: #fff;
+        font-size: 0.7rem;
+        padding: 4px 10px;
+        border-radius: 20px;
+        gap: 4px;
+        align-items: center;
+        pointer-events: none;
+        z-index: 5;
+        backdrop-filter: blur(4px);
+      }
+
+      .pd-thumbs {
+        order: 2;
+        margin-bottom: 16px;
+      }
+
+      #pd-name {
+        order: 3;
+      }
+
+      .pd-category {
+        order: 4;
+      }
+
+      .pd-price {
+        order: 5;
+      }
+
+      .pd-stock {
+        order: 6;
+      }
+
+      .pd-actions-row {
+        order: 7;
+      }
+
+      .pd-subtitle {
+        order: 8;
+      }
+
+      .pd-desc-wrapper {
+        order: 9;
+      }
+
+      #pd-desc-left {
+        order: 10;
+        margin-top: 24px;
+      }
+
+      .pd-complementary {
+        order: 11;
+        margin-top: 24px;
+      }
+    }
+
+    .pd-lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: rgba(0,0,0,0.92);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .pd-lightbox.is-open {
+      display: flex;
+    }
+    .pd-lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      backdrop-filter: blur(4px);
+    }
+    .pd-lightbox-counter {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.7);
+      font-size: 0.85rem;
+      font-weight: 600;
+      z-index: 10;
+    }
+    .pd-lightbox-img-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pinch-zoom pan-x pan-y;
+    }
+    .pd-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 600px) {
+      .pd-actions-row #pd-add {
+        width: 100%;
+        margin-top: 8px;
+      }
+    }
+    .pd-lightbox-img-container img {
+      max-width: 95vw;
+      max-height: 85vh;
+      object-fit: contain;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .pd-lightbox-prev,
+    .pd-lightbox-next {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      backdrop-filter: blur(4px);
+    }
+    .pd-lightbox-prev { left: 10px; }
+    .pd-lightbox-next { right: 10px; }
+  </style>
+  <!-- Meta Pixel Code -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '385489602659855');
+  fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=385489602659855&ev=PageView&noscript=1"
+  /></noscript>
+  <!-- End Meta Pixel Code -->
+</head>
+
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WM5BCLWN"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+  <div id="app">
+    <header id="site-header"></header>
+    <main>
+      <div class="product-detail">
+        <div class="pd-gallery">
+          <div class="product-img-wrap">
+            <div class="img-lens"></div>
+            <button class="img-prev" aria-label="Previous image">‹</button>
+            <button class="img-next" aria-label="Next image">›</button>
+            <img id="pd-main" class="pd-main product-img" src="/images/placeholder.svg" alt="" />
+          </div>
+          <div id="pd-thumbs" class="pd-thumbs"></div>
+          <div id="pd-desc-left" class="pd-desc-left" style="margin-top: 24px;"></div>
+        </div>
+        <div class="pd-info">
+          <h1 id="pd-name"></h1>
+          <div id="pd-category" class="pd-category"></div>
+          <div id="pd-price" class="pd-price"></div>
+          <div id="pd-stock" class="pd-stock"></div>
+          <div class="pd-actions-row">
+            <label for="pd-qty">Quantity</label>
+            <div class="qty-control-premium" style="width: 110px; height: 36px;">
+              <button type="button" class="qty-btn qty-btn-minus">-</button>
+              <input id="pd-qty" type="number" class="qty-input" min="1" value="1" style="padding:0; width: 38px; border: none; height: 100%;" />
+              <button type="button" class="qty-btn qty-btn-plus">+</button>
+            </div>
+            <button id="pd-add" class="btn-primary">Add to cart</button>
+          </div>
+          <div id="pd-subtitle" class="pd-subtitle"></div>
+          <div class="pd-desc-wrapper" style="margin-top:24px;">
+            <div id="pd-desc-container">
+              <div id="pd-desc" class="pd-desc"></div>
+            </div>
+          </div>
+          <div id="pd-complementary" class="pd-complementary" style="margin-top: 32px;"></div>
+        </div>
+      </div>
+    </main>
+    <!-- Mobile fullscreen lightbox -->
+    <div id="pd-lightbox" class="pd-lightbox">
+      <button class="pd-lightbox-close" id="pd-lightbox-close" aria-label="Close">✕</button>
+      <div class="pd-lightbox-counter" id="pd-lightbox-counter"></div>
+      <button class="pd-lightbox-prev" id="pd-lightbox-prev" aria-label="Previous">‹</button>
+      <button class="pd-lightbox-next" id="pd-lightbox-next" aria-label="Next">›</button>
+      <div class="pd-lightbox-img-container">
+        <img id="pd-lightbox-img" src="" alt="Product" />
+      </div>
+    </div>
+    <div id="cart-drawer" class="cart-drawer"></div>
+    <footer class="site-footer"></footer>
+  </div>
+  <script type="module" src="./product-page.js?v=999.1"></script>
+  <script src="../utils/tracker.js"></script>
+</body>
+
+</html>

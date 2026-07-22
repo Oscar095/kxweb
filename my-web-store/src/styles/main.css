@@ -2527,6 +2527,62 @@ h6 {
 	font-weight: 700
 }
 
+/* Language switcher (globe icon + dropdown) */
+.lang-switcher {
+	position: relative;
+}
+
+.lang-switch-btn.cart-btn {
+	color: var(--muted, #64748b);
+}
+
+.lang-switch-btn[aria-expanded="true"] {
+	color: var(--primary);
+}
+
+.lang-switch-menu {
+	display: none;
+	position: absolute;
+	top: 100%;
+	right: 0;
+	left: auto;
+	margin-top: 8px;
+	background-color: #fff;
+	min-width: 150px;
+	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+	z-index: 200;
+	border-radius: 8px;
+	padding: 8px 0;
+	text-align: left;
+}
+
+.lang-switch-menu.open {
+	display: block;
+	animation: fadeUp 0.3s ease;
+}
+
+.lang-switch-item {
+	color: #333;
+	padding: 10px 16px;
+	text-decoration: none;
+	display: block;
+	font-weight: 600;
+	font-size: 0.92rem;
+	transition: background 0.2s, color 0.2s;
+}
+
+.lang-switch-item:hover {
+	background-color: #f1f5f9;
+	color: var(--primary);
+}
+
+.lang-switch-item.is-current {
+	color: var(--primary);
+	font-weight: 800;
+	cursor: default;
+	pointer-events: none;
+}
+
 /* Footer */
 .site-footer {
 	background: var(--glass-bg);

@@ -388,6 +388,93 @@ async function ensureSchema() {
       );
     END
   `);
+
+  // product_translations (English name/description overlay — additive, never touches dbo.products)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[product_translations]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.product_translations (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        product_id INT NOT NULL,
+        name_en NVARCHAR(MAX) NULL,
+        description_en NVARCHAR(MAX) NULL,
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_product_translations_product_id UNIQUE (product_id)
+      );
+    END
+  `);
+
+  // Ensure images_en column exists (English-specific product photos, optional)
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.product_translations','images_en') IS NULL
+    BEGIN
+      ALTER TABLE dbo.product_translations ADD images_en NVARCHAR(MAX) NULL;
+    END
+  `);
+
+  // category_translations (English category name/image overlay — additive, never touches dbo.categories)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[category_translations]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.category_translations (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        category_id INT NOT NULL,
+        nombre_en NVARCHAR(255) NULL,
+        imagen_en NVARCHAR(MAX) NULL,
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_category_translations_category_id UNIQUE (category_id)
+      );
+
+      -- One-time seed of confirmed English category names (only runs the moment
+      -- this table is first created, so later admin edits/deletions persist
+      -- across server restarts instead of being silently re-seeded).
+      INSERT INTO dbo.category_translations (category_id, nombre_en)
+      SELECT c.id, v.nombre_en
+      FROM dbo.categories c
+      INNER JOIN (VALUES
+        (N'Bebidas Calientes', N'Hot Cups'),
+        (N'Bebidas Frías', N'Cold Cups'),
+        (N'Contenedores', N'Food Tubs'),
+        (N'Empaques', N'Packaging'),
+        (N'Accesorios', N'Takeout Essentials'),
+        (N'Platos', N'Plates'),
+        (N'Porta Vasos', N'Cup Holders'),
+        (N'Tapas para Vasos', N'Cup Lids'),
+        (N'Tapas para Contenedores', N'Food Tub Lids'),
+        (N'Moldeados', N'Molded Plates'),
+        (N'Personalizados', N'Custom Packaging')
+      ) AS v(nombre_es, nombre_en) ON LTRIM(RTRIM(CAST(c.descripcion AS NVARCHAR(255)))) = v.nombre_es;
+    END
+  `);
+
+  // One-time terminology correction: earlier seed used "Hot/Cold Beverages" (describes
+  // the drink, not the product); the actual products are paper cups, so the industry-
+  // standard "Hot/Cold Cups" is correct. Idempotent — only touches rows still on the old value.
+  await pool.request().query(`
+    UPDATE dbo.category_translations SET nombre_en = N'Hot Cups' WHERE nombre_en = N'Hot Beverages';
+    UPDATE dbo.category_translations SET nombre_en = N'Cold Cups' WHERE nombre_en = N'Cold Beverages';
+  `);
+
+  // bonos (promotional popup campaigns — image, headline, button text, discount %, one active at a time)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[bonos]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.bonos (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        nombre NVARCHAR(255) NOT NULL,
+        titulo NVARCHAR(500) NULL,
+        titulo_en NVARCHAR(500) NULL,
+        texto_boton NVARCHAR(255) NULL,
+        texto_boton_en NVARCHAR(255) NULL,
+        categoria_link NVARCHAR(255) NULL,
+        porcentaje_descuento FLOAT NULL,
+        url NVARCHAR(MAX) NULL,
+        activo BIT NOT NULL DEFAULT (0),
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME(),
+        updatedAt DATETIME2 NULL
+      );
+    END
+  `);
 }
 
 module.exports = { query, getPool, ensureSchema, sql };

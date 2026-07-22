@@ -1,29 +1,15 @@
 import { initChatbot } from './chatbot.js';
-import { SITE_CONFIG } from '../utils/config.js';
+import { SITE_CONFIG } from '../../utils/config.js';
 import { initPromoPopup } from './promo-popup.js?v=999';
-import { getLangSwitchUrl } from '../utils/lang-switch.js';
+import { getLangSwitchUrl } from '../../utils/lang-switch.js';
 
 export function renderHeader(container) {
   const langSwitchHref = getLangSwitchUrl(location.pathname, location.search);
   const currentUrl = location.pathname + location.search;
-  const langSwitcherHtml = SITE_CONFIG.EN_SITE_ENABLED ? `
-        <div class="lang-switcher">
-          <button type="button" id="lang-switch-btn" class="cart-btn lang-switch-btn" aria-haspopup="true" aria-expanded="false" aria-label="Cambiar idioma" title="Cambiar idioma">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-          </button>
-          <div class="lang-switch-menu" id="lang-switch-menu" role="menu">
-            <a href="${currentUrl}" class="lang-switch-item is-current" role="menuitem" aria-current="true">Español</a>
-            <a href="${langSwitchHref}" class="lang-switch-item" role="menuitem">English</a>
-          </div>
-        </div>` : '';
-  // Inicializar Popup Promocional lo antes posible
-  try { initPromoPopup(); } catch(e) { console.error('[Promo] Error de inicio:', e); }
+  // Initialize Promotional Popup as early as possible
+  try { initPromoPopup(); } catch(e) { console.error('[Promo] Init error:', e); }
 
-  // Animación de rectángulo en nav
+  // Animated rectangle on nav hover
   setTimeout(() => {
     const nav = document.querySelector('.nav-animated');
     const rect = nav ? nav.querySelector('.nav-rect') : null;
@@ -50,44 +36,57 @@ export function renderHeader(container) {
       link.addEventListener('blur', hideRect);
     });
   }, 100);
+
   container.innerHTML = `
     <div class="free-shipping-bar">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-      Entrega <strong>${SITE_CONFIG.DELIVERY_TIME}</strong> a ${SITE_CONFIG.DELIVERY_SCOPE}
+      Delivery <strong>${SITE_CONFIG.DELIVERY_TIME_EN}</strong> to ${SITE_CONFIG.DELIVERY_SCOPE_EN}
     </div>
     <div class="announcement-bar">
       <div class="announcement-fade-container">
-        <span class="announce-item active">🌟 Precios por caja incluyen IVA</span>
-        <span class="announce-item">✨ Personaliza desde 2.000 unidades con tu marca</span>
-        <span class="announce-item">💻 Compra fácil y rápido desde nuestra web</span>
-        <span class="announce-item">📦 Envíos a nivel nacional rápidos y seguros</span>
+        <span class="announce-item active">🌟 Box prices include VAT</span>
+        <span class="announce-item">✨ Customize from 2,000 units with your brand</span>
+        <span class="announce-item">💻 Shop easily and quickly from our website</span>
+        <span class="announce-item">📦 Fast and secure nationwide shipping</span>
       </div>
     </div>
     <div class="header-glass-pill">
-      <button id="menu-toggle" class="menu-toggle" aria-label="Abrir menú">☰</button>
+      <button id="menu-toggle" class="menu-toggle" aria-label="Open menu">☰</button>
       <div class="logo">
-        <a href="/">
-          <img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Logo Kos" class="logo-img" decoding="async" loading="eager"/>
+        <a href="/en/">
+          <img id="site-logo-img" src="/api/biblioteca/1/imagen?v=1759590414237" alt="Kos Logo" class="logo-img" decoding="async" loading="eager"/>
         </a>
       </div>
-      <nav class="nav nav-animated" role="navigation" aria-label="Navegación principal">
-        <a href="/" class="nav-link" data-nav="inicio">Inicio</a>
-        <a href="/nosotros" class="nav-link" data-nav="nosotros">Nosotros</a>
-        <a href="/products" class="nav-link" data-nav="productos">Productos</a>
-        <a href="/personalizados" class="nav-link" data-nav="personalizados">Personalizados</a>
+      <nav class="nav nav-animated" role="navigation" aria-label="Main navigation">
+        <a href="/en/" class="nav-link" data-nav="home">Home</a>
+        <a href="/en/company" class="nav-link" data-nav="company">About Us</a>
+        <a href="/en/products" class="nav-link" data-nav="products">Products</a>
+        <a href="/en/custom" class="nav-link" data-nav="custom">Custom Packaging</a>
         <div class="nav-dropdown">
-          <a href="/canal-etico" class="nav-link nav-dropdown-btn" data-nav="canal-etico">Canal Ético</a>
+          <a href="/en/ethics" class="nav-link nav-dropdown-btn" data-nav="ethics">Ethics Channel</a>
           <div class="nav-dropdown-content">
-            <a href="/canal-etico" class="nav-link-sub">PTEE</a>
+            <a href="/en/ethics" class="nav-link-sub">PTEE</a>
           </div>
         </div>
-        <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
+        <a href="/en/contact" class="nav-link" data-nav="contact">Contact</a>
         <span class="nav-rect"></span>
       </nav>
       <div class="search">
-        <input id="search-input" placeholder="Buscar productos..." aria-label="Buscar productos" />
-        ${langSwitcherHtml}
-        <button id="cart-toggle" title="Carrito" class="cart-btn" aria-label="Abrir carrito de compras">
+        <input id="search-input" placeholder="Search products..." aria-label="Search products" />
+        <div class="lang-switcher">
+          <button type="button" id="lang-switch-btn" class="cart-btn lang-switch-btn" aria-haspopup="true" aria-expanded="false" aria-label="Change language" title="Change language">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </button>
+          <div class="lang-switch-menu" id="lang-switch-menu" role="menu">
+            <a href="${langSwitchHref}" class="lang-switch-item" role="menuitem">Español</a>
+            <a href="${currentUrl}" class="lang-switch-item is-current" role="menuitem" aria-current="true">English</a>
+          </div>
+        </div>
+        <button id="cart-toggle" title="Cart" class="cart-btn" aria-label="Open shopping cart">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="cartGrid" width="3" height="3" patternUnits="userSpaceOnUse">
@@ -108,7 +107,7 @@ export function renderHeader(container) {
     <div id="nav-backdrop" class="nav-backdrop" aria-hidden="true"></div>
   `;
 
-  // Announcement Bar Rotation Logic
+  // Announcement Bar Rotation
   const announceItems = container.querySelectorAll('.announce-item');
   if (announceItems.length > 0) {
     let currentAnnounce = 0;
@@ -116,7 +115,7 @@ export function renderHeader(container) {
       announceItems[currentAnnounce].classList.remove('active');
       currentAnnounce = (currentAnnounce + 1) % announceItems.length;
       announceItems[currentAnnounce].classList.add('active');
-    }, 4000); // Rotate every 4 seconds
+    }, 4000);
   }
 
   const cartToggle = document.getElementById('cart-toggle');
@@ -124,18 +123,15 @@ export function renderHeader(container) {
 
   const input = document.getElementById('search-input');
   if (input) {
-    // Live search event for pages that support in-place filtering
     input.addEventListener('input', () => window.dispatchEvent(new CustomEvent('search', { detail: input.value })));
-    // Enter key → navigate to dedicated search results page
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && input.value.trim()) {
-        window.location.href = '/search?q=' + encodeURIComponent(input.value.trim());
+        window.location.href = '/en/search?q=' + encodeURIComponent(input.value.trim());
         closeAutocomplete();
       }
       if (e.key === 'Escape') closeAutocomplete();
     });
 
-    // Autocomplete dropdown
     let acDropdown = null;
     let acProducts = null;
     let acDebounce = null;
@@ -176,7 +172,7 @@ export function renderHeader(container) {
 
         const dd = createDropdown();
         if (matches.length === 0) {
-          dd.innerHTML = '<div class="ac-empty">No se encontraron productos</div>';
+          dd.innerHTML = '<div class="ac-empty">No products found</div>';
           dd.style.display = 'block';
           return;
         }
@@ -196,7 +192,6 @@ export function renderHeader(container) {
       }, 200);
     });
 
-    // Close on click outside
     document.addEventListener('click', (e) => {
       if (!input.contains(e.target) && !(acDropdown && acDropdown.contains(e.target))) {
         closeAutocomplete();
@@ -204,7 +199,7 @@ export function renderHeader(container) {
     });
   }
 
-  // Logo principal (si existe)
+  // Dynamic logo
   (async () => {
     try {
       const img = document.getElementById('site-logo-img');
@@ -215,13 +210,11 @@ export function renderHeader(container) {
       const first = Array.isArray(list) ? list[0] : null;
       if (!first || !first.url) return;
       img.src = first.url;
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   })();
 
-  // badge: subscribe to cartService to update count
-  import('../services/cart-service.js').then(mod => {
+  // Cart badge
+  import('../../services/cart-service.js').then(mod => {
     const svc = mod.cartService;
     function update(items) {
       const el = document.getElementById('cart-count');
@@ -231,14 +224,14 @@ export function renderHeader(container) {
     }
     svc.subscribe(update);
     update(svc.items || []);
-  }).catch(e => console.warn('No se pudo inicializar cart badge', e));
+  }).catch(e => console.warn('Could not initialize cart badge', e));
 
-  // Render shared footer into any .site-footer element present on the page
+  // Render shared footer
   const footerContainer = document.querySelector('.site-footer');
   if (footerContainer) {
     import('./footer.js').then(mod => {
       try { mod.renderFooter(footerContainer); } catch (err) { console.warn('renderFooter failed', err); }
-    }).catch(err => { console.warn('No se pudo cargar footer module', err); });
+    }).catch(err => { console.warn('Could not load footer module', err); });
   }
 
   // Mobile nav toggle
@@ -253,28 +246,25 @@ export function renderHeader(container) {
     else openNav();
   });
 
-  // Close nav when clicking a link
   nav?.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', closeNav);
   });
   backdrop?.addEventListener('click', closeNav);
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNav(); });
-  // Close nav when resizing to desktop
   window.addEventListener('resize', () => {
     if (window.innerWidth > 900) closeNav();
   });
 
-  // Inicializar Chatbot Lazy — defer until first user interaction
+  // Lazy chatbot
   let chatbotLoaded = false;
   const loadChatbot = () => {
     if (chatbotLoaded) return;
     chatbotLoaded = true;
     initChatbot();
-    ['scroll', 'click', 'touchstart'].forEach(evt => 
+    ['scroll', 'click', 'touchstart'].forEach(evt =>
       window.removeEventListener(evt, loadChatbot, { passive: true })
     );
   };
-  // If page is already scrolled or after 5s idle, load immediately
   if (window.scrollY > 100) {
     initChatbot();
     chatbotLoaded = true;
@@ -282,7 +272,6 @@ export function renderHeader(container) {
     ['scroll', 'click', 'touchstart'].forEach(evt =>
       window.addEventListener(evt, loadChatbot, { passive: true, once: true })
     );
-    // Fallback: load after 5 seconds anyway
     setTimeout(loadChatbot, 5000);
   }
 
@@ -290,13 +279,13 @@ export function renderHeader(container) {
   try {
     let current = (location.pathname.split('/').pop() || '').toLowerCase();
     if (current.endsWith('.html')) current = current.replace('.html', '');
-    if (current === '' || current === 'index') current = 'index';
+    if (current === '' || current === 'index') current = 'home';
 
     nav?.querySelectorAll('a').forEach(a => {
       let href = (a.getAttribute('href') || '').toLowerCase();
       if (href.endsWith('.html')) href = href.replace('.html', '');
-      if (href === '/' || href === '') href = 'index';
-      if (href.endsWith(current) || (current === 'personalizados' && href.endsWith('personalizados'))) {
+      if (href === '/en/' || href === '/en') href = 'home';
+      if (href.endsWith(current)) {
         a.classList.add('is-active');
       }
     });

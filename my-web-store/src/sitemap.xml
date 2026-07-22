@@ -25,4 +25,33 @@
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
+  <!-- Sitio en inglés: oculto de buscadores mientras está en construcción.
+       Descomentar estas entradas cuando se publique oficialmente (junto con
+       SITE_CONFIG.EN_SITE_ENABLED = true en src/utils/config.js).
+  <url>
+    <loc>https://kosxpress.com/en/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://kosxpress.com/en/products</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://kosxpress.com/en/custom</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://kosxpress.com/en/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://kosxpress.com/en/contact</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  -->
 </urlset>

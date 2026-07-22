@@ -635,6 +635,13 @@ app.get('/feed.xml', (req, res) => {
   res.sendFile(feedPath);
 });
 
+// Sitio en inglés: en construcción, oculto de buscadores hasta que se lance oficialmente.
+// (Quitar este bloque cuando el sitio /en/ esté listo para publicarse.)
+app.use('/en', (req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
+
 app.use(express.static(staticDir, {
   extensions: ['html'],
   maxAge: '7d',
@@ -722,6 +729,7 @@ function mapProductRow(d) {
   if (d.image2) { const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
   if (d.image3) { const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
   if (d.image4) { const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+  const imgsEn = d.images_en ? (() => { try { return JSON.parse(d.images_en); } catch { return []; } })() : [];
   return {
     id: d.id,
     codigo_siesa: d.codigo_siesa || '',
@@ -744,7 +752,10 @@ function mapProductRow(d) {
     image: imgs[0] || '/images/placeholder.svg',
     image2: d.image2 || '',
     image3: d.image3 || '',
-    image4: d.image4 || ''
+    image4: d.image4 || '',
+    name_en: d.name_en || null,
+    description_en: d.description_en || null,
+    images_en: imgsEn
   };
 }
 
@@ -754,7 +765,7 @@ app.get('/api/products', async (req, res) => {
     if (productsCache.data && (now - productsCache.ts) < PRODUCTS_CACHE_TTL) {
       return res.json(productsCache.data);
     }
-    const sqlQuery = `SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id ORDER BY p.id`;
+    const sqlQuery = `SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion, pt.name_en, pt.description_en, pt.images_en FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id LEFT JOIN dbo.product_translations pt ON pt.product_id = p.id ORDER BY p.id`;
     const rows = await db.query(sqlQuery);
     const out = rows.map(mapProductRow);
     productsCache.data = out;
@@ -772,13 +783,14 @@ app.get('/api/products/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
     // JOIN para obtener el nombre de la categoría
-    const rows = await db.query('SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id WHERE p.id = @id', { id });
+    const rows = await db.query('SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion, pt.name_en, pt.description_en, pt.images_en FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id LEFT JOIN dbo.product_translations pt ON pt.product_id = p.id WHERE p.id = @id', { id });
     const d = rows[0];
     if (!d) return res.status(404).json({ message: 'Producto no encontrado' });
     const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
     if (d.image2) { const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
     if (d.image3) { const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
     if (d.image4) { const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+    const imgsEn = d.images_en ? (() => { try { return JSON.parse(d.images_en); } catch { return []; } })() : [];
     const out = {
       id: d.id,
       codigo_siesa: d.codigo_siesa || '',
@@ -800,7 +812,10 @@ app.get('/api/products/:id', async (req, res) => {
       images: imgs,
       image2: d.image2 || '',
       image3: d.image3 || '',
-      image4: d.image4 || ''
+      image4: d.image4 || '',
+      name_en: d.name_en || null,
+      description_en: d.description_en || null,
+      images_en: imgsEn
     };
     res.json(out);
   } catch (e) {
@@ -809,14 +824,61 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
+// API Product Translations (English name/description overlay)
+// Upsert: creates or updates the translation row for a given product_id
+app.post('/api/product-translations', requireAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const product_id = Number(b.product_id);
+    if (Number.isNaN(product_id)) return res.status(400).json({ message: 'product_id inválido' });
+    const name_en = (b.name_en || '').toString().trim();
+    const description_en = (b.description_en || '').toString().trim();
+    const images_en = Array.isArray(b.images_en) ? JSON.stringify(b.images_en.filter(Boolean).slice(0, 4)) : null;
+    await db.query(
+      `IF EXISTS (SELECT 1 FROM dbo.product_translations WHERE product_id = @product_id)
+       BEGIN
+         UPDATE dbo.product_translations SET name_en = @name_en, description_en = @description_en, images_en = @images_en, updatedAt = SYSUTCDATETIME() WHERE product_id = @product_id;
+       END
+       ELSE
+       BEGIN
+         INSERT INTO dbo.product_translations (product_id, name_en, description_en, images_en) VALUES (@product_id, @name_en, @description_en, @images_en);
+       END`,
+      { product_id, name_en: name_en || null, description_en: description_en || null, images_en }
+    );
+    productsCache.data = null; // invalidar caché
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/product-translations POST error', e);
+    res.status(500).json({ message: 'Error guardando traducción' });
+  }
+});
+
+// Delete a product's English translation (reverts the English site to the Spanish fallback)
+app.delete('/api/product-translations/:productId', requireAdmin, async (req, res) => {
+  try {
+    const product_id = Number(req.params.productId);
+    if (Number.isNaN(product_id)) return res.status(400).json({ message: 'product_id inválido' });
+    const r = await db.query('DELETE FROM dbo.product_translations WHERE product_id = @product_id; SELECT @@ROWCOUNT AS affected;', { product_id });
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Traducción no encontrada' });
+    productsCache.data = null; // invalidar caché
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/product-translations DELETE error', e);
+    res.status(500).json({ message: 'Error eliminando traducción' });
+  }
+});
+
 // API Categories
 app.get('/api/categories', async (req, res) => {
   try {
-    const rows = await db.query('SELECT * FROM dbo.categories ORDER BY Id');
+    const rows = await db.query('SELECT c.*, ct.nombre_en, ct.imagen_en FROM dbo.categories c LEFT JOIN dbo.category_translations ct ON ct.category_id = c.Id ORDER BY c.Id');
     const cats = (rows || []).map(r => ({
       id: (r.Id || r.id || r.ID || null),
       nombre: (r.nombre || r.Nombre || r.name || ''),
-      descripcion: (r.descripcion || r.Descripcion || r.description || '')
+      descripcion: (r.descripcion || r.Descripcion || r.description || ''),
+      nombre_en: r.nombre_en || null,
+      imagen_en: r.imagen_en || null
     }));
     res.json(cats);
   } catch (e) {
@@ -898,6 +960,48 @@ app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('/api/categories DELETE error', e);
     res.status(500).json({ message: 'Error eliminando categoría' });
+  }
+});
+
+// API Category Translations (English name/image overlay)
+// Upsert: creates or updates the translation row for a given category_id
+app.post('/api/category-translations', requireAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const category_id = Number(b.category_id);
+    if (Number.isNaN(category_id)) return res.status(400).json({ message: 'category_id inválido' });
+    const nombre_en = (b.nombre_en || '').toString().trim();
+    const imagen_en = (b.imagen_en || '').toString().trim();
+    await db.query(
+      `IF EXISTS (SELECT 1 FROM dbo.category_translations WHERE category_id = @category_id)
+       BEGIN
+         UPDATE dbo.category_translations SET nombre_en = @nombre_en, imagen_en = @imagen_en, updatedAt = SYSUTCDATETIME() WHERE category_id = @category_id;
+       END
+       ELSE
+       BEGIN
+         INSERT INTO dbo.category_translations (category_id, nombre_en, imagen_en) VALUES (@category_id, @nombre_en, @imagen_en);
+       END`,
+      { category_id, nombre_en: nombre_en || null, imagen_en: imagen_en || null }
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/category-translations POST error', e);
+    res.status(500).json({ message: 'Error guardando traducción de categoría' });
+  }
+});
+
+// Delete a category's English translation (reverts the English site to the Spanish fallback)
+app.delete('/api/category-translations/:categoryId', requireAdmin, async (req, res) => {
+  try {
+    const category_id = Number(req.params.categoryId);
+    if (Number.isNaN(category_id)) return res.status(400).json({ message: 'category_id inválido' });
+    const r = await db.query('DELETE FROM dbo.category_translations WHERE category_id = @category_id; SELECT @@ROWCOUNT AS affected;', { category_id });
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Traducción no encontrada' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/category-translations DELETE error', e);
+    res.status(500).json({ message: 'Error eliminando traducción de categoría' });
   }
 });
 
@@ -1179,6 +1283,192 @@ app.delete('/api/banners/:id', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('DELETE /api/banners/:id error', e);
     res.status(500).json({ message: 'Error eliminando banner' });
+  }
+});
+
+// ============ API Bonos (promotional popup campaigns) ============
+const bonoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Solo se permiten imágenes PNG/JPG/GIF/WebP'));
+  }
+});
+
+function mapBonoRow(r) {
+  return {
+    id: r.id,
+    nombre: r.nombre || '',
+    titulo: r.titulo || '',
+    titulo_en: r.titulo_en || '',
+    texto_boton: r.texto_boton || '',
+    texto_boton_en: r.texto_boton_en || '',
+    categoria_link: r.categoria_link || '',
+    porcentaje_descuento: r.porcentaje_descuento != null ? Number(r.porcentaje_descuento) : null,
+    url: r.url ? (process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url)) : '',
+    activo: !!r.activo,
+    createdAt: r.createdAt || null
+  };
+}
+
+// Public — the storefront popup reads this without being logged in as admin
+app.get('/api/bonos', async (req, res) => {
+  try {
+    const onlyActive = String(req.query.active || '').toLowerCase();
+    const where = (onlyActive === '1' || onlyActive === 'true' || onlyActive === 'yes') ? 'WHERE activo = 1' : '';
+    const rows = await db.query(`SELECT * FROM dbo.bonos ${where} ORDER BY activo DESC, createdAt DESC, id DESC`);
+    res.json((rows || []).map(mapBonoRow));
+  } catch (e) {
+    console.error('GET /api/bonos error', e);
+    res.status(500).json({ message: 'Error listando bonos' });
+  }
+});
+
+app.post('/api/bonos', requireAdmin, bonoUpload.single('imagen'), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const nombre = (b.nombre || '').toString().trim();
+    if (!nombre) return res.status(400).json({ message: 'nombre requerido' });
+    if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
+    if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
+    const basePath = rootPath ? `${rootPath}/Bonos` : 'Bonos';
+    const blobName = `${basePath}/${filename}`;
+
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
+    const blockClient = containerClient.getBlockBlobClient(blobName);
+    await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+
+    const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+    const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+
+    const r = await db.query(
+      `INSERT INTO dbo.bonos (nombre, titulo, titulo_en, texto_boton, texto_boton_en, categoria_link, porcentaje_descuento, url, activo)
+       OUTPUT INSERTED.id
+       VALUES (@nombre, @titulo, @titulo_en, @texto_boton, @texto_boton_en, @categoria_link, @porcentaje_descuento, @url, 0);`,
+      {
+        nombre,
+        titulo: (b.titulo || '').toString().trim() || null,
+        titulo_en: (b.titulo_en || '').toString().trim() || null,
+        texto_boton: (b.texto_boton || '').toString().trim() || null,
+        texto_boton_en: (b.texto_boton_en || '').toString().trim() || null,
+        categoria_link: (b.categoria_link || '').toString().trim() || null,
+        porcentaje_descuento: (b.porcentaje_descuento != null && b.porcentaje_descuento !== '') ? Number(b.porcentaje_descuento) : null,
+        url: blobUrl
+      }
+    );
+    const id = r && r[0] && (r[0].id || r[0].Id);
+    res.status(201).json({ ok: true, id: id ?? null, url: blobUrl });
+  } catch (e) {
+    console.error('POST /api/bonos error', e);
+    res.status(500).json({ message: 'Error creando bono' });
+  }
+});
+
+app.put('/api/bonos/:id', requireAdmin, bonoUpload.single('imagen'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const b = req.body || {};
+
+    let newUrl = null;
+    if (req.file) {
+      if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
+      const basePath = rootPath ? `${rootPath}/Bonos` : 'Bonos';
+      const blobName = `${basePath}/${filename}`;
+      const containerClient = blobServiceClient.getContainerClient(containerName);
+      try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
+      const blockClient = containerClient.getBlockBlobClient(blobName);
+      await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+      const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+      newUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+    }
+
+    const sets = [
+      'nombre = @nombre', 'titulo = @titulo', 'titulo_en = @titulo_en',
+      'texto_boton = @texto_boton', 'texto_boton_en = @texto_boton_en',
+      'categoria_link = @categoria_link', 'porcentaje_descuento = @porcentaje_descuento',
+      'updatedAt = SYSUTCDATETIME()'
+    ];
+    const params = {
+      id,
+      nombre: (b.nombre || '').toString().trim(),
+      titulo: (b.titulo || '').toString().trim() || null,
+      titulo_en: (b.titulo_en || '').toString().trim() || null,
+      texto_boton: (b.texto_boton || '').toString().trim() || null,
+      texto_boton_en: (b.texto_boton_en || '').toString().trim() || null,
+      categoria_link: (b.categoria_link || '').toString().trim() || null,
+      porcentaje_descuento: (b.porcentaje_descuento != null && b.porcentaje_descuento !== '') ? Number(b.porcentaje_descuento) : null
+    };
+    if (newUrl) { sets.push('url = @url'); params.url = newUrl; }
+
+    const r = await db.query(`UPDATE dbo.bonos SET ${sets.join(', ')} WHERE id = @id; SELECT @@ROWCOUNT AS affected;`, params);
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Bono no encontrado' });
+    res.json({ ok: true, url: newUrl || undefined });
+  } catch (e) {
+    console.error('PUT /api/bonos/:id error', e);
+    res.status(500).json({ message: 'Error actualizando bono' });
+  }
+});
+
+// Sets this bono as the single active one, deactivating every other bono
+app.patch('/api/bonos/:id/activate', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const r = await db.query(
+      `UPDATE dbo.bonos SET activo = 0 WHERE id <> @id;
+       UPDATE dbo.bonos SET activo = 1 WHERE id = @id;
+       SELECT @@ROWCOUNT AS affected;`,
+      { id }
+    );
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Bono no encontrado' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PATCH /api/bonos/:id/activate error', e);
+    res.status(500).json({ message: 'Error activando bono' });
+  }
+});
+
+app.delete('/api/bonos/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const rows = await db.query('SELECT url FROM dbo.bonos WHERE id = @id', { id });
+    const row = rows && rows[0];
+    if (!row) return res.status(404).json({ message: 'Bono no encontrado' });
+    const url = row.url;
+
+    try {
+      if (blobServiceClient && url) {
+        const u = new URL(url);
+        const path = u.pathname.replace(/^\//, '');
+        const idx = path.indexOf('/');
+        if (idx >= 0) {
+          const cont = path.slice(0, idx);
+          const blobName = path.slice(idx + 1);
+          const decodedBlobName = decodeURIComponent(blobName);
+          const containerClient = blobServiceClient.getContainerClient(cont);
+          const blockClient = containerClient.getBlockBlobClient(decodedBlobName);
+          await blockClient.deleteIfExists();
+        }
+      }
+    } catch (delErr) {
+      console.warn('DELETE /api/bonos blob delete warning', delErr && delErr.message);
+    }
+
+    await db.query('DELETE FROM dbo.bonos WHERE id = @id', { id });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE /api/bonos/:id error', e);
+    res.status(500).json({ message: 'Error eliminando bono' });
   }
 });
 
