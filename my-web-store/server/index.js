@@ -2,10 +2,19 @@ const express = require('express');
 const path = require('path');
 const fetch = require('node-fetch');
 const dotenv = require('dotenv');
+const nodemailer = require('nodemailer');
 
 // Cargar variables desde la raíz del proyecto (independiente del cwd)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
+// Transporte SMTP para notificaciones por correo (ej. denuncias del Canal Ético)
+const mailTransporter = process.env.SMTP_HOST ? nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: Number(process.env.SMTP_PORT) === 465,
+  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
+}) : null;
 
 // switching to SQL Server + Azure Blob storage
 const db = require('./db');
@@ -564,6 +573,140 @@ app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res
     console.error('[contacts] Error:', e);
     const detail = e && e.message ? String(e.message).slice(0, 600) : String(e);
     res.status(500).json({ message: 'Error guardando contacto', detail });
+  }
+});
+
+// --- Denuncias API (Canal Ético) ---
+const denunciaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB por archivo
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype) || file.mimetype === 'application/pdf') return cb(null, true);
+    cb(new Error('Solo se permiten imágenes (png, jpg, gif, webp) o PDF'));
+  }
+});
+
+app.post('/api/denuncias', denunciaUpload.array('attachments', 6), async (req, res) => {
+  try {
+    const {
+      name, email, phone, identification,
+      accusedName, accusedRole, detail,
+      incidentDate, incidentTime, othersAware, othersAwareDetail
+    } = req.body || {};
+    const recaptchaResponse = req.body['g-recaptcha-response'];
+
+    // El único campo obligatorio es el detalle: el canal admite denuncias anónimas.
+    if (!detail || !String(detail).trim()) {
+      return res.status(400).json({ message: 'Describe el motivo de la denuncia' });
+    }
+
+    if (!recaptchaResponse) {
+      return res.status(400).json({ message: 'Por favor, verifica que no eres un robot.' });
+    }
+
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET || '6LetrigtAAAAAFdEZ0HO4z9mXZblhHMTEwVMtQTO';
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${recaptchaResponse}`;
+
+    try {
+      const gRes = await fetch(verifyUrl, { method: 'POST' });
+      const gData = await gRes.json();
+      if (!gData.success) {
+        return res.status(400).json({ message: 'Error de validación reCAPTCHA. Intenta nuevamente.' });
+      }
+    } catch (gErr) {
+      console.error('Error verificando reCAPTCHA:', gErr);
+      return res.status(500).json({ message: 'Error comunicándose con el servicio de validación de reCAPTCHA.' });
+    }
+
+    const files = Array.isArray(req.files) ? req.files : [];
+
+    // Subir cada adjunto a Azure Blob Storage → Denuncias/
+    const attachmentMeta = [];
+    if (files.length > 0 && blobServiceClient) {
+      const containerClient = blobServiceClient.getContainerClient(containerName);
+      try { await containerClient.createIfNotExists({ access: 'blob' }); } catch { /* ignore */ }
+      for (const f of files) {
+        const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.originalname}`;
+        const blobName = rootPath ? `${rootPath}/Denuncias/${filename}` : `Denuncias/${filename}`;
+        const blockClient = containerClient.getBlockBlobClient(blobName);
+        await blockClient.uploadData(f.buffer, { blobHTTPHeaders: { blobContentType: f.mimetype } });
+        const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+        const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+        attachmentMeta.push({ filename: f.originalname, type: f.mimetype, size: f.size, url: blobUrl });
+      }
+    } else {
+      for (const f of files) {
+        attachmentMeta.push({ filename: f.originalname, type: f.mimetype, size: f.size });
+      }
+    }
+
+    const r = await db.query(
+      `INSERT INTO dbo.denuncias (name, email, phone, identification, accusedName, accusedRole, detail, incidentDate, incidentTime, othersAware, othersAwareDetail, attachments)
+       OUTPUT INSERTED.id
+       VALUES (@name, @email, @phone, @identification, @accusedName, @accusedRole, @detail, @incidentDate, @incidentTime, @othersAware, @othersAwareDetail, @attachments);`,
+      {
+        name: String(name || '').trim(),
+        email: String(email || '').trim(),
+        phone: String(phone || '').trim(),
+        identification: String(identification || '').trim(),
+        accusedName: String(accusedName || '').trim(),
+        accusedRole: String(accusedRole || '').trim(),
+        detail: String(detail).trim(),
+        incidentDate: String(incidentDate || '').trim(),
+        incidentTime: String(incidentTime || '').trim(),
+        othersAware: othersAware === 'si',
+        othersAwareDetail: String(othersAwareDetail || '').trim(),
+        attachments: JSON.stringify(attachmentMeta)
+      }
+    );
+    const savedId = r && r[0] && r[0].id;
+
+    // Enviar correo al oficial de cumplimiento (fire-and-forget, no bloquea la respuesta)
+    if (mailTransporter) {
+      const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const row = (label, value) => value ? `<tr><td style="padding:6px 12px;color:#64748b;font-weight:600;white-space:nowrap;vertical-align:top;">${esc(label)}</td><td style="padding:6px 12px;color:#1e293b;">${esc(value)}</td></tr>` : '';
+      const attachmentsHtml = attachmentMeta.length
+        ? attachmentMeta.map(a => `<li><a href="${esc(a.url || '#')}">${esc(a.filename)}</a></li>`).join('')
+        : '<li>Sin adjuntos</li>';
+
+      const html = `
+        <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;">
+          <h2 style="color:#11345d;">Nueva denuncia — Canal Ético KOS Colombia</h2>
+          <table style="border-collapse:collapse;width:100%;">
+            ${row('Nombre', name || 'Anónimo')}
+            ${row('Correo', email)}
+            ${row('Teléfono', phone)}
+            ${row('N° identificación', identification)}
+            ${row('Denunciado', accusedName)}
+            ${row('Cargo denunciado', accusedRole)}
+            ${row('Fecha del suceso', incidentDate)}
+            ${row('Hora del suceso', incidentTime)}
+            ${row('¿Alguien más se enteró?', othersAware === 'si' ? `Sí — ${esc(othersAwareDetail)}` : 'No')}
+          </table>
+          <h3 style="color:#11345d;margin-top:20px;">Motivo de la denuncia</h3>
+          <p style="white-space:pre-wrap;color:#1e293b;">${esc(detail)}</p>
+          <h3 style="color:#11345d;margin-top:20px;">Adjuntos</h3>
+          <ul>${attachmentsHtml}</ul>
+          <p style="color:#94a3b8;font-size:0.85rem;margin-top:24px;">Denuncia #${savedId} recibida el ${new Date().toLocaleString('es-CO')} a través del formulario web del Canal Ético.</p>
+        </div>
+      `;
+
+      mailTransporter.sendMail({
+        from: `"Canal Ético KOS Colombia" <${process.env.SMTP_USER}>`,
+        to: process.env.COMPLIANCE_EMAIL || 'oficialdecumplimiento@koscolombia.com',
+        replyTo: email || undefined,
+        subject: `Nueva denuncia recibida — Canal Ético (#${savedId})`,
+        html
+      }).then(() => {
+        console.log(`[mail-denuncia] Correo enviado para denuncia ${savedId}`);
+      }).catch(err => console.error('[mail-denuncia] Error enviando correo:', err.message || err));
+    }
+
+    res.status(201).json({ ok: true, id: savedId });
+  } catch (e) {
+    console.error('[denuncias] Error:', e);
+    const detail = e && e.message ? String(e.message).slice(0, 600) : String(e);
+    res.status(500).json({ message: 'Error guardando denuncia', detail });
   }
 });
 
@@ -2194,6 +2337,8 @@ app.get('/sitemap.xml', async (_req, res) => {
     { url: '/contact',       changefreq: 'monthly', priority: '0.5' },
     { url: '/about',         changefreq: 'monthly', priority: '0.5' },
     { url: '/personalizados',changefreq: 'weekly',  priority: '0.6' },
+    { url: '/canal-etico',   changefreq: 'monthly', priority: '0.5' },
+    { url: '/ptee',          changefreq: 'monthly', priority: '0.4' },
   ];
 
   const categories = [

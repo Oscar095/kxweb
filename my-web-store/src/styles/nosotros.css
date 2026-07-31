@@ -106,6 +106,12 @@
     z-index: 2;
 }
 
+/* La línea solo mide/recorre esta pista (Misión + Visión + título del mapa);
+   el mapa en sí queda fuera para que la línea se detenga en el título. */
+.ns-line-track {
+    position: relative;
+}
+
 .ns-animated-line {
     position: absolute;
     left: 50%;
@@ -272,6 +278,182 @@
 
 .ns-float-anim-alt {
     animation: ns-float 6s ease-in-out infinite reverse;
+}
+
+/* PRESENCIA DE KOS — título (fin de la línea animada) */
+.ns-presence-title-wrap {
+    padding: 4rem 0 1rem !important;
+    text-align: center;
+}
+
+.ns-presence-heading {
+    position: relative;
+    z-index: 11;
+}
+
+.ns-presence-eyebrow {
+    display: inline-block;
+    color: var(--secondary, #F28C30);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+}
+
+.ns-presence-title {
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin: 0;
+    background: linear-gradient(135deg, #009FE3 0%, #005f8a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-transform: uppercase;
+}
+
+/* PRESENCIA DE KOS — mapa */
+.ns-presence-map-section {
+    padding: 1rem 0 6rem;
+    position: relative;
+}
+
+.ns-map-wrap {
+    position: relative;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.ns-world-map {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 25px 40px rgba(17, 52, 93, 0.12));
+}
+
+/* El SVG trae un óvalo decorativo de "océano" (fill blanco + borde negro,
+   fijado con style="" inline en el propio archivo, por eso hace falta
+   !important para ganarle) que enmarca todo el mapa como un globo/portal.
+   Se quita para dejar solo los países sueltos, como en la imagen de referencia. */
+.ns-world-map #ocean {
+    fill: none !important;
+    stroke: none !important;
+}
+
+/* Países sin resaltar (contexto del resto del mundo) */
+.ns-world-map .landxx {
+    fill: #dde6f0;
+    stroke: #ffffff;
+    stroke-width: 0.6;
+    transition: fill 0.3s ease;
+}
+
+.ns-world-map .coastxx {
+    stroke-width: 0.4;
+}
+
+/* Los 8 países con presencia de KOS.
+   Nota: en el SVG, países con islas/territorios (us, cl, ec, pa) son <g>
+   cuyas piezas internas (continente, islas) llevan CADA UNA su propio
+   class="landxx xx" — no basta con pintar el grupo .ns-country, porque
+   esas piezas coinciden también con .landxx y ganan por ser un match
+   directo (no heredado). Por eso se apunta al código ISO de cada país,
+   presente tanto en el grupo como en cada pieza. */
+.ns-world-map .us, .ns-world-map .co, .ns-world-map .pe, .ns-world-map .cl,
+.ns-world-map .ec, .ns-world-map .bo, .ns-world-map .pa, .ns-world-map .cr {
+    fill: url(#nsCountryGrad);
+    stroke: #ffffff;
+    stroke-width: 0.8;
+    filter: url(#nsCountryShadow);
+    transition: fill 0.25s ease;
+}
+
+.ns-country {
+    cursor: pointer;
+}
+
+.ns-country:focus-visible {
+    outline: 3px solid #003b57;
+    outline-offset: 2px;
+}
+
+/* Realce al pasar el mouse/tocar: solo brillo + sombra más marcada, sin
+   escalar la geometría (un transform:scale se ve mal en países con islas
+   o territorios lejanos dentro del mismo grupo, como EE.UU. o Chile). */
+.ns-world-map .us:hover, .ns-world-map .co:hover, .ns-world-map .pe:hover, .ns-world-map .cl:hover,
+.ns-world-map .ec:hover, .ns-world-map .bo:hover, .ns-world-map .pa:hover, .ns-world-map .cr:hover,
+.ns-country.is-active .us, .ns-country.is-active.us,
+.ns-country.is-active .co, .ns-country.is-active.co,
+.ns-country.is-active .pe, .ns-country.is-active.pe,
+.ns-country.is-active .cl, .ns-country.is-active.cl,
+.ns-country.is-active .ec, .ns-country.is-active.ec,
+.ns-country.is-active .bo, .ns-country.is-active.bo,
+.ns-country.is-active .pa, .ns-country.is-active.pa,
+.ns-country.is-active .cr, .ns-country.is-active.cr {
+    fill: url(#nsCountryGradHover);
+    filter: url(#nsCountryShadowHover);
+}
+
+.ns-map-tooltip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(-50%, calc(-100% - 14px));
+    background: #11345d;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 5;
+    box-shadow: 0 8px 20px rgba(17, 52, 93, 0.35);
+    transition: opacity 0.15s ease;
+}
+
+.ns-map-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #11345d;
+}
+
+.ns-map-tooltip.visible {
+    opacity: 1;
+}
+
+.ns-map-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 2rem;
+    color: #64748b;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.ns-map-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffb066, #e2680f);
+    box-shadow: 0 0 8px rgba(226, 104, 15, 0.5);
+}
+
+@media (max-width: 600px) {
+    .ns-map-tooltip {
+        font-size: 0.78rem;
+        padding: 5px 10px;
+    }
 }
 
 /* PARALLAX FOOTER EFFECT */

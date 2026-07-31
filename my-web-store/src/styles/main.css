@@ -318,6 +318,10 @@ header {
 
 .announce-item {
 	position: absolute;
+	max-width: calc(100vw - 32px);
+	padding: 0 4px;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	opacity: 0;
 	transition: opacity 0.5s ease-in-out;
 	pointer-events: none;
@@ -371,7 +375,7 @@ header {
 }
 
 .logo-img {
-	height: 67px;
+	height: 46px;
 	width: auto;
 	display: block
 }
@@ -744,6 +748,30 @@ h6 {
 	margin-bottom: 24px;
 	border: 1px solid rgba(0, 159, 227, 0.2);
 	backdrop-filter: blur(8px);
+}
+
+.hero-logos {
+	display: inline-flex;
+	align-items: center;
+	gap: 20px;
+	margin-bottom: 22px;
+}
+
+.hero-logo {
+	height: 58px;
+	width: auto;
+	display: block;
+}
+
+.hero-logo-kos {
+	height: 50px;
+}
+
+.hero-logo-divider {
+	width: 1px;
+	height: 44px;
+	flex-shrink: 0;
+	background: linear-gradient(to bottom, transparent, rgba(0, 51, 102, 0.25) 25%, rgba(0, 51, 102, 0.25) 75%, transparent);
 }
 
 .hero-content h1 {
@@ -4069,7 +4097,7 @@ img.bs-card-img {
 	}
 
 	.logo-img {
-		height: 52px;
+		height: 40px;
 	}
 }
 
@@ -4109,7 +4137,7 @@ img.bs-card-img {
 	}
 
 	.logo-img {
-		height: 48px
+		height: 34px
 	}
 
 	.nav {
@@ -4189,6 +4217,23 @@ img.bs-card-img {
 
 	.hero h1 {
 		font-size: 26px
+	}
+}
+
+/* Teléfonos muy angostos (iPhone SE, Android gama baja ~320-380px):
+   el anuncio rotativo más largo ("Personaliza desde 2.000...") y el
+   buscador + carrito se pasaban del viewport. Ver auditoría UX. */
+@media (max-width: 380px) {
+	.announcement-bar {
+		font-size: 0.72rem;
+	}
+
+	.search {
+		gap: 4px;
+	}
+
+	.search input {
+		width: 96px;
 	}
 }
 
@@ -5635,6 +5680,10 @@ img.bs-card-img {
 
 .announce-item {
 	position: absolute;
+	max-width: calc(100vw - 32px);
+	padding: 0 4px;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	opacity: 0;
 	transition: opacity 0.5s ease-in-out;
 	pointer-events: none;
@@ -6134,11 +6183,37 @@ img.bs-card-img {
 /* Nav Dropdown Desktop/Mobile */
 .nav-dropdown {
 	position: relative;
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
 }
 
 .nav-dropdown-btn {
 	cursor: pointer;
+}
+
+.nav-dropdown-caret {
+	background: none;
+	border: none;
+	padding: 4px;
+	margin: 0;
+	color: inherit;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0.6;
+	transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.nav-dropdown-caret:hover {
+	opacity: 1;
+}
+
+.nav-dropdown.open .nav-dropdown-caret,
+.nav-dropdown:hover .nav-dropdown-caret {
+	transform: rotate(180deg);
+	opacity: 1;
 }
 
 .nav-dropdown-content {
@@ -6155,9 +6230,20 @@ img.bs-card-img {
 	text-align: left;
 }
 
-.nav-dropdown:hover .nav-dropdown-content {
+.nav-dropdown:focus-within .nav-dropdown-content,
+.nav-dropdown.open .nav-dropdown-content {
 	display: block;
 	animation: fadeUp 0.3s ease;
+}
+
+/* :hover queda solo para mouse/trackpad reales — en touch el :hover se
+   queda "pegado" tras el tap y el menú nunca se cierra, así que ahí
+   el estado abierto/cerrado depende únicamente de la clase .open (JS). */
+@media (hover: hover) and (pointer: fine) {
+	.nav-dropdown:hover .nav-dropdown-content {
+		display: block;
+		animation: fadeUp 0.3s ease;
+	}
 }
 
 .nav-link-sub {

@@ -14,7 +14,7 @@ const ES_TO_EN = {
   '/about': '/en/about',
   '/products': '/en/products',
   '/personalizados': '/en/custom',
-  '/canal-etico': '/en/ethics',
+  '/ptee': '/en/ethics',
   '/contact': '/en/contact',
   '/cart': '/en/cart',
   '/checkout': '/en/checkout',

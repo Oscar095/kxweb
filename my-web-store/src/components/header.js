@@ -76,9 +76,12 @@ export function renderHeader(container) {
         <a href="/products" class="nav-link" data-nav="productos">Productos</a>
         <a href="/personalizados" class="nav-link" data-nav="personalizados">Personalizados</a>
         <div class="nav-dropdown">
-          <a href="/canal-etico" class="nav-link nav-dropdown-btn" data-nav="canal-etico">Canal Ético</a>
-          <div class="nav-dropdown-content">
-            <a href="/canal-etico" class="nav-link-sub">PTEE</a>
+          <a href="/canal-etico" class="nav-link nav-dropdown-btn" data-nav="canal-etico" aria-haspopup="true" aria-expanded="false">Canal Ético</a>
+          <button type="button" class="nav-dropdown-caret" aria-label="Mostrar opción PTEE" aria-expanded="false">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="nav-dropdown-content" role="menu">
+            <a href="/ptee" class="nav-link-sub" role="menuitem">PTEE</a>
           </div>
         </div>
         <a href="/contact" class="nav-link" data-nav="contacto">Contacto</a>
@@ -245,7 +248,17 @@ export function renderHeader(container) {
   const nav = container.querySelector('.nav');
   const menuBtn = document.getElementById('menu-toggle');
   const backdrop = document.getElementById('nav-backdrop');
-  const closeNav = () => { nav?.classList.remove('open'); backdrop?.classList.remove('open'); };
+  const closeNav = () => {
+    nav?.classList.remove('open');
+    backdrop?.classList.remove('open');
+    // Reset any submenu (p. ej. "Canal Ético") para que no quede abierto
+    // la próxima vez que se abra el menú móvil.
+    nav?.querySelectorAll('.nav-dropdown.open').forEach(d => {
+      d.classList.remove('open');
+      d.querySelector('.nav-dropdown-caret')?.setAttribute('aria-expanded', 'false');
+      d.querySelector('.nav-dropdown-btn')?.setAttribute('aria-expanded', 'false');
+    });
+  };
   const openNav = () => { nav?.classList.add('open'); backdrop?.classList.add('open'); };
   menuBtn?.addEventListener('click', () => {
     if (!nav) return;
@@ -319,5 +332,29 @@ export function renderHeader(container) {
       if (!langMenu.contains(e.target) && e.target !== langBtn) closeLangMenu();
     });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLangMenu(); });
+  }
+
+  // "Canal Ético" dropdown (opción PTEE) — tap-to-toggle para táctil/teclado,
+  // el hover en CSS ya lo cubre en desktop con mouse.
+  const ceDropdown = container.querySelector('.nav-dropdown');
+  const ceCaret = container.querySelector('.nav-dropdown-caret');
+  const ceMainLink = ceDropdown?.querySelector('.nav-dropdown-btn');
+  if (ceDropdown && ceCaret) {
+    const closeCeDropdown = () => {
+      ceDropdown.classList.remove('open');
+      ceCaret.setAttribute('aria-expanded', 'false');
+      ceMainLink?.setAttribute('aria-expanded', 'false');
+    };
+    ceCaret.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const isOpen = ceDropdown.classList.toggle('open');
+      ceCaret.setAttribute('aria-expanded', String(isOpen));
+      ceMainLink?.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.addEventListener('click', (e) => {
+      if (!ceDropdown.contains(e.target)) closeCeDropdown();
+    });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCeDropdown(); });
   }
 }

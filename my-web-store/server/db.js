@@ -135,6 +135,29 @@ async function ensureSchema() {
     END
   `);
 
+  // denuncias (Canal Ético)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[denuncias]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.denuncias (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        name NVARCHAR(255),
+        email NVARCHAR(255),
+        phone NVARCHAR(100),
+        identification NVARCHAR(100),
+        accusedName NVARCHAR(255),
+        accusedRole NVARCHAR(255),
+        detail NVARCHAR(MAX),
+        incidentDate NVARCHAR(20),
+        incidentTime NVARCHAR(20),
+        othersAware BIT,
+        othersAwareDetail NVARCHAR(500),
+        attachments NVARCHAR(MAX),
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
+      );
+    END
+  `);
+
   // cantidad (escalones)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[cantidad]') AND type in (N'U'))

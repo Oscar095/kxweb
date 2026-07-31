@@ -112,9 +112,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <section id="hero" class="hero">
         <div class="hero-inner-glass reveal">
           <div class="hero-content">
-            <h1 class="gradient-text-blue">Soluciones Ideales en Empaques</h1>
-            <p>En KOS ofrecemos empaques biodegradables y ecológicos, descubre todos nuestros productos diseñados para
-              restaurantes, cafeterías y todo tipo de negocios.</p>
+            <div class="hero-logos">
+              <img src="/images/logos/LOGOKOS.png" alt="Logo KOS" class="hero-logo hero-logo-kos" loading="eager" fetchpriority="high">
+              <span class="hero-logo-divider" aria-hidden="true"></span>
+              <img src="/images/logos/LOGO%20KOS%20XPRESS.png" alt="Logo Kosxpress" class="hero-logo hero-logo-kosxpress" loading="eager" fetchpriority="high">
+            </div>
+            <h1 class="gradient-text-blue"><span id="hero-word-anchor">Soluciones</span> Ideales en Empaques</h1>
+            <p>Empaques biodegradables y ecológicos adaptados a tu negocio. Acompañamos a grandes industrias a gran escala e impulsamos a emprendedores con Kosxpress, personalizando vasos desde solo 2.000 unidades.</p>
             <div class="hero-actions">
               <button class="btn-primary cta-pulse-blue"
                 onclick="window.location.href='/products'">Compra ahora
@@ -291,6 +295,31 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
   <script type="module" src="./app.js?v=20.0"></script>
   <script src="./utils/tracker.js"></script>
+  <script>
+    // Centra el bloque de logos exactamente sobre la palabra "Soluciones"
+    // (no sobre todo el bloque de texto, que es más ancho y lo descuadra).
+    (function () {
+      const word = document.getElementById('hero-word-anchor');
+      const logos = document.querySelector('.hero-logos');
+      if (!word || !logos) return;
+
+      function alignLogos() {
+        logos.style.transform = 'none';
+        const wordRect = word.getBoundingClientRect();
+        const logosRect = logos.getBoundingClientRect();
+        const wordCenter = wordRect.left + wordRect.width / 2;
+        const logosCenter = logosRect.left + logosRect.width / 2;
+        logos.style.transform = `translateX(${Math.round(wordCenter - logosCenter)}px)`;
+      }
+
+      window.addEventListener('load', alignLogos);
+      window.addEventListener('resize', alignLogos);
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(alignLogos);
+      }
+      alignLogos();
+    })();
+  </script>
 </body>
 
 </html>

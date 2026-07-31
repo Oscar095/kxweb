@@ -12,7 +12,7 @@ export function renderFooter(mount) {
       }
       .footer-brand {}
       .footer-logo {
-        height: 72px;
+        height: 48px;
         width: auto;
         display: block;
         margin-bottom: 14px;

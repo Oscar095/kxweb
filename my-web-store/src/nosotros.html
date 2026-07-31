@@ -79,30 +79,57 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </section>
 
             <div class="ns-content-wrapper">
-                <div class="ns-animated-line line-main"></div>
+                <div class="ns-line-track">
+                    <div class="ns-animated-line line-main"></div>
 
-                <!-- SECCION: Misión -->
-                <section class="ns-section ns-mision container">
-                    <div class="ns-grid">
-                        <div class="ns-text-col reveal">
-                            <h2 class="ns-section-title">Misión</h2>
-                            <p class="ns-section-body">Somos una organización dedicada al desarrollo de soluciones en empaques y envases del sector de alimentos, generando experiencias que aumentan la percepción de valor de nuestros clientes, en pro de la conservación del medio ambiente, operando nacional e internacionalmente en beneficio de todas las partes interesadas y adaptándonos a las necesidades del mercado.</p>
+                    <!-- SECCION: Misión -->
+                    <section class="ns-section ns-mision container">
+                        <div class="ns-grid">
+                            <div class="ns-text-col reveal">
+                                <h2 class="ns-section-title">Misión</h2>
+                                <p class="ns-section-body">Somos una organización dedicada al desarrollo de soluciones en empaques y envases del sector de alimentos, generando experiencias que aumentan la percepción de valor de nuestros clientes, en pro de la conservación del medio ambiente, operando nacional e internacionalmente en beneficio de todas las partes interesadas y adaptándonos a las necesidades del mercado.</p>
+                            </div>
+                            <div class="ns-visual-col ns-float-anim reveal">
+                                <img src="/images/us/mision.JPEG" alt="Misión KosXpress" class="ns-visual-img">
+                            </div>
                         </div>
-                        <div class="ns-visual-col ns-float-anim reveal">
-                            <img src="/images/us/mision.JPEG" alt="Misión KosXpress" class="ns-visual-img">
+                    </section>
+
+                    <!-- SECCION: Visión -->
+                    <section class="ns-section ns-vision container">
+                        <div class="ns-grid ns-grid-reverse">
+                            <div class="ns-text-col reveal">
+                                <h2 class="ns-section-title">Visión</h2>
+                                <p class="ns-section-body">Para el 2026 queremos ser una organización con amplia percepción de marca, líderes en empaques y envases del sector de alimentos, creando soluciones que disminuyan el impacto al medio ambiente, siendo reconocidos por nuestra dinámica para resolver las necesidades de nuestros clientes, con una participación superior al 50% del mercado nacional y reconocimiento importante en los mercados internacionales.</p>
+                            </div>
+                            <div class="ns-visual-col ns-float-anim-alt reveal">
+                                <img src="/images/us/vision.jpg" alt="Visión KosXpress" class="ns-visual-img ns-img-vision">
+                            </div>
                         </div>
+                    </section>
+                </div>
+                <!-- La línea (dentro de .ns-line-track) termina justo arriba, en el
+                     espacio en blanco antes de este título — así nunca cruza detrás
+                     del texto "Presencia de KOS". -->
+
+                <!-- SECCION: Título Presencia de KOS -->
+                <section class="ns-section ns-presence-title-wrap container">
+                    <div class="ns-presence-heading reveal">
+                        <span class="ns-presence-eyebrow">Alcance internacional</span>
+                        <h2 class="ns-presence-title">Presencia de KOS</h2>
                     </div>
                 </section>
 
-                <!-- SECCION: Visión -->
-                <section class="ns-section ns-vision container">
-                    <div class="ns-grid ns-grid-reverse">
-                        <div class="ns-text-col reveal">
-                            <h2 class="ns-section-title">Visión</h2>
-                            <p class="ns-section-body">Para el 2026 queremos ser una organización con amplia percepción de marca, líderes en empaques y envases del sector de alimentos, creando soluciones que disminuyan el impacto al medio ambiente, siendo reconocidos por nuestra dinámica para resolver las necesidades de nuestros clientes, con una participación superior al 50% del mercado nacional y reconocimiento importante en los mercados internacionales.</p>
+                <!-- SECCION: Mapa de presencia -->
+                <section class="ns-presence-map-section">
+                    <div class="container reveal">
+                        <div class="ns-map-wrap">
+                            <div class="ns-world-map-mount" aria-label="Mapa de presencia internacional de KOS"></div>
+                            <div class="ns-map-tooltip" id="ns-map-tooltip" role="tooltip"></div>
                         </div>
-                        <div class="ns-visual-col ns-float-anim-alt reveal">
-                            <img src="/images/us/vision.jpg" alt="Visión KosXpress" class="ns-visual-img ns-img-vision">
+                        <div class="ns-map-legend">
+                            <span class="ns-map-legend-dot"></span>
+                            Presencia activa de KOS
                         </div>
                     </div>
                 </section>
@@ -138,26 +165,110 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
         
-        // Dynamic main line growth on scroll
-        const wrapper = document.querySelector('.ns-content-wrapper');
+        // Dynamic main line growth on scroll — mide contra .ns-line-track
+        // (Misión + Visión + título del mapa) para que la línea se detenga
+        // justo en el título de "Presencia de KOS", no en el mapa completo.
+        const wrapper = document.querySelector('.ns-line-track');
         const mainLine = document.querySelector('.line-main');
         if (mainLine && wrapper) {
             const handleScroll = () => {
                 const rect = wrapper.getBoundingClientRect();
                 const viewportHeight = window.innerHeight;
-                
+
                 // Calculate how much of the wrapper has passed the middle of the screen
                 const scrollTrigger = viewportHeight / 2;
                 const totalHeight = rect.height;
                 const distanceScrolled = scrollTrigger - rect.top;
-                
+
                 let percentage = (distanceScrolled / totalHeight) * 100;
                 percentage = Math.max(0, Math.min(percentage, 100));
-                
+
                 mainLine.style.height = percentage + '%';
             };
             window.addEventListener('scroll', handleScroll);
             handleScroll(); // Call it once on load
+        }
+
+        // Mapa de presencia: carga el SVG real (dominio público, Wikimedia Commons
+        // "BlankMap-World-Compact.svg") y activa el tooltip con el nombre del país
+        // (tomado de su <title> interno) al pasar el mouse o tocar.
+        const mapMount = document.querySelector('.ns-world-map-mount');
+        const mapTooltip = document.getElementById('ns-map-tooltip');
+        if (mapMount && mapTooltip) {
+            fetch('/images/world-map.svg')
+                .then(r => r.text())
+                .then(svgText => {
+                    mapMount.innerHTML = svgText;
+                    const svgEl = mapMount.querySelector('svg');
+                    if (svgEl) svgEl.classList.add('ns-world-map');
+                    initMapInteractivity();
+                })
+                .catch(err => console.warn('No se pudo cargar el mapa de presencia', err));
+        }
+
+        // Nombres en español para el tooltip (el SVG trae títulos oficiales en
+        // inglés e inconsistentes, ej. "Bolivia, Plurinational State of").
+        const NS_COUNTRY_NAMES = {
+            us: 'Estados Unidos', co: 'Colombia', pe: 'Perú', cl: 'Chile',
+            ec: 'Ecuador', bo: 'Bolivia', pa: 'Panamá', cr: 'Costa Rica'
+        };
+
+        function initMapInteractivity() {
+            const mapWrap = document.querySelector('.ns-map-wrap');
+            if (!mapWrap || !mapTooltip) return;
+            const countries = mapWrap.querySelectorAll('.ns-country');
+
+            const showTooltip = (el, x, y) => {
+                mapTooltip.textContent = NS_COUNTRY_NAMES[el.id] || el.id;
+                mapTooltip.style.left = x + 'px';
+                mapTooltip.style.top = y + 'px';
+                mapTooltip.classList.add('visible');
+                countries.forEach(c => c.classList.remove('is-active'));
+                el.classList.add('is-active');
+            };
+            const hideTooltip = () => {
+                mapTooltip.classList.remove('visible');
+                countries.forEach(c => c.classList.remove('is-active'));
+            };
+            const centerOf = (el) => {
+                const wrapRect = mapWrap.getBoundingClientRect();
+                const elRect = el.getBoundingClientRect();
+                return { x: (elRect.left + elRect.width / 2) - wrapRect.left, y: elRect.top - wrapRect.top };
+            };
+
+            countries.forEach(el => {
+                el.addEventListener('pointerenter', (e) => {
+                    if (e.pointerType === 'touch') return;
+                    const wrapRect = mapWrap.getBoundingClientRect();
+                    showTooltip(el, e.clientX - wrapRect.left, e.clientY - wrapRect.top);
+                });
+                el.addEventListener('pointermove', (e) => {
+                    if (e.pointerType === 'touch') return;
+                    const wrapRect = mapWrap.getBoundingClientRect();
+                    mapTooltip.style.left = (e.clientX - wrapRect.left) + 'px';
+                    mapTooltip.style.top = (e.clientY - wrapRect.top) + 'px';
+                });
+                el.addEventListener('pointerleave', (e) => {
+                    if (e.pointerType === 'touch') return;
+                    hideTooltip();
+                });
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const p = centerOf(el);
+                    showTooltip(el, p.x, p.y);
+                });
+                el.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const p = centerOf(el);
+                        showTooltip(el, p.x, p.y);
+                    }
+                });
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!mapWrap.contains(e.target)) hideTooltip();
+            });
         }
     </script>
     <script src="./utils/tracker.js"></script>
