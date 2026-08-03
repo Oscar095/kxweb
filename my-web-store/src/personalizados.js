@@ -28,9 +28,10 @@ function populateSelect(select) {
         return;
     }
 
-    // Group by category, filtering only personalized products
+    // Group by category, filtering only personalized products.
+    // "Accesorios" no va en el cotizador (ej. Anillo Pegado, Anillo ajustable).
     const groups = {};
-    productsData.filter(p => p.es_personalizado === true || p.es_personalizado === 1).forEach(p => {
+    productsData.filter(p => (p.es_personalizado === true || p.es_personalizado === 1) && p.category_name !== 'Accesorios').forEach(p => {
         const cat = p.category_name || 'Otros';
         if (!groups[cat]) groups[cat] = [];
         groups[cat].push(p);
