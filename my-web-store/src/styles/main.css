@@ -5323,7 +5323,7 @@ img.bs-card-img {
 
 .co-related-header a {
 	font-size: .88rem;
-	color: var(--primary);
+	color: var(--secondary);
 	font-weight: 600;
 	text-decoration: none;
 	transition: opacity .2s
