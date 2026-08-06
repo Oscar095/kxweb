@@ -117,8 +117,22 @@ export function renderFooter(mount) {
           gap: 32px;
           padding-top: 36px;
         }
-        .footer-tagline { max-width: 100%; }
+        .footer-brand {
+          text-align: center;
+        }
+        .footer-logo {
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .footer-tagline { max-width: 100%; margin-left: auto; margin-right: auto; }
         .footer-bottom-bar { flex-direction: column; text-align: center; }
+        .footer-social-pills {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .footer-pill {
+          justify-content: center;
+        }
       }
     </style>
 

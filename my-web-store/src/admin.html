@@ -130,6 +130,13 @@
           </svg>
           <span>Bonos</span>
         </button>
+        <button id="nav-users" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+          </svg>
+          <span>Usuarios</span>
+        </button>
         <a href="/index.html" class="admin-nav-item" style="margin-top:auto" target="_blank">
           <svg viewBox="0 0 24 24">
             <path
@@ -802,6 +809,59 @@
         <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
           <h3 style="margin-top:0;">Bonos Guardados</h3>
           <div id="bonos-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+      <!-- === USUARIOS VIEW === -->
+      <section id="view-users" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Usuarios del Panel</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Crea accesos separados para tu equipo. El rol
+          <strong>Comercial</strong> solo puede ver Pedidos, Contactos y Productos (incluyendo precios). El rol
+          <strong>Administrador</strong> tiene acceso total.</p>
+
+        <div class="glass-card">
+          <form id="user-form" class="admin-form">
+            <fieldset>
+              <legend>Crear Usuario</legend>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label for="user-username">Usuario</label>
+                  <input id="user-username" type="text" autocomplete="off" required />
+                </div>
+                <div class="field-group">
+                  <label for="user-password">Contraseña</label>
+                  <input id="user-password" type="password" autocomplete="new-password" required />
+                </div>
+                <div class="field-group">
+                  <label for="user-role">Rol</label>
+                  <select id="user-role">
+                    <option value="comercial">Comercial (Pedidos, Contactos, Productos)</option>
+                    <option value="admin">Administrador (acceso total)</option>
+                  </select>
+                </div>
+              </div>
+            </fieldset>
+            <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
+              <button type="submit" class="admin-btn-primary">Crear Usuario</button>
+              <span id="user-status" style="font-weight:500;"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="overflow-x:auto;">
+          <table class="admin-table" id="users-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Creado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
         </div>
       </section>
 

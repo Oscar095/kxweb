@@ -324,10 +324,15 @@ async function uploadFileFromBrowser(file) {
   return j.blobUrl;
 }
 
+let currentAdminRole = 'admin';
+
 async function ensureAuth() {
   try {
     const r = await fetch('/api/admin/me', { cache: 'no-store' });
-    return r.ok;
+    if (!r.ok) return false;
+    const data = await r.json().catch(() => ({}));
+    currentAdminRole = data.role || 'admin';
+    return true;
   } catch { return false; }
 }
 
@@ -338,6 +343,25 @@ async function showLogin() {
 async function showAdmin() {
   document.getElementById('login-section').style.display = 'none';
   document.getElementById('admin-section').style.display = '';
+}
+
+// El rol 'comercial' solo ve Pedidos, Contactos y Productos (con precios).
+// Todo lo demás (dashboard, categorías, banners, logos, biblioteca, bonos, usuarios) queda oculto.
+function applyRolePermissions() {
+  const restricted = ['nav-categories', 'nav-categories-en', 'nav-banners', 'nav-logos', 'nav-library', 'nav-bonos', 'nav-dashboard', 'nav-products-en', 'nav-users'];
+  if (currentAdminRole === 'admin') {
+    restricted.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+    return;
+  }
+  restricted.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const dashView = document.getElementById('view-dashboard');
+  if (dashView?.classList.contains('active')) {
+    dashView.classList.remove('active');
+    document.getElementById('nav-dashboard')?.classList.remove('active');
+    document.getElementById('view-pedidos')?.classList.add('active');
+    document.getElementById('nav-pedidos')?.classList.add('active');
+    loadPedidos();
+  }
 }
 
 async function initAdmin() {
@@ -509,6 +533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     await showAdmin();
     await initAdmin();
+    applyRolePermissions();
   }
 
   // Login form
@@ -530,8 +555,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         msg.textContent = 'Error: ' + t;
         return;
       }
+      const data = await r.json().catch(() => ({}));
+      currentAdminRole = data.role || 'admin';
       await showAdmin();
       await initAdmin();
+      applyRolePermissions();
     } catch (err) {
       console.error(err);
       msg.textContent = 'No se pudo iniciar sesión';
@@ -556,6 +584,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { nav: 'nav-logos', view: 'view-logos', load: loadLogos },
     { nav: 'nav-library', view: 'view-library', load: loadLibrary },
     { nav: 'nav-bonos', view: 'view-bonos', load: loadBonosAdmin },
+    { nav: 'nav-users', view: 'view-users', load: loadUsers },
   ];
 
   function switchView(viewId) {
@@ -680,6 +709,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Bonos form handlers
   document.getElementById('bono-form')?.addEventListener('submit', submitBonoForm);
   document.getElementById('bono-cancel')?.addEventListener('click', resetBonoForm);
+
+  // Usuarios form handler
+  document.getElementById('user-form')?.addEventListener('submit', submitUserForm);
 
   // Category English-translation form handlers
   document.getElementById('ct-cancel-btn')?.addEventListener('click', closeCategoryEnForm);
@@ -1935,6 +1967,118 @@ function resetBonoForm() {
   document.getElementById('bono-form')?.reset();
   document.getElementById('bono-id').value = '';
   document.getElementById('bono-status').textContent = '';
+}
+
+// ---- Usuarios del panel (solo rol admin) ----
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+  try {
+    const r = await fetch('/api/admin/users', { cache: 'no-store', credentials: 'same-origin' });
+    const items = r.ok ? await r.json() : [];
+    renderUsersTable(items);
+  } catch (e) {
+    console.error('Error cargando usuarios', e);
+    tbody.innerHTML = '<tr><td colspan="4">Error cargando usuarios.</td></tr>';
+  }
+}
+
+function renderUsersTable(items) {
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody) return;
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="4">Sin usuarios aún.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(u => {
+    const fecha = u.createdAt ? new Date(u.createdAt).toLocaleDateString('es-CO') : '';
+    const isAdmin = u.role === 'admin';
+    const roleBadge = isAdmin
+      ? '<span class="admin-badge badge-info">Administrador</span>'
+      : '<span class="admin-badge badge-muted">Comercial</span>';
+    return `
+      <tr>
+        <td>${u.username}</td>
+        <td>${roleBadge}</td>
+        <td>${fecha}</td>
+        <td>
+          <div class="admin-table-actions">
+            <button type="button" class="admin-btn-secondary admin-btn-sm reset-user-pw" data-id="${u.id}" data-username="${u.username}">Restablecer contraseña</button>
+            <button type="button" class="admin-btn-danger-sm delete-user" data-id="${u.id}" data-username="${u.username}">Eliminar</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.delete-user').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const username = e.currentTarget.getAttribute('data-username');
+      if (!confirm(`¿Eliminar el usuario "${username}"?`)) return;
+      try {
+        const r = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin' });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          alert('Error: ' + (j.message || r.status));
+          return;
+        }
+        await loadUsers();
+      } catch (err) { console.error(err); alert('Error eliminando usuario'); }
+    });
+  });
+
+  tbody.querySelectorAll('.reset-user-pw').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const username = e.currentTarget.getAttribute('data-username');
+      const password = prompt(`Nueva contraseña para "${username}":`);
+      if (!password) return;
+      try {
+        const r = await fetch(`/api/admin/users/${encodeURIComponent(id)}/password`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+          credentials: 'same-origin'
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          alert('Error: ' + (j.message || r.status));
+          return;
+        }
+        alert('Contraseña actualizada.');
+      } catch (err) { console.error(err); alert('Error actualizando contraseña'); }
+    });
+  });
+}
+
+async function submitUserForm(ev) {
+  ev.preventDefault();
+  const status = document.getElementById('user-status');
+  status.textContent = 'Guardando...';
+  try {
+    const username = document.getElementById('user-username').value.trim();
+    const password = document.getElementById('user-password').value;
+    const role = document.getElementById('user-role').value;
+    const r = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, role }),
+      credentials: 'same-origin'
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      status.textContent = 'Error: ' + (j.message || r.status);
+      return;
+    }
+    status.innerHTML = '<strong style="color:green">Usuario creado.</strong>';
+    document.getElementById('user-form')?.reset();
+    await loadUsers();
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'Error creando el usuario';
+  }
 }
 
 // ---- Categorías (Inglés) — card grid + edit form ----

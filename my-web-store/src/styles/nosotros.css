@@ -167,7 +167,11 @@
     }
 
     .ns-animated-line {
-        left: 20px;
+        /* El contenedor .container tiene 24px de padding, así que la
+           imagen centrada empieza justo ahí — la línea necesita quedar
+           claramente antes de ese borde para no rozarla (antes estaba
+           a solo 4px de distancia, prácticamente tocándose). */
+        left: 8px;
         transform: none;
     }
 }
@@ -319,6 +323,12 @@
     position: relative;
 }
 
+@media (max-width: 600px) {
+    .ns-presence-map-section {
+        padding-bottom: 2.5rem;
+    }
+}
+
 .ns-map-wrap {
     position: relative;
     max-width: 900px;
@@ -453,6 +463,154 @@
     .ns-map-tooltip {
         font-size: 0.78rem;
         padding: 5px 10px;
+    }
+}
+
+/* NUESTROS CLIENTES — carrusel automático */
+.ns-clients-section {
+    padding: 5rem 0 6rem;
+    text-align: center;
+    overflow: hidden;
+}
+
+@media (max-width: 600px) {
+    .ns-clients-section {
+        padding-top: 2.5rem;
+    }
+}
+
+.ns-clients-title {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 800;
+    color: #11345d;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin: 0 0 3.5rem;
+    position: relative;
+    display: inline-block;
+}
+
+.ns-clients-title::after {
+    content: '';
+    position: absolute;
+    bottom: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70px;
+    height: 4px;
+    background: #f17024;
+    border-radius: 2px;
+}
+
+.ns-clients-marquee {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 8%, #000 92%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 8%, #000 92%, transparent 100%);
+}
+
+.ns-clients-track {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    animation: ns-clients-scroll 28s linear infinite;
+    will-change: transform;
+}
+
+/* Cada grupo repite los logos las veces necesarias (ver script al final del
+   body) para que su ancho siempre supere el de la pantalla — así el loop
+   de -50% nunca deja ver el final del listado, sin importar qué tan ancho
+   sea el monitor ni cuántos logos haya. */
+.ns-clients-group {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ns-clients-marquee:hover .ns-clients-track {
+    animation-play-state: paused;
+}
+
+@keyframes ns-clients-scroll {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+/* Contorno uniforme: todas las tarjetas comparten la misma caja blanca,
+   sin importar la proporción real de cada logo (algunos son casi
+   cuadrados, otros muy anchos) — object-fit + padding las nivela a todas. */
+.ns-client-card {
+    flex-shrink: 0;
+    width: 190px;
+    height: 110px;
+    margin-right: 28px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(17, 52, 93, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 26px;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.ns-client-card:hover {
+    box-shadow: 0 12px 30px rgba(17, 52, 93, 0.12);
+    transform: translateY(-3px);
+}
+
+.ns-client-card img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+/* La escala de grises que se revela en hover solo tiene sentido con
+   mouse real — en touch/móvil :hover nunca se activa de forma persistente,
+   así que los logos se quedarían grises para siempre. En touch se muestran
+   a color completo desde el inicio. */
+@media (hover: hover) and (pointer: fine) {
+    .ns-client-card img {
+        filter: grayscale(1) opacity(0.55);
+        transition: filter 0.35s ease;
+    }
+
+    .ns-client-card:hover img {
+        filter: grayscale(0) opacity(1);
+    }
+}
+
+@media (max-width: 600px) {
+    .ns-client-card {
+        width: 140px;
+        height: 88px;
+        padding: 14px 18px;
+    }
+
+    .ns-clients-title {
+        margin-bottom: 2.5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ns-clients-track {
+        animation: none;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .ns-clients-track [aria-hidden="true"] {
+        display: none;
     }
 }
 

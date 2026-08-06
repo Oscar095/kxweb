@@ -1031,6 +1031,52 @@ body.admin-body {
     color: #64748b;
 }
 
+.badge-info {
+    background: rgba(0, 159, 227, 0.12);
+    color: var(--admin-kos-blue);
+}
+
+/* ====
+   Table Row Actions (compact buttons for admin-table cells)
+   ==== */
+.admin-table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-btn-sm {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.admin-btn-danger-sm {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--admin-danger);
+    border: 1px solid transparent;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--admin-transition);
+}
+
+.admin-btn-danger-sm:hover {
+    background: var(--admin-danger);
+    color: white;
+}
+
+.admin-btn-danger-sm:focus-visible,
+.admin-btn-sm:focus-visible {
+    outline: 2px solid var(--admin-kos-blue);
+    outline-offset: 2px;
+}
+
 /* ====
    Pagination
    ==== */

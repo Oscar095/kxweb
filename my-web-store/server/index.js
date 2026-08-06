@@ -3,6 +3,7 @@ const path = require('path');
 const fetch = require('node-fetch');
 const dotenv = require('dotenv');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcryptjs');
 
 // Cargar variables desde la raíz del proyecto (independiente del cwd)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
@@ -112,10 +113,23 @@ function setCookie(res, name, value, opts = {}) {
   if (opts.secure) parts.push('Secure');
   res.setHeader('Set-Cookie', parts.join('; '));
 }
+// Cualquier usuario logueado del panel (admin o comercial).
 function requireAdmin(req, res, next) {
   const { adminToken } = getCookies(req);
   const data = verifyToken(adminToken);
   if (!data || data.sub !== 'admin') return res.status(401).json({ message: 'No autorizado' });
+  req.adminUser = data;
+  next();
+}
+
+// Solo el rol 'admin' (banners, logos, biblioteca, bonos, categorías,
+// dashboard, gestión de usuarios) — el rol 'comercial' queda fuera de esto.
+function requireFullAdmin(req, res, next) {
+  const { adminToken } = getCookies(req);
+  const data = verifyToken(adminToken);
+  if (!data || data.sub !== 'admin') return res.status(401).json({ message: 'No autorizado' });
+  if ((data.role || 'admin') !== 'admin') return res.status(403).json({ message: 'Esta sección es solo para el administrador principal' });
+  req.adminUser = data;
   next();
 }
 
@@ -711,16 +725,21 @@ app.post('/api/denuncias', denunciaUpload.array('attachments', 6), async (req, r
 });
 
 // --- Admin Auth API ---
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
-    if (!ADMIN_PASSWORD) return res.status(500).json({ message: 'ADMIN_PASSWORD no configurada' });
-    if ((username || ADMIN_USER) !== ADMIN_USER || password !== ADMIN_PASSWORD) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
-    }
-    const token = signToken({ sub: 'admin', user: ADMIN_USER, iat: Date.now() });
+    if (!username || !password) return res.status(401).json({ message: 'Credenciales inválidas' });
+    const rows = await db.query(
+      `SELECT id, username, passwordHash, role FROM dbo.admin_users WHERE username = @username`,
+      { username }
+    );
+    const user = rows[0];
+    if (!user) return res.status(401).json({ message: 'Credenciales inválidas' });
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return res.status(401).json({ message: 'Credenciales inválidas' });
+    const token = signToken({ sub: 'admin', user: user.username, role: user.role, iat: Date.now() });
     setCookie(res, 'adminToken', token, { httpOnly: true, sameSite: 'Lax' });
-    res.json({ ok: true, user: ADMIN_USER });
+    res.json({ ok: true, user: user.username, role: user.role });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error en login' });
@@ -736,7 +755,67 @@ app.get('/api/admin/me', (req, res) => {
   const { adminToken } = getCookies(req);
   const data = verifyToken(adminToken);
   if (!data || data.sub !== 'admin') return res.status(401).json({ ok: false });
-  res.json({ ok: true, user: data.user });
+  res.json({ ok: true, user: data.user, role: data.role || 'admin' });
+});
+
+// --- Admin Users API (gestión de usuarios del panel, solo rol admin) ---
+app.get('/api/admin/users', requireFullAdmin, async (req, res) => {
+  try {
+    const rows = await db.query(`SELECT id, username, role, createdAt FROM dbo.admin_users ORDER BY createdAt ASC`);
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error obteniendo usuarios' });
+  }
+});
+
+app.post('/api/admin/users', requireFullAdmin, async (req, res) => {
+  try {
+    const { username, password, role } = req.body || {};
+    if (!username || !password) return res.status(400).json({ message: 'Usuario y contraseña son requeridos' });
+    const finalRole = role === 'comercial' ? 'comercial' : 'admin';
+    const existing = await db.query(`SELECT id FROM dbo.admin_users WHERE username = @username`, { username });
+    if (existing.length) return res.status(409).json({ message: 'Ese nombre de usuario ya existe' });
+    const hash = await bcrypt.hash(password, 10);
+    await db.query(
+      `INSERT INTO dbo.admin_users (username, passwordHash, role) VALUES (@username, @hash, @role)`,
+      { username, hash, role: finalRole }
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error creando usuario' });
+  }
+});
+
+app.delete('/api/admin/users/:id', requireFullAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const rows = await db.query(`SELECT username FROM dbo.admin_users WHERE id = @id`, { id });
+    const target = rows[0];
+    if (target && target.username === req.adminUser.user) {
+      return res.status(400).json({ message: 'No puedes eliminar tu propio usuario' });
+    }
+    await db.query(`DELETE FROM dbo.admin_users WHERE id = @id`, { id });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error eliminando usuario' });
+  }
+});
+
+app.patch('/api/admin/users/:id/password', requireFullAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { password } = req.body || {};
+    if (!password) return res.status(400).json({ message: 'Contraseña requerida' });
+    const hash = await bcrypt.hash(password, 10);
+    await db.query(`UPDATE dbo.admin_users SET passwordHash = @hash WHERE id = @id`, { id, hash });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error actualizando contraseña' });
+  }
 });
 
 // --- Chatbot Proxy API ---
@@ -795,8 +874,26 @@ app.use(express.static(staticDir, {
   }
 }));
 
+// Siembra el usuario admin inicial (desde .env) en dbo.admin_users si la tabla está vacía,
+// para migrar del login por variable de entorno al sistema de usuarios en base de datos.
+async function seedAdminUser() {
+  try {
+    const rows = await db.query('SELECT COUNT(*) AS cnt FROM dbo.admin_users');
+    if (rows[0]?.cnt > 0) return;
+    if (!ADMIN_PASSWORD) return;
+    const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+    await db.query(
+      `INSERT INTO dbo.admin_users (username, passwordHash, role) VALUES (@username, @hash, 'admin')`,
+      { username: ADMIN_USER, hash }
+    );
+    console.log(`[admin_users] Usuario admin inicial creado desde .env: ${ADMIN_USER}`);
+  } catch (e) {
+    console.error('[admin_users] Error sembrando usuario admin inicial:', e.message);
+  }
+}
+
 // Inicializar esquema SQL y conexión
-db.ensureSchema().then(() => console.log('SQL Server schema ensured')).catch(err => console.error('Error asegurando esquema SQL', err));
+db.ensureSchema().then(() => { console.log('SQL Server schema ensured'); return seedAdminUser(); }).catch(err => console.error('Error asegurando esquema SQL', err));
 
 // Exponer pool SQL en app.locals (opcional, útil para debug/operaciones futuras)
 db.getPool().then(pool => { app.locals.sqlPool = pool; }).catch(() => { /* ignore */ });
@@ -969,7 +1066,7 @@ app.get('/api/products/:id', async (req, res) => {
 
 // API Product Translations (English name/description overlay)
 // Upsert: creates or updates the translation row for a given product_id
-app.post('/api/product-translations', requireAdmin, async (req, res) => {
+app.post('/api/product-translations', requireFullAdmin, async (req, res) => {
   try {
     const b = req.body || {};
     const product_id = Number(b.product_id);
@@ -997,7 +1094,7 @@ app.post('/api/product-translations', requireAdmin, async (req, res) => {
 });
 
 // Delete a product's English translation (reverts the English site to the Spanish fallback)
-app.delete('/api/product-translations/:productId', requireAdmin, async (req, res) => {
+app.delete('/api/product-translations/:productId', requireFullAdmin, async (req, res) => {
   try {
     const product_id = Number(req.params.productId);
     if (Number.isNaN(product_id)) return res.status(400).json({ message: 'product_id inválido' });
@@ -1058,7 +1155,7 @@ app.get('/api/ciudades', async (req, res) => {
 });
 
 // Create category
-app.post('/api/categories', requireAdmin, async (req, res) => {
+app.post('/api/categories', requireFullAdmin, async (req, res) => {
   try {
     const b = req.body || {};
     const descripcion = (b.descripcion || b.description || b.nombre || b.name || '').toString().trim();
@@ -1073,7 +1170,7 @@ app.post('/api/categories', requireAdmin, async (req, res) => {
 });
 
 // Update category
-app.put('/api/categories/:id', requireAdmin, async (req, res) => {
+app.put('/api/categories/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1091,7 +1188,7 @@ app.put('/api/categories/:id', requireAdmin, async (req, res) => {
 });
 
 // Delete category
-app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
+app.delete('/api/categories/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1108,7 +1205,7 @@ app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
 
 // API Category Translations (English name/image overlay)
 // Upsert: creates or updates the translation row for a given category_id
-app.post('/api/category-translations', requireAdmin, async (req, res) => {
+app.post('/api/category-translations', requireFullAdmin, async (req, res) => {
   try {
     const b = req.body || {};
     const category_id = Number(b.category_id);
@@ -1134,7 +1231,7 @@ app.post('/api/category-translations', requireAdmin, async (req, res) => {
 });
 
 // Delete a category's English translation (reverts the English site to the Spanish fallback)
-app.delete('/api/category-translations/:categoryId', requireAdmin, async (req, res) => {
+app.delete('/api/category-translations/:categoryId', requireFullAdmin, async (req, res) => {
   try {
     const category_id = Number(req.params.categoryId);
     if (Number.isNaN(category_id)) return res.status(400).json({ message: 'category_id inválido' });
@@ -1198,7 +1295,7 @@ const libUpload = multer({
   }
 });
 
-app.post('/api/biblioteca', requireAdmin, libUpload.single('imagen'), async (req, res) => {
+app.post('/api/biblioteca', requireFullAdmin, libUpload.single('imagen'), async (req, res) => {
   try {
     const { nombre } = req.body || {};
     console.log('[POST /api/biblioteca] request received', { nombre: nombre || null, file: req.file ? { originalname: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype } : null });
@@ -1302,7 +1399,7 @@ const bannerUpload = multer({
   }
 });
 
-app.post('/api/banners', requireAdmin, bannerUpload.single('imagen'), async (req, res) => {
+app.post('/api/banners', requireFullAdmin, bannerUpload.single('imagen'), async (req, res) => {
   try {
     const { nombre } = req.body || {};
     if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
@@ -1333,7 +1430,7 @@ app.post('/api/banners', requireAdmin, bannerUpload.single('imagen'), async (req
   }
 });
 
-app.patch('/api/banners/:id', requireAdmin, async (req, res) => {
+app.patch('/api/banners/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1393,7 +1490,7 @@ app.patch('/api/banners/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/banners/:id', requireAdmin, async (req, res) => {
+app.delete('/api/banners/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1468,7 +1565,7 @@ app.get('/api/bonos', async (req, res) => {
   }
 });
 
-app.post('/api/bonos', requireAdmin, bonoUpload.single('imagen'), async (req, res) => {
+app.post('/api/bonos', requireFullAdmin, bonoUpload.single('imagen'), async (req, res) => {
   try {
     const b = req.body || {};
     const nombre = (b.nombre || '').toString().trim();
@@ -1511,7 +1608,7 @@ app.post('/api/bonos', requireAdmin, bonoUpload.single('imagen'), async (req, re
   }
 });
 
-app.put('/api/bonos/:id', requireAdmin, bonoUpload.single('imagen'), async (req, res) => {
+app.put('/api/bonos/:id', requireFullAdmin, bonoUpload.single('imagen'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1560,7 +1657,7 @@ app.put('/api/bonos/:id', requireAdmin, bonoUpload.single('imagen'), async (req,
 });
 
 // Sets this bono as the single active one, deactivating every other bono
-app.patch('/api/bonos/:id/activate', requireAdmin, async (req, res) => {
+app.patch('/api/bonos/:id/activate', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1579,7 +1676,7 @@ app.patch('/api/bonos/:id/activate', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/bonos/:id', requireAdmin, async (req, res) => {
+app.delete('/api/bonos/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1616,7 +1713,7 @@ app.delete('/api/bonos/:id', requireAdmin, async (req, res) => {
 });
 
 // Eliminar elemento de biblioteca (protegido)
-app.delete('/api/biblioteca/:id', requireAdmin, async (req, res) => {
+app.delete('/api/biblioteca/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -2208,7 +2305,7 @@ app.post('/api/track', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ADMIN: Dashboard
 // ═══════════════════════════════════════════════════════════════════════════════
-app.get('/api/admin/dashboard', requireAdmin, async (req, res) => {
+app.get('/api/admin/dashboard', requireFullAdmin, async (req, res) => {
   try {
     // KPIs
     const [pedidosStats] = await db.query(`
@@ -2668,7 +2765,7 @@ const logoUpload = multer({
   }
 });
 
-app.post('/api/logos', requireAdmin, logoUpload.single('imagen'), async (req, res) => {
+app.post('/api/logos', requireFullAdmin, logoUpload.single('imagen'), async (req, res) => {
   try {
     const { nombre } = req.body || {};
     if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
@@ -2699,7 +2796,7 @@ app.post('/api/logos', requireAdmin, logoUpload.single('imagen'), async (req, re
   }
 });
 
-app.patch('/api/logos/:id', requireAdmin, async (req, res) => {
+app.patch('/api/logos/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -2725,7 +2822,7 @@ app.patch('/api/logos/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/logos/:id', requireAdmin, async (req, res) => {
+app.delete('/api/logos/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });

@@ -51,35 +51,37 @@
 
   <header id="site-header"></header>
 
-  <!-- Security trust bar -->
+  <!-- Security trust bar (carrusel rotativo, mismo mecanismo que el anuncio de arriba) -->
   <div class="co-trust-bar">
     <div class="container co-trust-bar-inner">
-      <span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-          <rect x="3" y="11" width="18" height="11" rx="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-        Conexión SSL 256-bit
-      </span>
-      <span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-        Datos 100% encriptados
-      </span>
-      <span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-          <rect x="1" y="4" width="22" height="16" rx="2" />
-          <line x1="1" y1="10" x2="23" y2="10" />
-        </svg>
-        Pago procesado por Wompi
-      </span>
-      <span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        Transacciones verificadas
-      </span>
+      <div class="co-trust-fade">
+        <span class="co-trust-msg active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          Conexión SSL 256-bit
+        </span>
+        <span class="co-trust-msg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          Datos 100% encriptados
+        </span>
+        <span class="co-trust-msg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <rect x="1" y="4" width="22" height="16" rx="2" />
+            <line x1="1" y1="10" x2="23" y2="10" />
+          </svg>
+          Pago procesado por Wompi
+        </span>
+        <span class="co-trust-msg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Transacciones verificadas
+        </span>
+      </div>
     </div>
   </div>
 
@@ -383,7 +385,7 @@
                 <circle cx="5.5" cy="18.5" r="2.5"></circle>
                 <circle cx="18.5" cy="18.5" r="2.5"></circle>
               </svg>
-              Entrega <strong>1-3 días</strong> a ciudades principales
+              <span>Entrega <strong>1-3 días</strong> a ciudades principales</span>
             </div>
             <div id="co-delivery-estimate" class="co-delivery-estimate" aria-live="polite"></div>
 

@@ -498,6 +498,21 @@ async function ensureSchema() {
       );
     END
   `);
+
+  // admin_users (usuarios del panel de administración, con rol para permisos:
+  // 'admin' = acceso total, 'comercial' = pedidos/contactos/productos)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[admin_users]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.admin_users (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        username NVARCHAR(100) NOT NULL UNIQUE,
+        passwordHash NVARCHAR(255) NOT NULL,
+        role NVARCHAR(50) NOT NULL DEFAULT ('admin'),
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
+      );
+    END
+  `);
 }
 
 module.exports = { query, getPool, ensureSchema, sql };

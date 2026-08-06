@@ -6,6 +6,18 @@ import { SITE_CONFIG } from './utils/config.js';
 renderHeader(document.getElementById('site-header'));
 renderCartDrawer(document.getElementById('cart-drawer'));
 
+// Carrusel rotativo de la barra de confianza (SSL / datos / Wompi / verificado)
+(function initTrustBarCarousel() {
+  const items = document.querySelectorAll('.co-trust-msg');
+  if (!items.length) return;
+  let current = 0;
+  setInterval(() => {
+    items[current].classList.remove('active');
+    current = (current + 1) % items.length;
+    items[current].classList.add('active');
+  }, 3500);
+})();
+
 // ── utilities ─────────────────────────────────────────────────────────────────
 
 function readCart() {

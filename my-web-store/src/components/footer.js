@@ -117,8 +117,27 @@ export function renderFooter(mount) {
           gap: 32px;
           padding-top: 36px;
         }
-        .footer-tagline { max-width: 100%; }
+        /* Logo y tagline centrados: quedaban pegados al borde izquierdo
+           mientras los botones de abajo son de ancho completo, se veía
+           descuadrado. */
+        .footer-brand {
+          text-align: center;
+        }
+        .footer-logo {
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .footer-tagline { max-width: 100%; margin-left: auto; margin-right: auto; }
         .footer-bottom-bar { flex-direction: column; text-align: center; }
+        /* En 2 columnas quedaban 2 botones arriba y 1 solo abajo, descuadrado.
+           Se apilan de a uno, ancho completo, para que se vea organizado. */
+        .footer-social-pills {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .footer-pill {
+          justify-content: center;
+        }
       }
     </style>
 

@@ -133,6 +133,33 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         </div>
                     </div>
                 </section>
+
+                <!-- SECCION: Nuestros Clientes -->
+                <section class="ns-clients-section">
+                    <div class="container reveal">
+                        <h2 class="ns-clients-title">Nuestros Clientes</h2>
+                    </div>
+                    <div class="ns-clients-marquee" aria-label="Logos de nuestros clientes">
+                        <div class="ns-clients-track" id="ns-clients-track">
+                            <div class="ns-clients-group">
+                                <div class="ns-client-card"><img src="/images/ourclients/logburger.webp" alt="Burger King" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logmimos.png" alt="Mimo's" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logpostobon.png" alt="Postobón" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logtostao.png" alt="Tostao" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logventolini.png" alt="Ventolini" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logyogen.webp" alt="Yogen Früz" loading="lazy"></div>
+                            </div>
+                            <div class="ns-clients-group" aria-hidden="true">
+                                <div class="ns-client-card"><img src="/images/ourclients/logburger.webp" alt="" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logmimos.png" alt="" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logpostobon.png" alt="" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logtostao.png" alt="" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logventolini.png" alt="" loading="lazy"></div>
+                                <div class="ns-client-card"><img src="/images/ourclients/logyogen.webp" alt="" loading="lazy"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <!-- SECCION: Sticky/Parallax Footer Reveal.  -->
@@ -164,7 +191,58 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         }, { threshold: 0.1 });
 
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-        
+
+        // Carrusel de clientes: con solo 6 logos, su ancho real (~1300px) es
+        // menor que el de casi cualquier pantalla de escritorio, así que el
+        // loop de -50% dejaba ver el final del listado antes de reiniciar.
+        // En vez de duplicar más logos "a mano" en el HTML (que se rompería
+        // de nuevo en un monitor más ancho, o si mañana hay más/menos
+        // clientes), se clona el set las veces que hagan falta según el
+        // ancho real de pantalla, y se ajusta la duración para que la
+        // velocidad de desplazamiento sea siempre la misma.
+        (function setupClientsMarquee() {
+            const marquee = document.querySelector('.ns-clients-marquee');
+            const track = document.getElementById('ns-clients-track');
+            if (!marquee || !track) return;
+
+            const [groupA, groupB] = track.children;
+            if (!groupA || !groupB) return;
+            const originals = Array.from(groupA.children).map(card => card.cloneNode(true));
+            if (!originals.length) return;
+
+            const PX_PER_SECOND = 45;
+
+            function rebuild() {
+                const containerWidth = marquee.clientWidth || window.innerWidth;
+                const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                groupA.innerHTML = '';
+                originals.forEach(card => groupA.appendChild(card.cloneNode(true)));
+
+                if (!reduceMotion) {
+                    let guard = 0;
+                    while (groupA.scrollWidth < containerWidth * 1.25 && guard < 30) {
+                        originals.forEach(card => groupA.appendChild(card.cloneNode(true)));
+                        guard++;
+                    }
+                }
+
+                groupB.innerHTML = groupA.innerHTML;
+                groupB.querySelectorAll('img').forEach(img => img.setAttribute('alt', ''));
+
+                const duration = Math.max(groupA.scrollWidth / PX_PER_SECOND, 12);
+                track.style.animationDuration = duration + 's';
+            }
+
+            rebuild();
+
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(rebuild, 250);
+            });
+        })();
+
         // Dynamic main line growth on scroll — mide contra .ns-line-track
         // (Misión + Visión + título del mapa) para que la línea se detenga
         // justo en el título de "Presencia de KOS", no en el mapa completo.

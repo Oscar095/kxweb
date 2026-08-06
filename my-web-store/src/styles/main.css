@@ -1836,16 +1836,24 @@ h6 {
 }
 
 .benefit-card.featured .benefit-icon {
-	background: rgba(255, 255, 255, 0.1);
+	background: none;
 	color: #fff;
-	width: 80px;
-	height: 80px;
-	border: 1px solid rgba(255, 255, 255, 0.2);
+	width: auto;
+	height: auto;
+	border: none;
+	border-radius: 0;
 }
 
 .benefit-card.featured .benefit-icon svg {
 	width: 44px;
 	height: 44px;
+}
+
+.benefit-icon-certifi {
+	height: 128px;
+	width: auto;
+	display: block;
+	filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.35));
 }
 
 .benefit-card:hover {
@@ -2781,7 +2789,8 @@ h6 {
 	font-size: 0.88rem;
 	color: var(--text-main);
 	font-weight: 500;
-	margin-bottom: 16px;
+	/* Sin margin: el padre (.co-form) ya reparte 28px de gap entre cada
+	   hijo — sumarle margin propio duplicaba el espacio (28+16=44px). */
 }
 
 .co-delivery-reminder svg {
@@ -2789,11 +2798,17 @@ h6 {
 	color: var(--primary);
 }
 
+/* Vacío por defecto (sin estimado de fecha aún): que no reserve espacio
+   ni sume un hueco extra al gap del formulario. Cuando JS le agregue
+   texto, deja de estar :empty y vuelve a ocupar su lugar normalmente. */
+#checkout-message:empty,
+.co-delivery-estimate:empty {
+	display: none;
+}
+
 .co-delivery-estimate {
 	font-size: 0.82rem;
 	color: var(--muted);
-	margin-top: 6px;
-	margin-bottom: 16px;
 	text-align: center;
 }
 
@@ -4642,15 +4657,34 @@ img.bs-card-img {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	gap: 28px;
-	flex-wrap: wrap
 }
 
-.co-trust-bar-inner span {
+/* Carrusel rotativo: un solo mensaje a la vez con fundido, igual que el
+   anuncio de arriba del header — antes eran 4 líneas apiladas sin orden. */
+.co-trust-fade {
+	position: relative;
+	width: 100%;
+	max-width: 320px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.co-trust-msg {
+	position: absolute;
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	opacity: 1
+	white-space: nowrap;
+	opacity: 0;
+	transition: opacity 0.5s ease-in-out;
+	pointer-events: none;
+}
+
+.co-trust-msg.active {
+	opacity: 1;
+	pointer-events: auto;
 }
 
 /* ──── Main wrapper ──── */
