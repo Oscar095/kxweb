@@ -134,8 +134,9 @@
                 <div class="co-field">
                   <label for="tipoPersona">Tipo de persona *</label>
                   <select id="tipoPersona" name="tipoPersona" required>
+                    <option value="" disabled selected>-- Seleccionar --</option>
                     <option value="N">Natural</option>
-                    <!-- <option value="J">Jurídica</option> -->
+                    <option value="J">Jurídica</option>
                   </select>
                 </div>
 
@@ -202,6 +203,26 @@
                 <div class="co-field">
                   <label for="fechaNacimiento">Fecha de nacimiento</label>
                   <input id="fechaNacimiento" name="fechaNacimiento" type="date" />
+                </div>
+
+                <!-- RUT (solo persona jurídica) -->
+                <div class="co-field co-field-full" id="rut-field" style="display:none;">
+                  <label for="rutFile">RUT *</label>
+                  <div class="file-upload-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" class="upload-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span class="upload-text"><strong>Haz clic para subir el RUT</strong><br>PDF o imagen (máx. 8MB). Será verificado por nuestro equipo.</span>
+                    <input id="rutFile" name="rutFile" type="file" accept="image/png,image/jpeg,image/jpg,application/pdf" class="file-input-hidden" />
+                  </div>
+                </div>
+
+                <!-- Cámara de Comercio (solo persona jurídica) -->
+                <div class="co-field co-field-full" id="camara-field" style="display:none;">
+                  <label for="camaraFile">Cámara de Comercio *</label>
+                  <div class="file-upload-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" class="upload-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span class="upload-text"><strong>Haz clic para subir la Cámara de Comercio</strong><br>PDF o imagen (máx. 8MB). Será verificado por nuestro equipo.</span>
+                    <input id="camaraFile" name="camaraFile" type="file" accept="image/png,image/jpeg,image/jpg,application/pdf" class="file-input-hidden" />
+                  </div>
                 </div>
               </div>
 

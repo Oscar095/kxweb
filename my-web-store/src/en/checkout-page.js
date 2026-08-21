@@ -547,6 +547,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const dvField = document.getElementById('dv-field');
   const apellidosField = document.getElementById('apellidos-field');
   const nombresLabel = document.getElementById('nombres-label');
+  const rutField = document.getElementById('rut-field');
+  const camaraField = document.getElementById('camara-field');
+  const rutInput = document.getElementById('rutFile');
+  const camaraInput = document.getElementById('camaraFile');
 
   renderOrderSummary();
   showReturnMessageFromWompi();
@@ -587,6 +591,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const esJuridica = tipoPersonaSelect.value === 'J';
     if (apellidosField) apellidosField.style.display = esJuridica ? 'none' : '';
     if (nombresLabel) nombresLabel.textContent = esJuridica ? 'Company Name *' : 'First Name *';
+    // RUT and Certificate of Good Standing: required only for legal entities
+    if (rutField) rutField.style.display = esJuridica ? '' : 'none';
+    if (camaraField) camaraField.style.display = esJuridica ? '' : 'none';
+    if (rutInput) rutInput.required = esJuridica;
+    if (camaraInput) camaraInput.required = esJuridica;
+    if (!esJuridica) {
+      if (rutInput) rutInput.value = '';
+      if (camaraInput) camaraInput.value = '';
+    }
     // Si es jurídica, auto-seleccionar NIT
     if (esJuridica && tipoDocSelect) {
       tipoDocSelect.value = 'NIT';
@@ -699,6 +712,22 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const esJuridicaSubmit = String(form.tipoPersona?.value || '').trim() === 'J';
+    if (esJuridicaSubmit) {
+      if (!rutInput?.files?.[0]) {
+        msgEl.textContent = 'You must attach the RUT for legal entities.';
+        msgEl.className = 'co-message co-message-error';
+        rutInput?.focus();
+        return;
+      }
+      if (!camaraInput?.files?.[0]) {
+        msgEl.textContent = 'You must attach the Certificate of Good Standing for legal entities.';
+        msgEl.className = 'co-message co-message-error';
+        camaraInput?.focus();
+        return;
+      }
+    }
+
     // Advance to step 2
     setStep(2);
     payBtn.disabled = true;
@@ -786,6 +815,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const saved = await saveResp.json().catch(() => ({}));
       const pedidoId = saved?.id;
       if (!pedidoId) throw new Error('Could not retrieve order ID.');
+
+      // Legal entity: upload RUT and Certificate of Good Standing (verifiable documents)
+      if (tipoPersonaVal === 'J') {
+        msgEl.textContent = 'Uploading documents...';
+        const docsFd = new FormData();
+        docsFd.append('rut', rutInput.files[0]);
+        docsFd.append('camaraComercio', camaraInput.files[0]);
+        const docsResp = await fetch(`/api/pedidos/${pedidoId}/documentos`, { method: 'POST', body: docsFd });
+        if (!docsResp.ok) {
+          const errText = await docsResp.text().catch(() => '');
+          throw new Error(`Could not upload documents: ${errText || docsResp.status}`);
+        }
+      }
 
       // Advance to step 3
       setStep(3);

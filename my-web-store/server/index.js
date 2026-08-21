@@ -20,6 +20,7 @@ const mailTransporter = process.env.SMTP_HOST ? nodemailer.createTransport({
 // switching to SQL Server + Azure Blob storage
 const db = require('./db');
 const { StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions, BlobServiceClient } = require('@azure/storage-blob');
+const archiver = require('archiver');
 
 const multer = require('multer');
 const upload = multer({
@@ -477,6 +478,79 @@ app.post('/api/pedidos', async (req, res) => {
       message: 'Error guardando pedido',
       detail: (e && e.message) ? String(e.message).slice(0, 300) : undefined
     });
+  }
+});
+
+// --- Documentos de pedido (RUT / Cámara de Comercio para personas jurídicas) ---
+// Contenedor privado y separado de "images": son documentos de identidad/legales,
+// no deben quedar con lectura pública anónima como el resto de adjuntos del sitio.
+const pedidoDocUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB por archivo
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg)$/.test(file.mimetype) || file.mimetype === 'application/pdf') return cb(null, true);
+    cb(new Error('Solo se permiten imágenes (png, jpg) o PDF'));
+  }
+});
+const docsContainerName = process.env.AZURE_DOCS_CONTAINER || 'documentos-legales';
+
+app.post('/api/pedidos/:id/documentos', pedidoDocUpload.fields([{ name: 'rut', maxCount: 1 }, { name: 'camaraComercio', maxCount: 1 }]), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID de pedido inválido' });
+
+    const pedidoRows = await db.query('SELECT id FROM dbo.pedidos WHERE id = @id', { id });
+    if (!pedidoRows || !pedidoRows.length) return res.status(404).json({ message: 'Pedido no encontrado' });
+
+    const rutFile = req.files?.rut?.[0];
+    const camaraFile = req.files?.camaraComercio?.[0];
+    if (!rutFile || !camaraFile) {
+      return res.status(400).json({ message: 'Se requieren ambos documentos: RUT y Cámara de Comercio' });
+    }
+    if (!blobServiceClient) {
+      return res.status(500).json({ message: 'Almacenamiento no configurado' });
+    }
+
+    const containerClient = blobServiceClient.getContainerClient(docsContainerName);
+    try { await containerClient.createIfNotExists(); } catch { /* privado: sin access:'blob' */ }
+
+    const uploadDoc = async (file, tipo) => {
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.originalname}`;
+      const blobName = `Pedidos/${id}/${tipo}/${filename}`;
+      const blockClient = containerClient.getBlockBlobClient(blobName);
+      // Content-Disposition: attachment fuerza la descarga real del archivo (con su nombre
+      // original) en vez de abrirlo dentro del navegador al usar el enlace firmado.
+      const asciiFallback = file.originalname.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, "'");
+      const contentDisposition = `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(file.originalname)}`;
+      await blockClient.uploadData(file.buffer, {
+        blobHTTPHeaders: { blobContentType: file.mimetype, blobContentDisposition: contentDisposition }
+      });
+      return {
+        tipo,
+        filename: file.originalname,
+        type: file.mimetype,
+        size: file.size,
+        container: docsContainerName,
+        blobName,
+        uploadedAt: new Date().toISOString()
+      };
+    };
+
+    const documentos = [
+      await uploadDoc(rutFile, 'RUT'),
+      await uploadDoc(camaraFile, 'CAMARA_COMERCIO')
+    ];
+
+    await db.query(
+      `UPDATE dbo.pedidos SET documentos = @documentos, documentos_verificados = 0, documentos_verificados_por = NULL, documentos_verificados_at = NULL WHERE id = @id`,
+      { id, documentos: JSON.stringify(documentos) }
+    );
+
+    res.status(201).json({ ok: true, documentos: documentos.map(d => ({ tipo: d.tipo, filename: d.filename })) });
+  } catch (e) {
+    console.error('POST /api/pedidos/:id/documentos error', e);
+    const detail = e && e.message ? String(e.message).slice(0, 600) : String(e);
+    res.status(500).json({ message: 'Error subiendo documentos', detail });
   }
 });
 
@@ -2208,10 +2282,143 @@ app.get('/api/admin/pedidos/:id', requireAdmin, async (req, res) => {
 
     const items = await db.query('SELECT * FROM dbo.pedido_items WHERE pedido_id = @id ORDER BY id', { id });
 
-    res.json({ pedido: rows[0], items: items || [] });
+    let documentos = [];
+    try {
+      const raw = rows[0].documentos;
+      documentos = raw ? JSON.parse(raw) : [];
+    } catch { documentos = []; }
+    documentos = documentos.map(d => {
+      const blobPathEscaped = String(d.blobName || '').split('/').map(encodeURIComponent).join('/');
+      const blobUrl = `https://${accountName}.blob.core.windows.net/${d.container}/${blobPathEscaped}`;
+      return { ...d, url: generateReadSasForBlob(blobUrl) };
+    });
+
+    res.json({ pedido: rows[0], items: items || [], documentos });
   } catch (e) {
     console.error('GET /api/admin/pedidos/:id error', e);
     res.status(500).json({ message: 'Error obteniendo pedido' });
+  }
+});
+
+app.patch('/api/admin/pedidos/:id/documentos/verificar', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
+    const verificado = !!(req.body && req.body.verificado);
+
+    const rows = await db.query('SELECT id FROM dbo.pedidos WHERE id = @id', { id });
+    if (!rows || !rows.length) return res.status(404).json({ message: 'Pedido no encontrado' });
+
+    await db.query(
+      `UPDATE dbo.pedidos SET documentos_verificados = @verificado, documentos_verificados_por = @por, documentos_verificados_at = SYSUTCDATETIME() WHERE id = @id`,
+      { id, verificado: verificado ? 1 : 0, por: req.adminUser?.user || null }
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PATCH /api/admin/pedidos/:id/documentos/verificar error', e);
+    res.status(500).json({ message: 'Error actualizando verificación' });
+  }
+});
+
+// Descarga de toda la información del pedido (datos + documentos si es persona jurídica)
+// en un único ZIP. Misma lógica para todos los pedidos: naturales solo traen el resumen,
+// jurídicos además incluyen el RUT y la Cámara de Comercio.
+app.get('/api/admin/pedidos/:id/descargar', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const rows = await db.query('SELECT * FROM dbo.pedidos WHERE id = @id', { id });
+    if (!rows || !rows.length) return res.status(404).json({ message: 'Pedido no encontrado' });
+    const p = rows[0];
+
+    const items = await db.query('SELECT * FROM dbo.pedido_items WHERE pedido_id = @id ORDER BY id', { id });
+
+    let documentos = [];
+    try { documentos = p.documentos ? JSON.parse(p.documentos) : []; } catch { documentos = []; }
+    const esJuridica = String(p.tipo_persona || 'N') === 'J';
+
+    const lines = [
+      `PEDIDO #${p.id}`,
+      '='.repeat(40),
+      '',
+      'INFORMACIÓN DEL PEDIDO',
+      `Estado: ${p.payment_status || 'PENDING'}`,
+      `Método de pago: ${p.payment_method || 'N/A'}`,
+      `ID Wompi: ${p.id_wompi || 'N/A'}`,
+      `Fecha: ${p.createdAt || ''}`,
+      '',
+      'DATOS DEL CLIENTE',
+      `Tipo de persona: ${esJuridica ? 'Jurídica' : 'Natural'}`,
+      `Tipo de documento: ${p.tipo_documento || ''}`,
+      `Número de documento: ${p.nit_id || ''}${p.digito_verificacion ? '-' + p.digito_verificacion : ''}`,
+      `${esJuridica ? 'Razón social' : 'Nombre completo'}: ${p.nombre_completo || p.name || ''}`,
+      ...(esJuridica ? [] : [`Nombres: ${p.nombres || ''}`, `Apellidos: ${p.apellidos || ''}`]),
+      ...(p.regimen ? [`Régimen: ${p.regimen}`] : []),
+      ...(p.fecha_nacimiento ? [`Fecha de nacimiento: ${p.fecha_nacimiento}`] : []),
+      '',
+      'CONTACTO',
+      `Email: ${p.email || ''}`,
+      `Teléfono: ${p.phone || ''}`,
+      ...(p.telefono_fijo ? [`Teléfono fijo: ${p.telefono_fijo}`] : []),
+      '',
+      'DIRECCIÓN DE ENVÍO',
+      `Dirección: ${p.address || ''}`,
+      `Ciudad: ${p.city || ''}`,
+      ...(p.departamento ? [`Departamento: ${p.departamento}`] : []),
+      `País: ${p.pais || 'CO'}`,
+      ...(p.notes ? [`Notas: ${p.notes}`] : []),
+      '',
+      'TOTALES',
+      `Subtotal: ${p.subtotal}`,
+      `IVA: ${p.iva}`,
+      `Flete: ${p.flete || 0}`,
+      `Total: ${p.total_value}`,
+      '',
+      'PRODUCTOS',
+      ...(items && items.length
+        ? items.map(i => `- ${i.product_name} (SKU ${i.product_sku}) x${i.quantity} = ${i.subtotal}`)
+        : ['(sin items registrados)']),
+      ...(esJuridica ? [
+        '',
+        'DOCUMENTOS LEGALES',
+        `Estado de verificación: ${p.documentos_verificados ? 'Verificado' : 'Pendiente'}`,
+        ...(p.documentos_verificados_por ? [`Verificado por: ${p.documentos_verificados_por} el ${p.documentos_verificados_at}`] : []),
+        ...documentos.map(d => `- ${d.tipo}: ${d.filename}`)
+      ] : [])
+    ];
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="pedido-${id}.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', err => {
+      console.error('archiver error', err);
+      if (!res.headersSent) res.status(500).json({ message: 'Error generando el archivo ZIP' });
+      else res.end();
+    });
+    archive.pipe(res);
+
+    archive.append(lines.join('\n'), { name: `Pedido-${id}-Informacion.txt` });
+
+    if (esJuridica && documentos.length && blobServiceClient) {
+      const containerClient = blobServiceClient.getContainerClient(docsContainerName);
+      for (const d of documentos) {
+        try {
+          const blockClient = containerClient.getBlockBlobClient(d.blobName);
+          const buffer = await blockClient.downloadToBuffer();
+          archive.append(buffer, { name: `Documentos/${d.tipo}-${d.filename}` });
+        } catch (docErr) {
+          console.warn(`No se pudo incluir documento ${d.blobName} en el ZIP:`, docErr.message);
+        }
+      }
+    }
+
+    await archive.finalize();
+  } catch (e) {
+    console.error('GET /api/admin/pedidos/:id/descargar error', e);
+    if (!res.headersSent) res.status(500).json({ message: 'Error generando descarga' });
   }
 });
 

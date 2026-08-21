@@ -134,7 +134,9 @@
                 <div class="co-field">
                   <label for="tipoPersona">Person Type *</label>
                   <select id="tipoPersona" name="tipoPersona" required>
+                    <option value="" disabled selected>-- Select --</option>
                     <option value="N">Individual</option>
+                    <option value="J">Legal Entity</option>
                   </select>
                 </div>
 
@@ -201,6 +203,26 @@
                 <div class="co-field">
                   <label for="fechaNacimiento">Date of Birth</label>
                   <input id="fechaNacimiento" name="fechaNacimiento" type="date" />
+                </div>
+
+                <!-- RUT (legal entities only) -->
+                <div class="co-field co-field-full" id="rut-field" style="display:none;">
+                  <label for="rutFile">Tax Registration (RUT) *</label>
+                  <div class="file-upload-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" class="upload-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span class="upload-text"><strong>Click to upload the RUT</strong><br>PDF or image (max. 8MB). Will be verified by our team.</span>
+                    <input id="rutFile" name="rutFile" type="file" accept="image/png,image/jpeg,image/jpg,application/pdf" class="file-input-hidden" />
+                  </div>
+                </div>
+
+                <!-- Certificate of Good Standing / Cámara de Comercio (legal entities only) -->
+                <div class="co-field co-field-full" id="camara-field" style="display:none;">
+                  <label for="camaraFile">Certificate of Good Standing *</label>
+                  <div class="file-upload-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" class="upload-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span class="upload-text"><strong>Click to upload the certificate</strong><br>PDF or image (max. 8MB). Will be verified by our team.</span>
+                    <input id="camaraFile" name="camaraFile" type="file" accept="image/png,image/jpeg,image/jpg,application/pdf" class="file-input-hidden" />
+                  </div>
                 </div>
               </div>
 

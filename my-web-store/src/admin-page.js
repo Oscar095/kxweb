@@ -1688,10 +1688,14 @@ window.__viewPedido = async (id) => {
     const data = await r.json();
     const p = data.pedido;
     const items = data.items || [];
+    const documentos = data.documentos || [];
 
     const modal = document.getElementById('pedido-modal');
     const body = document.getElementById('pedido-modal-body');
     if (!modal || !body) return;
+
+    const downloadBtn = document.getElementById('pedido-download-btn');
+    if (downloadBtn) downloadBtn.href = `/api/admin/pedidos/${id}/descargar`;
 
     const itemsHtml = items.length ? `
       <table class="admin-table" style="margin-top:16px;">
@@ -1733,12 +1737,46 @@ window.__viewPedido = async (id) => {
         <h4>Productos del Pedido</h4>
         ${itemsHtml}
       </div>
+      ${documentos.length ? `
+      <div class="pedido-detail-section" style="margin-top:16px;">
+        <h4>Documentos Legales ${p.documentos_verificados ? '<span class="admin-badge badge-success">Verificado</span>' : '<span class="admin-badge badge-warning">Pendiente de verificación</span>'}</h4>
+        ${documentos.map(d => `
+          <div class="pedido-detail-row" style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
+            <span><strong>${d.tipo === 'RUT' ? 'RUT' : 'Cámara de Comercio'}:</strong> ${d.filename || ''}</span>
+            <a href="${d.url}" target="_blank" rel="noopener" class="admin-btn-secondary admin-btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Descargar
+            </a>
+          </div>`).join('')}
+        ${p.documentos_verificados_por ? `<div class="pedido-detail-row"><small style="color:var(--admin-text-muted);">Verificado por ${p.documentos_verificados_por} el ${formatDate(p.documentos_verificados_at)}</small></div>` : ''}
+        <div style="margin-top:10px;">
+          <button type="button" class="${p.documentos_verificados ? 'admin-btn-secondary' : 'admin-btn-primary'} admin-btn-sm" onclick="window.__toggleDocsVerificados(${p.id}, ${p.documentos_verificados ? 'false' : 'true'})">
+            ${p.documentos_verificados ? 'Marcar como no verificado' : 'Marcar como verificado'}
+          </button>
+        </div>
+      </div>` : ''}
     `;
 
     modal.style.display = 'flex';
   } catch (e) {
     console.error('viewPedido error', e);
     alert('Error cargando detalle del pedido');
+  }
+};
+
+window.__toggleDocsVerificados = async (id, verificado) => {
+  try {
+    const r = await fetch(`/api/admin/pedidos/${id}/documentos/verificar`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ verificado })
+    });
+    if (!r.ok) throw new Error('Error actualizando verificación');
+    window.__viewPedido(id);
+  } catch (e) {
+    console.error('toggleDocsVerificados error', e);
+    alert('No se pudo actualizar el estado de verificación');
   }
 };
 

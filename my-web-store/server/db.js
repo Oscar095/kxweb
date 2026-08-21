@@ -375,6 +375,32 @@ async function ensureSchema() {
     END
   `);
 
+  // Documentos legales (RUT / Cámara de Comercio) para personas jurídicas
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','documentos') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD documentos NVARCHAR(MAX) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','documentos_verificados') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD documentos_verificados BIT NULL CONSTRAINT DF_pedidos_documentos_verificados DEFAULT (0);
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','documentos_verificados_por') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD documentos_verificados_por NVARCHAR(100) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','documentos_verificados_at') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD documentos_verificados_at DATETIME2 NULL;
+    END
+  `);
+
   // pedido_items (line items for each order)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[pedido_items]') AND type in (N'U'))

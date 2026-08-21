@@ -17,6 +17,7 @@
   "license": "MIT",
   "dependencies": {
     "@azure/storage-blob": "^12.29.1",
+    "archiver": "^7.0.1",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
     "dotenv": "^17.2.2",
