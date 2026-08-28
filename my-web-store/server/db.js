@@ -401,6 +401,27 @@ async function ensureSchema() {
     END
   `);
 
+  // Bono (first-purchase discount) applied to this pedido, if any — snapshot of the
+  // percentage/value at purchase time so later edits to the bono don't rewrite history.
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','bono_id') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD bono_id INT NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','descuento_valor') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD descuento_valor DECIMAL(18,2) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','descuento_porcentaje') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD descuento_porcentaje FLOAT NULL;
+    END
+  `);
+
   // pedido_items (line items for each order)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[pedido_items]') AND type in (N'U'))
@@ -522,6 +543,22 @@ async function ensureSchema() {
         createdAt DATETIME2 DEFAULT SYSUTCDATETIME(),
         updatedAt DATETIME2 NULL
       );
+    END
+  `);
+
+  // Vigencia del bono (fecha desde/hasta) — NULL en cualquiera de las dos = sin límite en ese
+  // extremo. Permite programar campañas ("por el tiempo que digamos") sin depender solo del
+  // toggle manual `activo`.
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.bonos','fecha_inicio') IS NULL
+    BEGIN
+      ALTER TABLE dbo.bonos ADD fecha_inicio DATETIME2 NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.bonos','fecha_fin') IS NULL
+    BEGIN
+      ALTER TABLE dbo.bonos ADD fecha_fin DATETIME2 NULL;
     END
   `);
 

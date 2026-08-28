@@ -83,6 +83,7 @@ function injectPromoStyles() {
     }
     .promo-v3-body { padding: 25px; text-align: center; }
     .promo-v3-body h3 { font-size: 1.4rem; color: #1a1a1a; margin: 0 0 20px 0; font-weight: 800; line-height: 1.2; }
+    .promo-v3-vigencia { margin: -12px 0 16px 0; font-size: 0.8rem; font-weight: 700; color: #ff4d4f; }
     .promo-v3-btn {
       width: 100%; padding: 15px; border-radius: 50px; border: none;
       background: #00a4e4; color: #fff; font-size: 1rem; font-weight: 700;
@@ -139,6 +140,11 @@ async function showPromoPopup() {
   const pctBadge = (bono && bono.porcentaje_descuento != null)
     ? `<span class="promo-v3-badge">${bono.porcentaje_descuento}% OFF</span>`
     : '';
+  // Urgency: if the bono has a closing date, show it to reinforce the promo (also
+  // useful when the popup content gets shared on social media).
+  const vigenciaTexto = (bono && bono.fecha_fin)
+    ? `<p class="promo-v3-vigencia">Valid until ${new Date(bono.fecha_fin).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>`
+    : '';
 
   const overlay = document.createElement('div');
   overlay.id = 'promo-v3-modal';
@@ -152,6 +158,7 @@ async function showPromoPopup() {
       </div>
       <div class="promo-v3-body">
         <h3>${titulo}</h3>
+        ${vigenciaTexto}
         <button class="promo-v3-btn" id="promo-btn-cta">${textoBoton}</button>
         <div class="promo-v3-optout">
           <label>

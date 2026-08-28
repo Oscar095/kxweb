@@ -1643,7 +1643,7 @@ async function loadPedidos(page) {
     if (!tbody) return;
 
     if (!data.data || data.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--admin-text-muted);padding:32px;">No se encontraron pedidos</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--admin-text-muted);padding:32px;">No se encontraron pedidos</td></tr>';
     } else {
       tbody.innerHTML = data.data.map(p => `
         <tr>
@@ -1652,6 +1652,7 @@ async function loadPedidos(page) {
           <td>${p.email || ''}</td>
           <td>${p.city || ''}</td>
           <td>${fmtCOP(p.total_value)}</td>
+          <td>${p.bono_id ? `<span style="color:#16a34a;font-weight:700;" title="Descuento: ${fmtCOP(p.descuento_valor)} (${p.descuento_porcentaje}%)">🎉 -${p.descuento_porcentaje}%</span>` : '—'}</td>
           <td>${renderStatusBadge(p.payment_status)}</td>
           <td>${formatDate(p.createdAt)}</td>
           <td><button class="admin-btn-primary admin-btn-sm" onclick="window.__viewPedido(${p.id})">Ver</button></td>
@@ -1674,7 +1675,7 @@ async function loadPedidos(page) {
   } catch (e) {
     console.error('loadPedidos error', e);
     const tbody = document.getElementById('pedidos-tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--admin-danger);">Error cargando pedidos</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--admin-danger);">Error cargando pedidos</td></tr>';
   }
 }
 
@@ -1729,6 +1730,7 @@ window.__viewPedido = async (id) => {
         <h4>Totales</h4>
         <div class="pedido-totals">
           <div><strong>Subtotal:</strong> ${fmtCOP(p.subtotal)}</div>
+          ${p.bono_id ? `<div style="color:#16a34a;"><strong>Descuento 1ª compra (${p.descuento_porcentaje}%):</strong> -${fmtCOP(p.descuento_valor)}</div>` : ''}
           <div><strong>IVA:</strong> ${fmtCOP(p.iva)}</div>
           <div style="font-size:1.2rem;"><strong>Total:</strong> ${fmtCOP(p.total_value)}</div>
         </div>
@@ -1876,6 +1878,37 @@ async function loadBonosAdmin() {
   }
 }
 
+function formatFechaCorta(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// "Vigente ahora" / "Programado" (aún no empieza) / "Vencido" (ya pasó fecha_fin) — solo
+// relevante si el bono está activo; combinado con el badge Activo/Inactivo de arriba.
+function buildVigenciaBadge(b) {
+  if (!b.activo) return '';
+  const now = Date.now();
+  const inicio = b.fecha_inicio ? new Date(b.fecha_inicio).getTime() : null;
+  const fin = b.fecha_fin ? new Date(b.fecha_fin).getTime() : null;
+  if (fin != null && now > fin) {
+    return '<span style="font-size:0.72rem; font-weight:700; color:#b91c1c; background:#fee2e2; padding:2px 8px; border-radius:10px;">Vencido</span>';
+  }
+  if (inicio != null && now < inicio) {
+    return '<span style="font-size:0.72rem; font-weight:700; color:#92400e; background:#fef3c7; padding:2px 8px; border-radius:10px;">Programado</span>';
+  }
+  return '<span style="font-size:0.72rem; font-weight:700; color:#1d4ed8; background:#dbeafe; padding:2px 8px; border-radius:10px;">Vigente ahora</span>';
+}
+
+// Convierte un ISO datetime (o Date) al formato "YYYY-MM-DD" que espera <input type="date">
+function toDateInputValue(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
 function renderBonosGrid(items) {
   const grid = document.getElementById('bonos-grid');
   if (!grid) return;
@@ -1899,16 +1932,24 @@ function renderBonosGrid(items) {
       ? '<span style="font-size:0.72rem; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:10px;">Activo</span>'
       : '<span style="font-size:0.72rem; font-weight:700; color:#555; background:#eee; padding:2px 8px; border-radius:10px;">Inactivo</span>';
     const pct = (b.porcentaje_descuento != null) ? `${b.porcentaje_descuento}% OFF` : '';
+    const vigenciaBadge = buildVigenciaBadge(b);
+    const vigenciaTexto = (b.fecha_inicio || b.fecha_fin)
+      ? `<div style="font-size:0.75rem; color:#777; margin-top:4px;">${b.fecha_inicio ? `Desde ${formatFechaCorta(b.fecha_inicio)}` : ''}${(b.fecha_inicio && b.fecha_fin) ? ' — ' : ''}${b.fecha_fin ? `Hasta ${formatFechaCorta(b.fecha_fin)}` : ''}</div>`
+      : '';
 
     details.innerHTML = `
       <h3 class="gpc-title">${b.nombre || ''}</h3>
       <div class="gpc-meta">
         ${activeBadge}
+        ${vigenciaBadge}
         ${pct ? `<span class="gpc-tag">${pct}</span>` : ''}
       </div>
+      ${vigenciaTexto}
       ${b.titulo ? `<div style="font-size:0.85rem; color:#555; margin-top:6px;">${b.titulo}</div>` : ''}
       <div class="gpc-actions">
-        ${!b.activo ? `<button type="button" data-id="${b.id}" class="activate-bono gpc-btn-toggle-on">Activar</button>` : ''}
+        ${!b.activo
+          ? `<button type="button" data-id="${b.id}" class="activate-bono gpc-btn-toggle-on">Activar</button>`
+          : `<button type="button" data-id="${b.id}" class="deactivate-bono gpc-btn-toggle-off">Desactivar</button>`}
         <button type="button" data-id="${b.id}" class="edit-bono gpc-btn-edit">Editar</button>
         <button type="button" data-id="${b.id}" class="delete-bono gpc-btn-delete">Eliminar</button>
       </div>
@@ -1930,6 +1971,17 @@ function renderBonosGrid(items) {
     });
   });
 
+  grid.querySelectorAll('.deactivate-bono').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      try {
+        const r = await fetch(`/api/bonos/${encodeURIComponent(id)}/deactivate`, { method: 'PATCH', credentials: 'same-origin' });
+        if (!r.ok) return alert('Error desactivando bono');
+        await loadBonosAdmin();
+      } catch (err) { console.error(err); alert('Error desactivando bono'); }
+    });
+  });
+
   grid.querySelectorAll('.edit-bono').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = e.currentTarget.getAttribute('data-id');
@@ -1943,6 +1995,8 @@ function renderBonosGrid(items) {
       document.getElementById('bono-texto-boton').value = b.texto_boton || '';
       document.getElementById('bono-texto-boton-en').value = b.texto_boton_en || '';
       document.getElementById('bono-categoria').value = b.categoria_link || '';
+      document.getElementById('bono-fecha-inicio').value = toDateInputValue(b.fecha_inicio);
+      document.getElementById('bono-fecha-fin').value = toDateInputValue(b.fecha_fin);
       document.getElementById('bono-imagen').value = '';
       document.getElementById('bono-status').textContent = '';
       document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1982,6 +2036,8 @@ async function submitBonoForm(ev) {
     fd.append('texto_boton', document.getElementById('bono-texto-boton').value.trim());
     fd.append('texto_boton_en', document.getElementById('bono-texto-boton-en').value.trim());
     fd.append('categoria_link', document.getElementById('bono-categoria').value || '');
+    fd.append('fecha_inicio', document.getElementById('bono-fecha-inicio').value || '');
+    fd.append('fecha_fin', document.getElementById('bono-fecha-fin').value || '');
     if (imgInput.files[0]) fd.append('imagen', imgInput.files[0]);
 
     const url = id ? `/api/bonos/${encodeURIComponent(id)}` : '/api/bonos';

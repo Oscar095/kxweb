@@ -329,6 +329,7 @@
                 <th>Email</th>
                 <th>Ciudad</th>
                 <th>Total</th>
+                <th>Bono</th>
                 <th>Estado</th>
                 <th>Fecha</th>
                 <th>Acciones</th>
@@ -770,8 +771,11 @@
         </div>
         <p style="color:var(--admin-text-muted); margin-bottom:24px;">Administra el popup promocional que aparece
           después de navegar unos segundos por la web. Puedes guardar varios bonos, pero solo <strong>uno puede
-          estar activo</strong> a la vez. El porcentaje de descuento por ahora solo se muestra en el popup — aún no
-          se aplica en el carrito.</p>
+          estar activo</strong> a la vez. El descuento se aplica <strong>automáticamente</strong> en el checkout,
+          sobre toda la compra, solo a clientes cuyo número de documento no tenga <strong>ningún pedido
+          registrado</strong> todavía (primera compra) — sin importar si un pedido anterior con ese documento llegó
+          a pagarse o no. Si defines fecha de inicio y/o fin, el bono deja de aplicarse fuera de ese rango aunque
+          sigas dejándolo "activo".</p>
 
         <div class="glass-card">
           <form id="bono-form" class="admin-form" enctype="multipart/form-data">
@@ -810,6 +814,14 @@
                 <div class="field-group">
                   <label for="bono-imagen">Imagen del Popup</label>
                   <input id="bono-imagen" type="file" accept="image/*" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-fecha-inicio">Vigente desde (opcional)</label>
+                  <input id="bono-fecha-inicio" type="date" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-fecha-fin">Vigente hasta (opcional)</label>
+                  <input id="bono-fecha-fin" type="date" />
                 </div>
               </div>
             </fieldset>

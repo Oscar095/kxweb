@@ -85,6 +85,44 @@ function showToast(msg, type = 'success') {
 
 let _fleteData = { fleteTotal: 0, fletePorCaja: 0, totalCajas: 0, tarifaKilo: 0, maxKilosLiquidar: 0 };
 
+// ── bono (first-purchase discount) state ────────────────────────────────────────
+// _bonoActivo: whether a promo is currently running (only used to show a note while
+// the customer hasn't typed their document number yet). _bonoPreview: the result of
+// validating THAT document against /api/bonos/elegibilidad — just a preview; the
+// server independently decides everything again in POST /api/pedidos.
+let _bonoActivo = null;
+let _bonoPreview = { elegible: false, bono: null };
+
+async function loadBonoActivo() {
+  try {
+    const r = await fetch('/api/bonos?active=1');
+    if (!r.ok) return;
+    const list = await r.json();
+    _bonoActivo = (Array.isArray(list) && list.length) ? list[0] : null;
+    renderOrderSummary();
+  } catch (e) { /* no active promo, keep going without a discount */ }
+}
+
+let _bonoCheckTimer = null;
+function checkBonoElegibilidad(tipoDocumento, nit) {
+  clearTimeout(_bonoCheckTimer);
+  const cleanNit = (tipoDocumento === 'CE' || tipoDocumento === 'PA') ? nit.trim() : nit.replace(/\D+/g, '');
+  if (!tipoDocumento || cleanNit.length < 5) {
+    _bonoPreview = { elegible: false, bono: null };
+    renderOrderSummary();
+    return;
+  }
+  _bonoCheckTimer = setTimeout(async () => {
+    try {
+      const qs = new URLSearchParams({ tipo_documento: tipoDocumento, nit: cleanNit });
+      const r = await fetch(`/api/bonos/elegibilidad?${qs.toString()}`);
+      if (!r.ok) return;
+      _bonoPreview = await r.json();
+      renderOrderSummary();
+    } catch (e) { /* leave the preview as it was */ }
+  }, 500);
+}
+
 async function calcularFlete() {
   const citySelect = document.getElementById('city');
   const city = citySelect ? citySelect.value.trim() : '';
@@ -141,7 +179,21 @@ function renderOrderSummary() {
     map.set(it.id, existing);
   }
   const grouped = Array.from(map.values());
-  const { subtotal, iva, total, totalInCents } = computeTotals(items);
+  const { subtotal, iva, totalInCents } = computeTotals(items);
+
+  // First-purchase discount preview — the server recalculates this (and decides whether it
+  // really applies) when the order is saved, so these numbers are just a preview until submit.
+  const bonoConfirmado = _bonoPreview.elegible && _bonoPreview.bono;
+  // _bonoPreview.bono comes back populated whether the customer is eligible OR NOT (e.g. a
+  // document with a prior purchase) — it's only null/pending while no concrete answer has come
+  // back from the server yet. So the "pending" note must disappear as soon as that answer
+  // arrives, even a negative one, so it doesn't hint at a discount for someone who doesn't get one.
+  const bonoPendiente = !_bonoPreview.bono && !!_bonoActivo;
+  const descuentoPct = bonoConfirmado ? Number(_bonoPreview.bono.porcentaje_descuento) : 0;
+  const descuentoValor = bonoConfirmado ? Math.round(subtotal * descuentoPct / 100) : 0;
+  const subtotalConDescuento = subtotal - descuentoValor;
+  const ivaConDescuento = bonoConfirmado ? Math.round(subtotalConDescuento * 0.19) : iva;
+  const totalConDescuento = subtotalConDescuento + ivaConDescuento;
 
   if (grouped.length === 0) {
     el.innerHTML = `
@@ -185,14 +237,25 @@ function renderOrderSummary() {
         <span class="co-summary-count">${grouped.length} ${grouped.length === 1 ? 'product' : 'products'}</span>
       </h3>
       <div class="co-summary-items">${rows}</div>
+      ${bonoPendiente ? `
+        <div class="co-summary-line" style="color:#00a4e4;font-size:.8rem;font-weight:600;">
+          🎉 You have ${_bonoActivo.porcentaje_descuento != null ? `${_bonoActivo.porcentaje_descuento}% OFF` : 'a bonus'} on your first purchase — confirmed with your ID document
+        </div>
+      ` : ''}
       <div class="co-summary-totals">
         <div class="co-summary-line">
           <span>Subtotal (excluding VAT)</span>
           <span>${fmt(subtotal)}</span>
         </div>
+        ${bonoConfirmado ? `
+          <div class="co-summary-line" style="color:#16a34a;font-weight:600;">
+            <span>First-purchase discount (${descuentoPct}%)</span>
+            <span>-${fmt(descuentoValor)}</span>
+          </div>
+        ` : ''}
         <div class="co-summary-line">
           <span>VAT (19%)</span>
-          <span>${fmt(iva)}</span>
+          <span>${fmt(ivaConDescuento)}</span>
         </div>
         <div class="co-summary-line">
           <span>Shipping${_fleteData.fleteTotal > 0 ? ` (${fmt(_fleteData.fletePorCaja)} × ${_fleteData.totalCajas} ${_fleteData.totalCajas === 1 ? 'box' : 'boxes'})` : ''}</span>
@@ -200,15 +263,15 @@ function renderOrderSummary() {
         </div>
         <div class="co-summary-total">
           <span>Total amount</span>
-          <span class="co-summary-total-amount">${fmt(total + _fleteData.fleteTotal)}</span>
+          <span class="co-summary-total-amount">${fmt(totalConDescuento + _fleteData.fleteTotal)}</span>
         </div>
       </div>
     </div>
   `;
 
   const flete = _fleteData.fleteTotal || 0;
-  const grandTotal = total + flete;
-  return { items, amountInCents: Math.round(grandTotal * 100), subtotal, iva, flete, totalValue: grandTotal };
+  const grandTotal = totalConDescuento + flete;
+  return { items, amountInCents: Math.round(grandTotal * 100), subtotal, iva: ivaConDescuento, flete, totalValue: grandTotal };
 }
 
 // ── related products ──────────────────────────────────────────────────────────
@@ -557,6 +620,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderRelatedProducts();
   setupFieldValidation();
   loadDepartamentos();
+  loadBonoActivo();
+
+  // Preview the first-purchase discount as soon as the customer types their document number
+  nitInput?.addEventListener('input', () => {
+    checkBonoElegibilidad(tipoDocSelect?.value || '', nitInput.value || '');
+  });
 
   // Keep summary in sync with cart changes (recalculate flete too)
   cartService.subscribe(() => calcularFlete());
@@ -584,6 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
         nitInput.value = nitInput.value.replace(/\D+/g, '');
       }
     }
+    checkBonoElegibilidad(tipo, nitInput?.value || '');
   });
 
   // Tipo persona: mostrar/ocultar apellidos, cambiar label nombres
@@ -816,6 +886,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const pedidoId = saved?.id;
       if (!pedidoId) throw new Error('Could not retrieve order ID.');
 
+      // The amount charged in Wompi is whatever the server confirms (it independently
+      // recalculates the first-purchase discount), not the estimate shown on screen.
+      const finalAmountInCents = Number.isFinite(saved?.amountInCents) ? saved.amountInCents : amountInCents;
+      if (saved?.discountApplied) {
+        msgEl.textContent = `First-purchase discount applied (${saved.discountPercentage}%)!`;
+      }
+
       // Legal entity: upload RUT and Certificate of Good Standing (verifiable documents)
       if (tipoPersonaVal === 'J') {
         msgEl.textContent = 'Uploading documents...';
@@ -831,8 +908,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Advance to step 3
       setStep(3);
-      msgEl.textContent = 'Order registered! Opening payment gateway...';
-      await openWompi(form, amountInCents, pedidoId);
+      if (!saved?.discountApplied) msgEl.textContent = 'Order registered! Opening payment gateway...';
+      await openWompi(form, finalAmountInCents, pedidoId);
 
     } catch (err) {
       console.error(err);

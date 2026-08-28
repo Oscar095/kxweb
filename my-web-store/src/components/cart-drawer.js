@@ -58,6 +58,7 @@ export function renderCartDrawer(mount) {
         <button id="close-cart" title="Cerrar" style="background:var(--primary); color:#fff; border:none; width: 32px; height: 32px; border-radius: 50%; font-weight: bold; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 12px rgba(0,159,227,0.3);">✕</button>
       </div>
     </div>
+    <div id="cart-bono-banner"></div>
     <div class="cart-body" id="cart-body"></div>
     <div class="cart-footer">
       <div class="cart-summary">
@@ -67,6 +68,25 @@ export function renderCartDrawer(mount) {
       <button id="checkout" class="btn-primary" style="width: 100%; font-size: 1.15rem; padding: 14px; border-radius: 12px; box-sizing: border-box; text-align:center;">Procesar Pago</button>
     </div>
   `;
+
+  // Aviso informativo de bono de primera compra — no cambia el total mostrado aquí (el
+  // drawer no conoce el documento del cliente); solo avisa que el descuento se confirma
+  // y aplica en el checkout.
+  (async function loadBonoBanner() {
+    try {
+      const r = await fetch('/api/bonos?active=1');
+      if (!r.ok) return;
+      const list = await r.json();
+      const bono = Array.isArray(list) && list.length ? list[0] : null;
+      const banner = mount.querySelector('#cart-bono-banner');
+      if (!banner || !bono || bono.porcentaje_descuento == null) return;
+      banner.innerHTML = `
+        <div style="margin:0 16px 12px;padding:10px 14px;background:rgba(0,164,228,0.1);border:1px solid rgba(0,164,228,0.3);border-radius:12px;color:#00a4e4;font-size:0.85rem;font-weight:600;text-align:center;">
+          🎉 ${bono.porcentaje_descuento}% OFF en tu primera compra — se aplica en el checkout
+        </div>
+      `;
+    } catch (e) { /* sin promo activa */ }
+  })();
 
   // Precio por caja: intenta usar campo dinámico precioCaja si existe, sino derivar
   function priceOf(item) {

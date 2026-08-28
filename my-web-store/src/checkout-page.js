@@ -85,6 +85,44 @@ function showToast(msg, type = 'success') {
 
 let _fleteData = { fleteTotal: 0, fletePorCaja: 0, totalCajas: 0, tarifaKilo: 0, maxKilosLiquidar: 0 };
 
+// ── bono (first-purchase discount) state ────────────────────────────────────────
+// _bonoActivo: hay o no una promo corriendo (solo para mostrar el aviso mientras el
+// cliente aún no escribe su documento). _bonoPreview: resultado de validar ESE
+// documento contra /api/bonos/elegibilidad — solo una previsualización; el servidor
+// vuelve a decidir todo al guardar el pedido en POST /api/pedidos.
+let _bonoActivo = null;
+let _bonoPreview = { elegible: false, bono: null };
+
+async function loadBonoActivo() {
+  try {
+    const r = await fetch('/api/bonos?active=1');
+    if (!r.ok) return;
+    const list = await r.json();
+    _bonoActivo = (Array.isArray(list) && list.length) ? list[0] : null;
+    renderOrderSummary();
+  } catch (e) { /* sin promo activa, seguir sin descuento */ }
+}
+
+let _bonoCheckTimer = null;
+function checkBonoElegibilidad(tipoDocumento, nit) {
+  clearTimeout(_bonoCheckTimer);
+  const cleanNit = (tipoDocumento === 'CE' || tipoDocumento === 'PA') ? nit.trim() : nit.replace(/\D+/g, '');
+  if (!tipoDocumento || cleanNit.length < 5) {
+    _bonoPreview = { elegible: false, bono: null };
+    renderOrderSummary();
+    return;
+  }
+  _bonoCheckTimer = setTimeout(async () => {
+    try {
+      const qs = new URLSearchParams({ tipo_documento: tipoDocumento, nit: cleanNit });
+      const r = await fetch(`/api/bonos/elegibilidad?${qs.toString()}`);
+      if (!r.ok) return;
+      _bonoPreview = await r.json();
+      renderOrderSummary();
+    } catch (e) { /* deja la previsualización como estaba */ }
+  }, 500);
+}
+
 async function calcularFlete() {
   const citySelect = document.getElementById('city');
   const city = citySelect ? citySelect.value.trim() : '';
@@ -141,7 +179,22 @@ function renderOrderSummary() {
     map.set(it.id, existing);
   }
   const grouped = Array.from(map.values());
-  const { subtotal, iva, total, totalInCents } = computeTotals(items);
+  const { subtotal, iva, totalInCents } = computeTotals(items);
+
+  // Previsualización del descuento de primera compra — el servidor vuelve a calcular esto
+  // (y decide si de verdad aplica) al guardar el pedido, así que estos números son solo
+  // referenciales hasta que se envía el formulario.
+  const bonoConfirmado = _bonoPreview.elegible && _bonoPreview.bono;
+  // _bonoPreview.bono viene lleno tanto si es elegible como si NO lo es (p.ej. documento con
+  // compra previa) — solo está en null/pendiente mientras no se ha resuelto una respuesta
+  // concreta del servidor. Por eso el aviso "pendiente" debe desaparecer apenas llega esa
+  // respuesta, aunque haya sido negativa, para no insinuarle un descuento a quien no aplica.
+  const bonoPendiente = !_bonoPreview.bono && !!_bonoActivo;
+  const descuentoPct = bonoConfirmado ? Number(_bonoPreview.bono.porcentaje_descuento) : 0;
+  const descuentoValor = bonoConfirmado ? Math.round(subtotal * descuentoPct / 100) : 0;
+  const subtotalConDescuento = subtotal - descuentoValor;
+  const ivaConDescuento = bonoConfirmado ? Math.round(subtotalConDescuento * 0.19) : iva;
+  const totalConDescuento = subtotalConDescuento + ivaConDescuento;
 
   if (grouped.length === 0) {
     el.innerHTML = `
@@ -185,14 +238,25 @@ function renderOrderSummary() {
         <span class="co-summary-count">${grouped.length} ${grouped.length === 1 ? 'producto' : 'productos'}</span>
       </h3>
       <div class="co-summary-items">${rows}</div>
+      ${bonoPendiente ? `
+        <div class="co-summary-line" style="color:#00a4e4;font-size:.8rem;font-weight:600;">
+          🎉 Tienes ${_bonoActivo.porcentaje_descuento != null ? `${_bonoActivo.porcentaje_descuento}% OFF` : 'un bono'} en tu primera compra — se confirma con tu documento
+        </div>
+      ` : ''}
       <div class="co-summary-totals">
         <div class="co-summary-line">
           <span>Subtotal (sin IVA)</span>
           <span>${fmt(subtotal)}</span>
         </div>
+        ${bonoConfirmado ? `
+          <div class="co-summary-line" style="color:#16a34a;font-weight:600;">
+            <span>Descuento 1ª compra (${descuentoPct}%)</span>
+            <span>-${fmt(descuentoValor)}</span>
+          </div>
+        ` : ''}
         <div class="co-summary-line">
           <span>IVA (19%)</span>
-          <span>${fmt(iva)}</span>
+          <span>${fmt(ivaConDescuento)}</span>
         </div>
         <div class="co-summary-line">
           <span>Flete${_fleteData.fleteTotal > 0 ? ` (${fmt(_fleteData.fletePorCaja)} × ${_fleteData.totalCajas} cajas)` : ''}</span>
@@ -200,15 +264,15 @@ function renderOrderSummary() {
         </div>
         <div class="co-summary-total">
           <span>Total a pagar</span>
-          <span class="co-summary-total-amount">${fmt(total + _fleteData.fleteTotal)}</span>
+          <span class="co-summary-total-amount">${fmt(totalConDescuento + _fleteData.fleteTotal)}</span>
         </div>
       </div>
     </div>
   `;
 
   const flete = _fleteData.fleteTotal || 0;
-  const grandTotal = total + flete;
-  return { items, amountInCents: Math.round(grandTotal * 100), subtotal, iva, flete, totalValue: grandTotal };
+  const grandTotal = totalConDescuento + flete;
+  return { items, amountInCents: Math.round(grandTotal * 100), subtotal, iva: ivaConDescuento, flete, totalValue: grandTotal };
 }
 
 // ── related products ──────────────────────────────────────────────────────────
@@ -557,6 +621,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderRelatedProducts();
   setupFieldValidation();
   loadDepartamentos();
+  loadBonoActivo();
+
+  // Previsualizar descuento de primera compra apenas el cliente escribe su documento
+  nitInput?.addEventListener('input', () => {
+    checkBonoElegibilidad(tipoDocSelect?.value || '', nitInput.value || '');
+  });
 
   // Keep summary in sync with cart changes (recalculate flete too)
   cartService.subscribe(() => calcularFlete());
@@ -584,6 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
         nitInput.value = nitInput.value.replace(/\D+/g, '');
       }
     }
+    checkBonoElegibilidad(tipo, nitInput?.value || '');
   });
 
   // Tipo persona: mostrar/ocultar apellidos, cambiar label nombres
@@ -812,6 +883,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const pedidoId = saved?.id;
       if (!pedidoId) throw new Error('No se pudo obtener el id del pedido.');
 
+      // El monto a cobrar en Wompi es el que confirma el servidor (recalcula el descuento de
+      // primera compra de forma independiente), no el estimado en pantalla.
+      const finalAmountInCents = Number.isFinite(saved?.amountInCents) ? saved.amountInCents : amountInCents;
+      if (saved?.discountApplied) {
+        msgEl.textContent = `¡Descuento de primera compra aplicado (${saved.discountPercentage}%)!`;
+      }
+
       // Persona jurídica: subir RUT y Cámara de Comercio (documentos verificables)
       if (tipoPersonaVal === 'J') {
         msgEl.textContent = 'Subiendo documentos...';
@@ -827,8 +905,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Advance to step 3
       setStep(3);
-      msgEl.textContent = '¡Pedido registrado! Abriendo pasarela de pago...';
-      await openWompi(form, amountInCents, pedidoId);
+      if (!saved?.discountApplied) msgEl.textContent = '¡Pedido registrado! Abriendo pasarela de pago...';
+      await openWompi(form, finalAmountInCents, pedidoId);
 
     } catch (err) {
       console.error(err);
