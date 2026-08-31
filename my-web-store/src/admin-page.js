@@ -1854,8 +1854,10 @@ async function loadBonoCategoriaOptions() {
     const r = await fetch('/api/categories', { cache: 'no-store' });
     const cats = r.ok ? await r.json() : [];
     // categoria_link must be the category NAME (matches p.category_name on the storefront filter),
-    // not the numeric id used elsewhere for dbo.products.category.
+    // not the numeric id used elsewhere for dbo.products.category. "all" es un valor especial
+    // que products-page.js ya entiende como "sin filtro" (catálogo completo).
     sel.innerHTML = '<option value="">(usar categoría por defecto del popup)</option>' +
+      '<option value="all">Todos (ver todo el catálogo)</option>' +
       cats.map(c => {
         const label = c.descripcion || c.nombre || '';
         return `<option value="${label.replace(/"/g, '&quot;')}">${label}</option>`;

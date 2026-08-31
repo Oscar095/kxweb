@@ -59,51 +59,69 @@ function injectPromoStyles() {
     }
     .promo-v3-overlay.active { opacity: 1; pointer-events: auto; }
     .promo-v3-content {
-      background: #fff; border-radius: 24px; width: 92%; max-width: 480px;
-      position: relative; overflow: hidden;
+      background: #fff; border-radius: 22px; width: 78%; max-width: 300px;
+      max-height: 90vh; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+      position: relative;
       box-shadow: 0 30px 60px rgba(0,0,0,0.6);
       transform: scale(0.8); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       margin: 20px;
     }
     .promo-v3-overlay.active .promo-v3-content { transform: scale(1); }
     .promo-v3-close {
-      position: absolute; top: 12px; right: 12px; width: 40px; height: 40px;
+      position: absolute; top: 10px; right: 10px; width: 36px; height: 36px;
       background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.8); border-radius: 50%;
-      color: #fff; font-size: 28px; cursor: pointer; z-index: 100;
+      color: #fff; font-size: 24px; cursor: pointer; z-index: 100;
       display: flex; align-items: center; justify-content: center;
       line-height: 1; transition: background 0.3s;
     }
     .promo-v3-close:hover { background: rgba(0,0,0,0.9); }
-    .promo-v3-img-wrap { width: 100%; height: auto; background: #eee; position: relative; }
-    .promo-v3-img-wrap img { width: 100%; height: auto; display: block; }
+    /* aspect-ratio 9:16 = Instagram Story format (1080x1920), the one uploaded from the admin —
+       the card's width drives the photo's exact height, so it's never cropped or stretched. If
+       a differently-shaped image ever gets uploaded, object-fit:contain letterboxes it instead
+       of cropping it. The parent's overflow-y (above) is still the fallback for extremely
+       short screens. */
+    .promo-v3-img-wrap { width: 100%; aspect-ratio: 9 / 16; overflow: hidden; background: #fff; position: relative; }
+    .promo-v3-img-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .promo-v3-badge {
-      position: absolute; top: 14px; left: 14px; z-index: 10;
-      background: #ff4d4f; color: #fff; font-weight: 800; font-size: 0.85rem;
-      padding: 6px 14px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      position: absolute; top: 12px; left: 12px; z-index: 10;
+      background: #ff4d4f; color: #fff; font-weight: 800; font-size: 0.8rem;
+      padding: 5px 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
-    .promo-v3-body { padding: 25px; text-align: center; }
-    .promo-v3-body h3 { font-size: 1.4rem; color: #1a1a1a; margin: 0 0 20px 0; font-weight: 800; line-height: 1.2; }
-    .promo-v3-vigencia { margin: -12px 0 16px 0; font-size: 0.8rem; font-weight: 700; color: #ff4d4f; }
+    .promo-v3-body { padding: 16px; text-align: center; }
+    .promo-v3-body h3 { font-size: 1.1rem; color: #1a1a1a; margin: 0 0 12px 0; font-weight: 800; line-height: 1.2; }
+    .promo-v3-vigencia { margin: -6px 0 10px 0; font-size: 0.75rem; font-weight: 700; color: #ff4d4f; }
     .promo-v3-btn {
-      width: 100%; padding: 15px; border-radius: 50px; border: none;
-      background: #00a4e4; color: #fff; font-size: 1rem; font-weight: 700;
-      text-transform: uppercase; cursor: pointer; margin-bottom: 20px;
+      width: 100%; padding: 12px; border-radius: 50px; border: none;
+      background: #00a4e4; color: #fff; font-size: 0.9rem; font-weight: 700;
+      text-transform: uppercase; cursor: pointer; margin-bottom: 12px;
       transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
       box-shadow: 0 4px 15px rgba(0, 164, 228, 0.3);
     }
     .promo-v3-btn:active { transform: scale(0.96); }
     .promo-v3-btn:hover { background: #008cc2; }
-    .promo-v3-optout { font-size: 0.85rem; color: #666; display: flex; align-items: center; justify-content: center; }
-    .promo-v3-optout input { margin-right: 10px; width: 20px; height: 20px; cursor: pointer; accent-color: #00a4e4; }
+    .promo-v3-optout { font-size: 0.78rem; color: #666; display: flex; align-items: center; justify-content: center; }
+    .promo-v3-optout input { margin-right: 8px; width: 16px; height: 16px; cursor: pointer; accent-color: #00a4e4; }
     .promo-v3-optout label { cursor: pointer; user-select: none; }
 
     @media (max-width: 600px) {
-      .promo-v3-content { border-radius: 20px; width: 85%; max-width: 340px; margin: 10px; }
-      .promo-v3-body { padding: 18px; }
-      .promo-v3-body h3 { font-size: 1.15rem; margin-bottom: 15px; }
-      .promo-v3-close { top: 8px; right: 8px; width: 38px; height: 38px; font-size: 28px; }
-      .promo-v3-btn { padding: 12px; font-size: 0.9rem; margin-bottom: 15px; }
-      .promo-v3-optout { font-size: 0.8rem; }
+      .promo-v3-content { border-radius: 18px; width: 68%; max-width: 260px; margin: 10px; }
+      .promo-v3-body { padding: 14px; }
+      .promo-v3-body h3 { font-size: 1rem; margin-bottom: 10px; }
+      .promo-v3-close { top: 8px; right: 8px; width: 32px; height: 32px; font-size: 20px; }
+      .promo-v3-btn { padding: 10px; font-size: 0.85rem; margin-bottom: 10px; }
+      .promo-v3-optout { font-size: 0.72rem; }
+    }
+
+    /* Short screens (laptops, or mobile in landscape): being 9:16, narrowing the card already
+       shrinks the photo's height proportionally; overflow-y is still the fallback if it still
+       doesn't fully fit, so it's never cropped. */
+    @media (max-height: 700px) {
+      .promo-v3-content { width: 55%; max-width: 220px; }
+      .promo-v3-body { padding: 10px 14px; }
+      .promo-v3-body h3 { font-size: 0.95rem; margin-bottom: 8px; }
+      .promo-v3-vigencia { margin: -4px 0 8px 0; font-size: 0.68rem; }
+      .promo-v3-btn { padding: 8px; margin-bottom: 8px; }
+      .promo-v3-optout { font-size: 0.68rem; }
     }
   `;
   document.head.appendChild(style);
