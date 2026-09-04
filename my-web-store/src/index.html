@@ -314,6 +314,14 @@
 
       function alignLogos() {
         logos.style.transform = 'none';
+
+        // En mobile/tablet (breakpoint de .hero-inner-glass en CSS) el bloque
+        // ya queda centrado por text-align:center. No reajustar aquí: en ese
+        // ancho "Soluciones" suele compartir línea con otras palabras del
+        // título, así que su centro ya no coincide con el centro real del
+        // bloque y el ajuste terminaba empujando los logos hacia la izquierda.
+        if (window.innerWidth <= 992) return;
+
         const wordRect = word.getBoundingClientRect();
         const logosRect = logos.getBoundingClientRect();
         const wordCenter = wordRect.left + wordRect.width / 2;

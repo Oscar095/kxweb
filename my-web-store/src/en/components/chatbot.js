@@ -9,30 +9,35 @@ export function initChatbot() {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      width: 62px;
-      height: 62px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary) 0%, #0077b6 100%);
-      color: #fff;
+      width: 78px;
+      height: 78px;
+      background: transparent;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 20px rgba(0,159,227,0.45), 0 0 0 0 rgba(0,159,227,0.3);
       cursor: pointer;
       z-index: 9999;
-      transition: transform 0.3s cubic-bezier(0.2,0.8,0.2,1), box-shadow 0.3s ease;
+      transition: transform 0.3s cubic-bezier(0.2,0.8,0.2,1);
       border: none;
-      animation: chatbot-pulse 2.5s infinite;
+      padding: 0;
     }
     .kos-chatbot-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 28px rgba(0,159,227,0.55);
-      animation: none;
+      transform: scale(1.08);
     }
     .kos-chatbot-btn svg { width: 30px; height: 30px; fill: currentColor; }
-    @keyframes chatbot-pulse {
-      0%, 100% { box-shadow: 0 4px 20px rgba(0,159,227,0.45), 0 0 0 0 rgba(0,159,227,0.3); }
-      50% { box-shadow: 0 4px 20px rgba(0,159,227,0.45), 0 0 0 10px rgba(0,159,227,0); }
+    .kos-chatbot-btn img {
+      height: 96%;
+      width: auto;
+      object-fit: contain;
+      pointer-events: none;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.3));
+      animation: koski-idle 2.4s ease-in-out infinite;
+    }
+    .kos-chatbot-btn:hover img { animation-play-state: paused; }
+    @keyframes koski-idle {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-3px) rotate(-4deg); }
+      75% { transform: translateY(-3px) rotate(4deg); }
     }
 
     /* ===== CHAT WINDOW ===== */
@@ -98,6 +103,23 @@ export function initChatbot() {
       width: 20px;
       height: 20px;
       fill: #fff;
+    }
+    .kos-chatbot-avatar img {
+      height: 82%;
+      width: auto;
+      object-fit: contain;
+      display: block;
+    }
+    .kos-chatbot-avatar img.kos-avatar-greet {
+      animation: koski-greet 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    @keyframes koski-greet {
+      0%   { transform: scale(0.2) rotate(0deg); opacity: 0; }
+      45%  { transform: scale(1.2) rotate(-16deg); opacity: 1; }
+      60%  { transform: scale(1.05) rotate(14deg); }
+      75%  { transform: scale(1.05) rotate(-9deg); }
+      90%  { transform: scale(1) rotate(5deg); }
+      100% { transform: scale(1) rotate(0deg); }
     }
     .kos-chatbot-header-text {
       display: flex;
@@ -423,8 +445,8 @@ export function initChatbot() {
         box-shadow: 0 20px 60px rgba(0,0,0,0.2);
       }
       .kos-chatbot-btn {
-        width: 52px;
-        height: 52px;
+        width: 68px;
+        height: 68px;
         bottom: 20px;
         right: 20px;
       }
@@ -449,7 +471,7 @@ export function initChatbot() {
       <div class="kos-chatbot-header">
         <div class="kos-chatbot-header-info">
           <div class="kos-chatbot-avatar">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.03 2 11c0 2.82 1.494 5.334 3.824 6.953C5.617 19.344 5.166 21 5.166 21s1.777-.113 3.655-1.121C9.696 20.301 10.82 20.5 12 20.5c5.523 0 10-4.03 10-9s-4.477-9-10-9z"/></svg>
+            <img src="/images/koski/koski-icon-240.png?v=2" alt="Koski" />
           </div>
           <div class="kos-chatbot-header-text">
             <span class="kos-chatbot-header-name">Koski Agent</span>
@@ -485,7 +507,7 @@ export function initChatbot() {
 
     <!-- Floating Button (Moved after window for CSS sibling selector) -->
     <button class="kos-chatbot-btn" aria-label="Open chat">
-      <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.03 2 11c0 2.82 1.494 5.334 3.824 6.953C5.617 19.344 5.166 21 5.166 21s1.777-.113 3.655-1.121C9.696 20.301 10.82 20.5 12 20.5c5.523 0 10-4.03 10-9s-4.477-9-10-9z"/></svg>
+      <img src="/images/koski/koski-icon-240.png?v=2" alt="Koski" />
     </button>
 
   `;
@@ -500,6 +522,14 @@ export function initChatbot() {
   const msgContainer = container.querySelector('#chatbot-msg-container');
   const typingInd = container.querySelector('#chatbot-typing');
   const suggestionsEl = container.querySelector('#chatbot-suggestions');
+  const avatarImg = container.querySelector('.kos-chatbot-avatar img');
+
+  const playGreeting = () => {
+    if (!avatarImg) return;
+    avatarImg.classList.remove('kos-avatar-greet');
+    void avatarImg.offsetWidth; // reflow so the animation restarts every time
+    avatarImg.classList.add('kos-avatar-greet');
+  };
 
   const toggleWindow = () => {
     windowEl.classList.toggle('open');
@@ -508,6 +538,7 @@ export function initChatbot() {
       document.body.classList.add('chat-open');
       btnOpen.style.display = 'none'; // Force hide
       input.focus();
+      playGreeting();
     } else {
       document.body.classList.remove('chat-open');
       btnOpen.style.display = ''; // Restore
