@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const fetch = require('node-fetch');
 const dotenv = require('dotenv');
 const nodemailer = require('nodemailer');
@@ -975,7 +976,7 @@ const staticDir = path.resolve(__dirname, '..', 'src');
 // Ruta dedicada para feed.xml: sin caché y Content-Type correcto para XML
 app.get('/feed.xml', (req, res) => {
   const feedPath = path.join(staticDir, 'feed.xml');
-  if (!require('fs').existsSync(feedPath)) {
+  if (!fs.existsSync(feedPath)) {
     return res.status(404).send('feed.xml no encontrado. Ejecuta: node generate-feed.js');
   }
   res.setHeader('Content-Type', 'application/xml; charset=UTF-8');
@@ -990,6 +991,56 @@ app.get('/feed.xml', (req, res) => {
 app.use('/en', (req, res, next) => {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   next();
+});
+
+// Inyección centralizada de tags de analítica/ads en el <head> de cada página HTML.
+// Para añadir o cambiar un tag en todo el sitio, edita server/partials/*.html: no hay
+// que tocar cada .html individualmente (equivalente a un include de PHP).
+const htmlPartialsDir = path.join(__dirname, 'partials');
+const headPartials = fs.readdirSync(htmlPartialsDir)
+  .filter(f => f.endsWith('.html'))
+  .sort()
+  .map(f => fs.readFileSync(path.join(htmlPartialsDir, f), 'utf8').trim())
+  .join('\n');
+
+const htmlInjectCache = new Map(); // ruta absoluta -> { mtimeMs, content }
+
+function resolveHtmlFile(reqPath) {
+  let rel = decodeURIComponent(reqPath);
+  if (rel.endsWith('/')) rel += 'index.html';
+  else if (!path.extname(rel)) rel += '.html';
+  if (!rel.endsWith('.html')) return null;
+
+  const filePath = path.join(staticDir, rel);
+  if (!filePath.startsWith(staticDir + path.sep)) return null; // evita path traversal
+  return filePath;
+}
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+
+  const filePath = resolveHtmlFile(req.path);
+  if (!filePath) return next();
+
+  fs.stat(filePath, (err, stats) => {
+    if (err || !stats.isFile()) return next();
+
+    const cached = htmlInjectCache.get(filePath);
+    const html = cached && cached.mtimeMs === stats.mtimeMs
+      ? cached.content
+      : (() => {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const injected = raw.includes('</head>')
+          ? raw.replace('</head>', `${headPartials}\n</head>`)
+          : raw;
+        htmlInjectCache.set(filePath, { mtimeMs: stats.mtimeMs, content: injected });
+        return injected;
+      })();
+
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(html);
+  });
 });
 
 app.use(express.static(staticDir, {
