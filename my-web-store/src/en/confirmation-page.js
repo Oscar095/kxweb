@@ -46,6 +46,16 @@ function clearCart() {
   try { localStorage.removeItem('cart'); } catch (_) { /* noop */ }
 }
 
+// ── Google Ads conversion ────────────────────────────────────
+function trackPurchaseConversion(transactionId, amountInCents, currency) {
+  if (typeof gtag !== 'function') return;
+  gtag('event', 'ads_conversion_PURCHASE_1', {
+    transaction_id: transactionId,
+    value: typeof amountInCents === 'number' ? amountInCents / 100 : undefined,
+    currency: currency || 'COP'
+  });
+}
+
 // ── State renderers ───────────────────────────────────────────
 
 function setIcon(state) {
@@ -128,7 +138,7 @@ function showNote() {
 
 // ── Render final states ───────────────────────────────────────
 
-function renderSuccess(pedidoId, transactionId, estado) {
+function renderSuccess(pedidoId, transactionId, estado, amountInCents, currency) {
   setIcon('success');
   setTitle('Payment confirmed!', 'success');
   setSubtitle('Your order has been received and is being processed.');
@@ -137,6 +147,7 @@ function renderSuccess(pedidoId, transactionId, estado) {
   showActions();
   showNote();
   clearCart();
+  trackPurchaseConversion(transactionId, amountInCents, currency);
 }
 
 function renderPending(pedidoId, transactionId, estado) {
@@ -210,7 +221,7 @@ async function main() {
     const isPending  = estado === 'PENDING';
 
     if (isApproved) {
-      renderSuccess(pid, txId, estado);
+      renderSuccess(pid, txId, estado, data.amount_in_cents, data.currency);
     } else if (isPending) {
       renderPending(pid, txId, estado);
     } else {

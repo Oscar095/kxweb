@@ -3132,7 +3132,9 @@ app.post('/api/pedidos/:pedidoId/confirmar-pago', async (req, res) => {
       payment_status: status,
       reference,
       email: clientEmail,
-      name: clientName
+      name: clientName,
+      amount_in_cents: tx?.amount_in_cents ?? null,
+      currency: tx?.currency ?? null
     });
   } catch (e) {
     console.error('confirmar-pago error', e);
