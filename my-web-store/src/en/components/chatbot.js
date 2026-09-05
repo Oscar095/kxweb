@@ -93,33 +93,28 @@ export function initChatbot() {
       width: 38px;
       height: 38px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.2);
+      background: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      overflow: hidden;
+      cursor: pointer;
+      transform: scale(1);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .kos-chatbot-avatar svg {
-      width: 20px;
-      height: 20px;
-      fill: #fff;
+    .kos-chatbot-avatar.koski-burst {
+      position: relative;
+      z-index: 5;
+      transform: scale(1.6);
     }
-    .kos-chatbot-avatar img {
-      height: 82%;
-      width: auto;
-      object-fit: contain;
+    .kos-chatbot-avatar video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 30%;
       display: block;
-    }
-    .kos-chatbot-avatar img.kos-avatar-greet {
-      animation: koski-greet 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-    }
-    @keyframes koski-greet {
-      0%   { transform: scale(0.2) rotate(0deg); opacity: 0; }
-      45%  { transform: scale(1.2) rotate(-16deg); opacity: 1; }
-      60%  { transform: scale(1.05) rotate(14deg); }
-      75%  { transform: scale(1.05) rotate(-9deg); }
-      90%  { transform: scale(1) rotate(5deg); }
-      100% { transform: scale(1) rotate(0deg); }
+      pointer-events: none;
     }
     .kos-chatbot-header-text {
       display: flex;
@@ -470,8 +465,10 @@ export function initChatbot() {
     <div class="kos-chatbot-window">
       <div class="kos-chatbot-header">
         <div class="kos-chatbot-header-info">
-          <div class="kos-chatbot-avatar">
-            <img src="/images/koski/koski-icon-240.png?v=2" alt="Koski" />
+          <div class="kos-chatbot-avatar" id="kos-chatbot-avatar" role="button" tabindex="0" aria-label="See Koski wave">
+            <video id="kos-avatar-video" muted loop playsinline preload="auto">
+              <source src="/images/koski/koski-saludo.mp4" type="video/mp4">
+            </video>
           </div>
           <div class="kos-chatbot-header-text">
             <span class="kos-chatbot-header-name">Koski Agent</span>
@@ -522,14 +519,35 @@ export function initChatbot() {
   const msgContainer = container.querySelector('#chatbot-msg-container');
   const typingInd = container.querySelector('#chatbot-typing');
   const suggestionsEl = container.querySelector('#chatbot-suggestions');
-  const avatarImg = container.querySelector('.kos-chatbot-avatar img');
 
-  const playGreeting = () => {
-    if (!avatarImg) return;
-    avatarImg.classList.remove('kos-avatar-greet');
-    void avatarImg.offsetWidth; // reflow so the animation restarts every time
-    avatarImg.classList.add('kos-avatar-greet');
+  // Koski avatar: white circle with the waving video inside. Opening the chat
+  // (or tapping the avatar) makes it pop bigger while it waves, then it settles
+  // back to its normal size but keeps looping so it's always a little alive.
+  const avatarEl = container.querySelector('#kos-chatbot-avatar');
+  const avatarVideo = container.querySelector('#kos-avatar-video');
+  let koskiBurstTimer = null;
+
+  const playKoskiGreet = () => {
+    if (!avatarEl || !avatarVideo) return;
+    avatarVideo.currentTime = 0;
+    avatarVideo.play().catch(() => {});
+    avatarEl.classList.add('koski-burst');
+
+    clearTimeout(koskiBurstTimer);
+    koskiBurstTimer = setTimeout(() => {
+      avatarEl.classList.remove('koski-burst');
+    }, 3000); // roughly one wave cycle, then it shrinks back but keeps looping
   };
+
+  if (avatarEl) {
+    avatarEl.addEventListener('click', playKoskiGreet);
+    avatarEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        playKoskiGreet();
+      }
+    });
+  }
 
   const toggleWindow = () => {
     windowEl.classList.toggle('open');
@@ -538,10 +556,13 @@ export function initChatbot() {
       document.body.classList.add('chat-open');
       btnOpen.style.display = 'none'; // Force hide
       input.focus();
-      playGreeting();
+      playKoskiGreet();
     } else {
       document.body.classList.remove('chat-open');
       btnOpen.style.display = ''; // Restore
+      clearTimeout(koskiBurstTimer);
+      if (avatarEl) avatarEl.classList.remove('koski-burst');
+      if (avatarVideo) avatarVideo.pause();
     }
   };
 
