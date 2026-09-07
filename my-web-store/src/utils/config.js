@@ -20,7 +20,7 @@ export const SITE_CONFIG = {
   DEFAULT_UNITS_PER_BOX: 1000,
 
   // Contact
-  SUPPORT_WHATSAPP: '573225227073',
+  SUPPORT_WHATSAPP: '573136647237',
   SUPPORT_EMAIL: 'ventas@kosxpress.com',
 
   // Brand

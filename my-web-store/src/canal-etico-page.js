@@ -94,7 +94,7 @@ if (mount) {
         <label for="attachments">Adjuntar archivos</label>
         <div class="file-upload-wrapper">
           <svg viewBox="0 0 24 24" fill="none" class="upload-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-          <span class="upload-text"><strong>Haz clic para subir evidencia</strong><br>Imágenes o PDF de soporte (máx 8MB c/u)</span>
+          <span class="upload-text"><strong>Haz clic para subir evidencia</strong><br>Imágenes o PDF de soporte (máx. 8 MB c/u)</span>
           <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple class="file-input-hidden" />
         </div>
       </div>

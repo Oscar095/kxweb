@@ -305,7 +305,7 @@ async function init() {
     if (!sku) {
       cartService.add(product, qty);
       btn.classList.add('added');
-      showToast('Agregado Exitosamente');
+      showToast('Agregado exitosamente');
       setTimeout(() => btn.classList.remove('added'), 350);
       return;
     }
@@ -317,18 +317,18 @@ async function init() {
       const data = await r.json();
       const estado = (data && (data.estado || data.status || '')).toString();
       if (estado !== 'En Existencia') {
-        showToast('Producto Agotado', 'error'); return;
+        showToast('Producto agotado', 'error'); return;
       }
       const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
       const upb = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
       if (Number.isFinite(Number(data?.inventario)) && qty * upb > Number(data.inventario)) {
-        showToast('Producto Agotado', 'error'); return;
+        showToast('Producto agotado', 'error'); return;
       }
       cartService.add(product, qty);
       btn.classList.add('added');
-      showToast('Agregado Exitosamente');
+      showToast('Agregado exitosamente');
       setTimeout(() => btn.classList.remove('added'), 350);
-    } catch { showToast('Producto Agotado', 'error'); }
+    } catch { showToast('Producto agotado', 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Agregar'; }
   });
 

@@ -128,7 +128,7 @@ function initCotizador() {
         const mensaje = `Hi KosXpress! 👋%0AI'd like a quote for a custom order:%0A%0A📦 Product: *${nombreProducto}*%0A🔢 Quantity: *${formatCurrency(cantidad)} units*%0A💰 Approx. Investment: *$${formatCurrency(Math.round(total))} COP*%0A%0ACould you help me with the design and delivery times?`;
 
         btnWhatsapp.onclick = () => {
-            window.open(`https://wa.me/573225227073?text=${mensaje}`, '_blank');
+            window.open(`https://wa.me/573136647237?text=${mensaje}`, '_blank');
         };
     }
 

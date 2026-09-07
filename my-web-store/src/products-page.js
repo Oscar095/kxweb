@@ -208,7 +208,7 @@ async function init() {
       for (const c of categories) {
         const btn = document.createElement('button');
         btn.className = 'v2-cat-btn';
-        const catName = c.nombre || c.descripcion || 'Sin Nombre';
+        const catName = c.nombre || c.descripcion || 'Sin nombre';
         btn.dataset.cat = catName;
 
         const count = products.filter(p => window.pMatcher(p, catName)).length;
@@ -418,7 +418,7 @@ async function init() {
     const onAddSuccess = () => {
       cartService.add(product, qty);
       btn.classList.add('added');
-      showToast('Agregado Exitosamente');
+      showToast('Agregado exitosamente');
       setTimeout(() => btn.classList.remove('added'), 350);
     };
 
@@ -441,7 +441,7 @@ async function init() {
       const inventarioExistencia = Number(data?.inventario);
 
       if (estado !== 'En Existencia') {
-        showToast('Producto Agotado', 'error');
+        showToast('Producto agotado', 'error');
         return;
       }
 
@@ -450,14 +450,14 @@ async function init() {
       const requestedUnits = qty * unitsPerBox;
 
       if (Number.isFinite(inventarioExistencia) && requestedUnits > inventarioExistencia) {
-        showToast('Producto Agotado', 'error');
+        showToast('Producto agotado', 'error');
         return;
       }
 
       onAddSuccess();
     } catch (err) {
       console.error('Error checando inventario', err);
-      showToast('Producto Agotado', 'error');
+      showToast('Producto agotado', 'error');
     } finally {
       setBtnLoading(false);
     }

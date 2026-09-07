@@ -14,23 +14,23 @@ mount.innerHTML = `
         <input id="name" name="name" required placeholder="Tu nombre completo" />
       </div>
       <div class="form-group">
-        <label for="phone">Telefono</label>
+        <label for="phone">Teléfono</label>
         <input id="phone" name="phone" type="tel" placeholder="+57 300 000 0000" />
       </div>
     </div>
     <div class="form-group full-width">
-      <label for="email">Correo electronico</label>
+      <label for="email">Correo electrónico</label>
       <input id="email" name="email" type="email" required placeholder="correo@ejemplo.com" />
     </div>
     <div class="form-group full-width">
       <label for="message">Mensaje</label>
-      <textarea id="message" name="message" required placeholder="Describe tu consulta, producto de interes o pedido..."></textarea>
+      <textarea id="message" name="message" required placeholder="Describe tu consulta, producto de interés o pedido..."></textarea>
     </div>
     <div class="form-group full-width">
       <label for="attachments">Archivos adjuntos</label>
       <div class="file-upload-wrapper">
         <svg viewBox="0 0 24 24" fill="none" class="upload-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-        <span class="upload-text"><strong>Haz clic para subir archivos</strong><br>Logos, diseños, imagenes de referencia (max 10MB)</span>
+        <span class="upload-text"><strong>Haz clic para subir archivos</strong><br>Logos, diseños, imágenes de referencia (máx. 10 MB)</span>
         <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple class="file-input-hidden" />
       </div>
     </div>
@@ -107,7 +107,7 @@ form.addEventListener('submit', async (e) => {
       void recaptchaContainer.offsetWidth; // trigger reflow
       recaptchaContainer.classList.add('shake-animation');
     } else {
-      result.innerHTML = `<div class="contact-error">Por favor, marca la casilla "No soy un robot".</div>`;
+      result.innerHTML = `<div class="contact-error">Por favor, marca la casilla «No soy un robot».</div>`;
     }
     return;
   } else {

@@ -458,7 +458,7 @@ export function initChatbot() {
   container.innerHTML = `
     <!-- Welcome Bubble -->
     <div class="kos-welcome-bubble" id="kos-welcome-bubble">
-      Hola, soy Koski, tu Asistente Personal
+      Hola, soy Koski, tu asistente personal
     </div>
 
     <!-- Chat Window -->
@@ -472,18 +472,18 @@ export function initChatbot() {
           </div>
           <div class="kos-chatbot-header-text">
             <span class="kos-chatbot-header-name">Koski Agent</span>
-            <span class="kos-chatbot-header-status"><span class="kos-status-dot"></span> En linea</span>
+            <span class="kos-chatbot-header-status"><span class="kos-status-dot"></span> En línea</span>
           </div>
         </div>
         <button class="kos-chatbot-close">&#x2715;</button>
       </div>
       <div class="kos-chatbot-messages" id="chatbot-msg-container">
-        <div class="chatbot-msg bot">Hola! Soy Koski, tu asistente de IA. Estoy aqui para ayudarte en lo que necesites.</div>
+        <div class="chatbot-msg bot">¡Hola! Soy Koski, tu asistente de IA. Estoy aquí para ayudarte en lo que necesites.</div>
         <div class="kos-chatbot-suggestions" id="chatbot-suggestions">
           <button class="kos-suggestion-chip" data-msg="Quiero cotizar al por mayor">📦 Cotizar al por mayor</button>
           <button class="kos-suggestion-chip" data-msg="Necesito hablar con un asesor humano">👤 Hablar con asesor</button>
           <button class="kos-suggestion-chip" data-msg="Quiero seguir el estado de mi pedido">📋 Seguir mi pedido</button>
-          <button class="kos-suggestion-chip" data-msg="Necesito informacion sobre sus productos">ℹ️ Info de productos</button>
+          <button class="kos-suggestion-chip" data-msg="Necesito información sobre sus productos">ℹ️ Info de productos</button>
         </div>
         <div class="typing-indicator" id="chatbot-typing">
           <span class="typing-label">Escribiendo</span>
@@ -585,7 +585,7 @@ export function initChatbot() {
   // Time formatter
   const getTime = () => {
     const now = new Date();
-    return now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit' });
+    return now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   };
 
   const appendMessage = (text, sender, isError = false) => {
@@ -705,13 +705,13 @@ export function initChatbot() {
         } catch {
           replyText = textResponse && textResponse.trim() ? textResponse : null;
           if (!replyText) {
-            appendError('Recibi una respuesta vacia. Por favor intenta de nuevo.', text);
+            appendError('Recibí una respuesta vacía. Por favor intenta de nuevo.', text);
             return;
           }
         }
         appendMessage(replyText, 'bot');
       } else {
-        appendError('Ocurrio un problema al procesar tu solicitud. Por favor intenta de nuevo en unos momentos.', text);
+        appendError('Ocurrió un problema al procesar tu solicitud. Por favor intenta de nuevo en unos momentos.', text);
       }
 
       input.focus();
@@ -719,7 +719,7 @@ export function initChatbot() {
       console.error('Chatbot error:', err);
       showTyping(false);
       setInputEnabled(true);
-      appendError('No pude conectar con el servidor. Verifica tu conexion e intenta de nuevo.', text);
+      appendError('No pude conectar con el servidor. Verifica tu conexión e intenta de nuevo.', text);
       input.focus();
     }
   };

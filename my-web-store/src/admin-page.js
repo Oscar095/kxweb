@@ -1548,7 +1548,7 @@ async function loadDashboard() {
         options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
       });
     } else if (ctxTV) {
-      ctxTV.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+      ctxTV.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
     }
 
     // Chart: Top vistos
@@ -1568,26 +1568,26 @@ async function loadDashboard() {
         options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
       });
     } else if (ctxTVi) {
-      ctxTVi.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+      ctxTVi.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
     }
 
     // Table: Top paises
     const paisesEl = el('table-paises');
     if (paisesEl && data.topPaises) {
-      paisesEl.innerHTML = data.topPaises.length ? `<table class="admin-table"><thead><tr><th>Pais</th><th>Visitas</th></tr></thead><tbody>${data.topPaises.map(p => `<tr><td>${p.country}</td><td>${fmtNum(p.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+      paisesEl.innerHTML = data.topPaises.length ? `<table class="admin-table"><thead><tr><th>País</th><th>Visitas</th></tr></thead><tbody>${data.topPaises.map(p => `<tr><td>${p.country}</td><td>${fmtNum(p.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
     }
 
     // Table: Top ciudades
     const ciudadesEl = el('table-ciudades');
     if (ciudadesEl && data.topCiudades) {
-      ciudadesEl.innerHTML = data.topCiudades.length ? `<table class="admin-table"><thead><tr><th>Ciudad</th><th>Pais</th><th>Visitas</th></tr></thead><tbody>${data.topCiudades.map(c => `<tr><td>${c.city}</td><td>${c.country}</td><td>${fmtNum(c.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+      ciudadesEl.innerHTML = data.topCiudades.length ? `<table class="admin-table"><thead><tr><th>Ciudad</th><th>País</th><th>Visitas</th></tr></thead><tbody>${data.topCiudades.map(c => `<tr><td>${c.city}</td><td>${c.country}</td><td>${fmtNum(c.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
     }
 
     // Recent orders
     const recentEl = el('dash-pedidos-recientes');
     if (recentEl && data.pedidosRecientes) {
       if (!data.pedidosRecientes.length) {
-        recentEl.innerHTML = '<p style="color:var(--admin-text-muted);">No hay pedidos aun.</p>';
+        recentEl.innerHTML = '<p style="color:var(--admin-text-muted);">No hay pedidos aún.</p>';
       } else {
         recentEl.innerHTML = `<table class="admin-table"><thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>${data.pedidosRecientes.map(p => `<tr><td>${p.id}</td><td>${p.name || ''}</td><td>${fmtCOP(p.total_value)}</td><td>${renderStatusBadge(p.payment_status)}</td><td>${formatDate(p.createdAt)}</td></tr>`).join('')}</tbody></table>`;
       }
@@ -1707,21 +1707,21 @@ window.__viewPedido = async (id) => {
     body.innerHTML = `
       <div class="pedido-detail-grid">
         <div class="pedido-detail-section">
-          <h4>Informacion del Pedido</h4>
+          <h4>Información del Pedido</h4>
           <div class="pedido-detail-row"><strong>Pedido #:</strong> ${p.id}</div>
           <div class="pedido-detail-row"><strong>Estado:</strong> ${renderStatusBadge(p.payment_status)}</div>
           <div class="pedido-detail-row"><strong>ID Wompi:</strong> ${p.id_wompi || 'N/A'}</div>
-          <div class="pedido-detail-row"><strong>Metodo de Pago:</strong> ${p.payment_method || 'N/A'}</div>
+          <div class="pedido-detail-row"><strong>Método de Pago:</strong> ${p.payment_method || 'N/A'}</div>
           <div class="pedido-detail-row"><strong>Fecha:</strong> ${formatDate(p.createdAt)}</div>
           ${p.updatedAt ? `<div class="pedido-detail-row"><strong>Actualizado:</strong> ${formatDate(p.updatedAt)}</div>` : ''}
         </div>
         <div class="pedido-detail-section">
           <h4>Datos del Cliente</h4>
           <div class="pedido-detail-row"><strong>Nombre:</strong> ${p.name || ''}</div>
-          <div class="pedido-detail-row"><strong>NIT/Cedula:</strong> ${p.nit_id || ''}</div>
+          <div class="pedido-detail-row"><strong>NIT/Cédula:</strong> ${p.nit_id || ''}</div>
           <div class="pedido-detail-row"><strong>Email:</strong> ${p.email || ''}</div>
-          <div class="pedido-detail-row"><strong>Telefono:</strong> ${p.phone || ''}</div>
-          <div class="pedido-detail-row"><strong>Direccion:</strong> ${p.address || ''}</div>
+          <div class="pedido-detail-row"><strong>Teléfono:</strong> ${p.phone || ''}</div>
+          <div class="pedido-detail-row"><strong>Dirección:</strong> ${p.address || ''}</div>
           <div class="pedido-detail-row"><strong>Ciudad:</strong> ${p.city || ''}</div>
           ${p.notes ? `<div class="pedido-detail-row"><strong>Notas:</strong> ${p.notes}</div>` : ''}
         </div>

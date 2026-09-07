@@ -8,7 +8,7 @@ console.log('personalizados.js cargado');
 let productsData = [];
 
 function formatCurrency(num) {
-    return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 async function loadProducts() {
@@ -129,10 +129,10 @@ function initCotizador() {
 
         // WhatsApp CTA
         const nombreProducto = selectedOpt.text;
-        const mensaje = `Hola KosXpress! 👋%0AQuiero cotizar un pedido personalizado:%0A%0A📦 Producto: *${nombreProducto}*%0A🔢 Cantidad: *${formatCurrency(cantidad)} unidades*%0A💰 Inversión Aprox: *$${formatCurrency(Math.round(total))} COP*%0A%0A¿Me pueden asesorar con el diseño y tiempos de entrega?`;
+        const mensaje = `¡Hola, KosXpress! 👋%0AQuiero cotizar un pedido personalizado:%0A%0A📦 Producto: *${nombreProducto}*%0A🔢 Cantidad: *${formatCurrency(cantidad)} unidades*%0A💰 Inversión aproximada: *$${formatCurrency(Math.round(total))} COP*%0A%0A¿Me pueden asesorar con el diseño y tiempos de entrega?`;
 
         btnWhatsapp.onclick = () => {
-            window.open(`https://wa.me/573225227073?text=${mensaje}`, '_blank');
+            window.open(`https://wa.me/573136647237?text=${mensaje}`, '_blank');
         };
     }
 

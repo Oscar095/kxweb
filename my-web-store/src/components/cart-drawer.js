@@ -62,10 +62,10 @@ export function renderCartDrawer(mount) {
     <div class="cart-body" id="cart-body"></div>
     <div class="cart-footer">
       <div class="cart-summary">
-        <span style="font-size:1.1rem; color:var(--muted); font-weight:600;">Total a Pagar:</span>
+        <span style="font-size:1.1rem; color:var(--muted); font-weight:600;">Total a pagar:</span>
         <div id="cart-total"></div>
       </div>
-      <button id="checkout" class="btn-primary" style="width: 100%; font-size: 1.15rem; padding: 14px; border-radius: 12px; box-sizing: border-box; text-align:center;">Procesar Pago</button>
+      <button id="checkout" class="btn-primary" style="width: 100%; font-size: 1.15rem; padding: 14px; border-radius: 12px; box-sizing: border-box; text-align:center;">Procesar pago</button>
     </div>
   `;
 
@@ -135,7 +135,7 @@ export function renderCartDrawer(mount) {
           </div>
         </div>
       </div>
-    `).join('') : '<div style="text-align:center; padding:40px 0; color:var(--muted); font-weight:600;">Ouch, tu carrito está vacío 🛒</div>';
+    `).join('') : '<div style="text-align:center; padding:40px 0; color:var(--muted); font-weight:600;">¡Ups! Tu carrito está vacío 🛒</div>';
 
     const total = grouped.reduce((s, it) => s + Math.round(it.subtotal * 1.19), 0);
     document.getElementById('cart-total').innerHTML = `<strong>$${formatMoney(total)}</strong> <span style="font-size:0.75rem;color:#f28c30;font-weight:600;">IVA incluido</span>`;

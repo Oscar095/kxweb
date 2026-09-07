@@ -595,18 +595,18 @@ function renderProduct(p) {
   addBtn?.addEventListener('click', () => {
     // Chequeo final antes de agregar
     if (upstreamEstado !== 'En Existencia') {
-      showToast('Producto Agotado', 'error');
+      showToast('Producto agotado', 'error');
       return;
     }
     if (exceedsInventory()) {
-      showToast('Producto Agotado', 'error');
+      showToast('Producto agotado', 'error');
       renderStockAndCartState();
       return;
     }
     const qty = Math.max(1, Number(document.getElementById('pd-qty').value) || 1);
     cartService.add(p, qty);
     window.dispatchEvent(new Event('toggle-cart'));
-    showToast('Agregado Exitosamente');
+    showToast('Agregado exitosamente');
   });
 }
 
