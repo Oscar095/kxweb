@@ -734,21 +734,22 @@
       <!-- === BIBLIOTECA VIEW === -->
       <section id="view-library" class="admin-view">
         <div class="admin-header-row">
-          <h2>Biblioteca de Imágenes</h2>
+          <h2>Biblioteca de Archivos</h2>
         </div>
-        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Almacena imágenes reutilizables. Podrás
-          seleccionarlas al momento de crear un producto.</p>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Almacena imágenes y otros archivos reutilizables
+          (PDF, Word, Excel, ZIP, texto). Las imágenes podrás seleccionarlas al momento de crear un producto.</p>
 
         <div class="glass-card">
           <form id="library-form" class="admin-form" enctype="multipart/form-data">
             <div class="form-grid">
               <div class="field-group">
-                <label for="lib-nombre">Nombre de la Imagen</label>
+                <label for="lib-nombre">Nombre del Archivo</label>
                 <input id="lib-nombre" name="nombre" type="text" placeholder="Ej: Empaque 500g" required />
               </div>
               <div class="field-group">
-                <label for="lib-imagen">Archivo de Imagen</label>
-                <input id="lib-imagen" name="imagen" type="file" accept="image/*" required />
+                <label for="lib-imagen">Archivo</label>
+                <input id="lib-imagen" name="imagen"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt,.csv" type="file" required />
               </div>
             </div>
             <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
@@ -759,7 +760,7 @@
         </div>
 
         <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
-          <h3 style="margin-top:0;">Todas las Imágenes</h3>
+          <h3 style="margin-top:0;">Todos los Archivos</h3>
           <div id="library-grid" class="admin-grid-products"></div>
         </div>
       </section>

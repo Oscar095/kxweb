@@ -955,28 +955,55 @@ async function loadLibrary() {
     const grid = document.getElementById('library-grid');
     grid.innerHTML = '';
     for (const it of items) {
+      const isImage = (it.tipo || '').startsWith('image/');
+
       const wrap = document.createElement('div');
       wrap.style.position = 'relative';
       wrap.style.borderRadius = '6px';
       wrap.style.overflow = 'hidden';
 
-      const img = document.createElement('img');
-      img.src = it.url;
-      img.alt = it.nombre || '';
-      img.title = `${it.nombre} (#${it.id})`;
-      img.style.width = '100%';
-      img.style.height = '88px';
-      img.style.objectFit = 'cover';
+      let preview;
+      if (isImage) {
+        preview = document.createElement('img');
+        preview.src = it.url;
+        preview.style.objectFit = 'cover';
+      } else {
+        preview = document.createElement('div');
+        preview.style.display = 'flex';
+        preview.style.flexDirection = 'column';
+        preview.style.alignItems = 'center';
+        preview.style.justifyContent = 'center';
+        preview.style.gap = '4px';
+        preview.style.background = 'var(--admin-bg-soft, #f1f1f1)';
+        preview.innerHTML = `
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 2c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"/></svg>
+          <span style="font-size:0.65rem; padding:0 4px; text-align:center; word-break:break-word;">${(it.nombre || '').slice(0, 30)}</span>
+        `;
+      }
+      preview.alt = it.nombre || '';
+      preview.title = `${it.nombre} (#${it.id})`;
+      preview.style.width = '100%';
+      preview.style.height = '88px';
 
       const bar = document.createElement('div');
       bar.style.display = 'flex';
+      bar.style.flexWrap = 'wrap';
       bar.style.gap = '6px';
       bar.style.padding = '4px';
 
-      const addBtn = document.createElement('button');
-      addBtn.textContent = 'Usar';
-      addBtn.type = 'button';
-      addBtn.addEventListener('click', () => addLibrarySelection(it));
+      if (isImage) {
+        const addBtn = document.createElement('button');
+        addBtn.textContent = 'Usar';
+        addBtn.type = 'button';
+        addBtn.addEventListener('click', () => addLibrarySelection(it));
+        bar.appendChild(addBtn);
+      } else {
+        const openBtn = document.createElement('button');
+        openBtn.textContent = 'Abrir';
+        openBtn.type = 'button';
+        openBtn.addEventListener('click', () => window.open(it.url, '_blank', 'noopener'));
+        bar.appendChild(openBtn);
+      }
 
       const copyBtn = document.createElement('button');
       copyBtn.textContent = 'Copiar URL';
@@ -995,7 +1022,7 @@ async function loadLibrary() {
       delBtn.style.background = '#d9534f';
       delBtn.style.color = '#fff';
       delBtn.addEventListener('click', async () => {
-        if (!confirm(`Eliminar imagen de biblioteca #${it.id}?`)) return;
+        if (!confirm(`Eliminar archivo de biblioteca #${it.id}?`)) return;
         try {
           const rr = await fetch(`/api/biblioteca/${it.id}`, { method: 'DELETE', credentials: 'same-origin' });
           if (!rr.ok) return alert('No se pudo eliminar');
@@ -1008,7 +1035,7 @@ async function loadLibrary() {
 
       bar.appendChild(copyBtn);
       bar.appendChild(delBtn);
-      wrap.appendChild(img);
+      wrap.appendChild(preview);
       wrap.appendChild(bar);
       grid.appendChild(wrap);
     }

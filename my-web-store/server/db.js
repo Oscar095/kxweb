@@ -106,6 +106,14 @@ async function ensureSchema() {
     END
   `);
 
+  // Ensure tipo (mimetype) column exists on library, to distinguish images from other files
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.library','tipo') IS NULL
+    BEGIN
+      ALTER TABLE dbo.library ADD tipo NVARCHAR(255) NULL;
+    END
+  `);
+
   // banco_imagenes (tabla solicitada)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[banco_imagenes]') AND type in (N'U'))

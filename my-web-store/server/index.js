@@ -1439,8 +1439,8 @@ app.get('/api/tipo-empaque', async (req, res) => {
 // Listar biblioteca (metadatos)
 app.get('/api/biblioteca', async (req, res) => {
   try {
-    const rows = await db.query('SELECT id,nombre,url FROM dbo.library ORDER BY id');
-    const out = rows.map(r => ({ id: r.id, nombre: r.nombre, url: process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url) }));
+    const rows = await db.query('SELECT id,nombre,url,tipo FROM dbo.library ORDER BY id');
+    const out = rows.map(r => ({ id: r.id, nombre: r.nombre, tipo: r.tipo || null, url: process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url) }));
     res.json(out);
   } catch (e) {
     console.error(e);
@@ -1465,12 +1465,13 @@ app.get('/api/biblioteca/:id/imagen', async (req, res) => {
 });
 
 // Crear elemento de biblioteca (protegido)
+const LIBRARY_ALLOWED_MIME = /^(image\/(png|jpeg|jpg|gif|webp|svg\+xml)|application\/(pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document|vnd\.ms-excel|vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet|zip|x-zip-compressed)|text\/(plain|csv))$/;
 const libUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype)) return cb(null, true);
-    cb(new Error('Solo se permiten imágenes PNG/JPG/GIF/WebP'));
+    if (LIBRARY_ALLOWED_MIME.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Tipo de archivo no permitido. Se aceptan imágenes, PDF, Word, Excel, ZIP y texto plano.'));
   }
 });
 
@@ -1478,7 +1479,7 @@ app.post('/api/biblioteca', requireFullAdmin, libUpload.single('imagen'), async 
   try {
     const { nombre } = req.body || {};
     console.log('[POST /api/biblioteca] request received', { nombre: nombre || null, file: req.file ? { originalname: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype } : null });
-    if (!nombre || !req.file) return res.status(400).json({ message: 'nombre e imagen son requeridos' });
+    if (!nombre || !req.file) return res.status(400).json({ message: 'nombre y archivo son requeridos' });
     if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
 
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
@@ -1512,7 +1513,7 @@ app.post('/api/biblioteca', requireFullAdmin, libUpload.single('imagen'), async 
     const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
     const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
     try {
-      const resIns = await db.query(`INSERT INTO dbo.library (nombre,url) OUTPUT INSERTED.id VALUES (@nombre,@url);`, { nombre: String(nombre).trim(), url: blobUrl });
+      const resIns = await db.query(`INSERT INTO dbo.library (nombre,url,tipo) OUTPUT INSERTED.id VALUES (@nombre,@url,@tipo);`, { nombre: String(nombre).trim(), url: blobUrl, tipo: req.file.mimetype });
       const newId = resIns[0] && resIns[0].id;
       console.log('[POST /api/biblioteca] metadata saved id=', newId);
     } catch (errDb) {
