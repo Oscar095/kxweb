@@ -95,6 +95,9 @@ async function init() {
     let _res;
     window._inventoryReady = new Promise(r => { _res = r; });
     window._resolveInventoryReady = _res;
+    // Esta pagina no hace consulta masiva de inventario: se resuelve de inmediato
+    // para que las tarjetas no esperen en vano antes de su consulta individual.
+    _res();
   }
 
   function filterProducts(q) {

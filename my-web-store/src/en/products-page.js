@@ -649,11 +649,15 @@ async function init() {
     }
   };
   // Fetch inventory (non-blocking)
-  checkAllInventory().then(() => {
-    console.log('[checkAllInventory] Finished bulk check');
-    if (currentFilter !== 'all') reapply();
-    window.dispatchEvent(new CustomEvent('content-loaded'));
-  });
+  checkAllInventory()
+    .catch((e) => console.warn('[checkAllInventory] bulk check failed', e))
+    .finally(() => {
+      // Siempre se resuelve la promesa global que esperan las tarjetas: sin esto
+      // quedarian fijas en 'Consultando...' hasta agotar el tope de espera.
+      window._resolveInventoryReady?.();
+      if (currentFilter !== 'all') reapply();
+      window.dispatchEvent(new CustomEvent('content-loaded'));
+    });
 
   // Listen for individual stock updates to refresh the filter
   window.addEventListener('inventory-updated', () => {
