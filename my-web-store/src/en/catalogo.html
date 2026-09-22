@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <!-- Google Tag Manager -->
+  <script>(function (w, d, s, l, i) {
+      w[l] = w[l] || []; w[l].push({
+        'gtm.start':
+          new Date().getTime(), event: 'gtm.js'
+      }); var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+          'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-WM5BCLWN');</script>
+  <!-- End Google Tag Manager -->
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Official Catalog — KosXpress</title>
+  <meta name="description"
+    content="Browse our full catalog of wholesale disposable and biodegradable packaging at KosXpress.">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="https://kosxpress.com/en/catalogo">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png"
+    href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
+  <link rel="apple-touch-icon"
+    href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
+
+  <link rel="stylesheet" href="/styles/main.css?v=42.0">
+
+  <!-- Meta Pixel Code -->
+  <script>
+    !function (f, b, e, v, n, t, s) {
+      if (f.fbq) return; n = f.fbq = function () {
+        n.callMethod ?
+          n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+      };
+      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+      n.queue = []; t = b.createElement(e); t.async = !0;
+      t.src = v; s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s)
+    }(window, document, 'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '385489602659855');
+    fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=385489602659855&ev=PageView&noscript=1" /></noscript>
+  <!-- End Meta Pixel Code -->
+
+  <style>
+    /* Styling for the PDF section */
+    .pdf-page-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 24px;
+      max-width: var(--max-width);
+      margin: 0 auto;
+      min-height: 80vh;
+    }
+
+    .pdf-header {
+      text-align: center;
+      margin-bottom: 32px;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+
+    .pdf-header h1 {
+      font-size: 2.8rem;
+      margin-bottom: 12px;
+      font-weight: 800;
+    }
+
+    .pdf-header p {
+      color: var(--muted);
+      font-size: 1.15rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .pdf-actions {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+      justify-content: center;
+      flex-wrap: wrap;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s forwards;
+    }
+
+    .pdf-actions a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      font-weight: 700;
+      border-radius: 30px;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn-secondary-outline {
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      color: var(--text-main);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-secondary-outline:hover {
+      background: rgba(255, 255, 255, 0.9);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+      border-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .contenedor-pdf {
+      width: 100%;
+      max-width: 1100px;
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: #ffffff;
+      margin-bottom: 40px;
+      opacity: 0;
+      transform: translateY(30px);
+      animation: fadeInUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s forwards;
+    }
+
+    .pdf-loader {
+      position: absolute;
+      inset: 0;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      transition: opacity 0.5s ease;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(0, 159, 227, 0.1);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+    }
+
+    .pdf-loader p {
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    iframe {
+      display: block;
+      border: none;
+      width: 100%;
+      height: 750px;
+    }
+
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .pdf-header h1 {
+        font-size: 2.2rem;
+      }
+
+      iframe {
+        height: 550px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WM5BCLWN" height="0" width="0"
+      style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
+  <div id="app">
+    <header id="site-header"></header>
+
+    <main style="position: relative;">
+      <!-- Futuristic Orbs -->
+      <div class="bg-orb orb-blue"></div>
+      <div class="bg-orb orb-orange"></div>
+
+      <section class="pdf-page-container">
+        <div class="pdf-header">
+          <h1 class="gradient-text-blue">Official Catalog</h1>
+          <p>Explore our portfolio of high-quality disposable and biodegradable packaging for any type of
+            business.</p>
+        </div>
+
+        <div class="pdf-actions">
+          <a href="/en/" class="btn-secondary-outline">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Home
+          </a>
+          <a href="https://drive.google.com/file/d/1TX-oxr8dJuI3RfWFzzu2RuIdMz2ssKqb/preview" target="_blank"
+            rel="noopener noreferrer" class="btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            Full Screen
+          </a>
+        </div>
+
+        <div class="contenedor-pdf">
+          <div class="pdf-loader" id="pdf-loader">
+            <div class="spinner"></div>
+            <p>Loading digital catalog...</p>
+          </div>
+          <iframe id="pdf-iframe" src="https://drive.google.com/file/d/1TX-oxr8dJuI3RfWFzzu2RuIdMz2ssKqb/preview"
+            width="100%" height="750px" frameborder="0">
+          </iframe>
+        </div>
+      </section>
+    </main>
+
+    <div id="cart-drawer" class="cart-drawer"></div>
+    <footer class="site-footer"></footer>
+  </div>
+
+  <!-- Script to load the store default header, footer, and cart -->
+  <script type="module">
+    import { renderHeader } from './components/header.js?v=999';
+    import { renderCartDrawer } from './components/cart-drawer.js';
+
+    renderHeader(document.getElementById('site-header'));
+    renderCartDrawer(document.getElementById('cart-drawer'));
+
+    // Handle fading out the loader when the iframe finishes loading
+    const iframe = document.getElementById('pdf-iframe');
+    const loader = document.getElementById('pdf-loader');
+    if (iframe && loader) {
+      iframe.addEventListener('load', () => {
+        loader.style.opacity = '0';
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 500);
+      });
+    }
+  </script>
+  <script src="../utils/tracker.js"></script>
+</body>
+
+</html>

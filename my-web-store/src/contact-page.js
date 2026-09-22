@@ -1,5 +1,6 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
+import { escapeHtml } from './utils/format.js';
 
 renderHeader(document.getElementById('site-header'));
 renderCartDrawer(document.getElementById('cart-drawer'));
@@ -13,25 +14,42 @@ mount.innerHTML = `
         <input id="name" name="name" required placeholder="Tu nombre completo" />
       </div>
       <div class="form-group">
-        <label for="phone">Telefono</label>
+        <label for="phone">Teléfono</label>
         <input id="phone" name="phone" type="tel" placeholder="+57 300 000 0000" />
       </div>
     </div>
     <div class="form-group full-width">
-      <label for="email">Correo electronico</label>
+      <label for="email">Correo electrónico</label>
       <input id="email" name="email" type="email" required placeholder="correo@ejemplo.com" />
     </div>
     <div class="form-group full-width">
       <label for="message">Mensaje</label>
-      <textarea id="message" name="message" required placeholder="Describe tu consulta, producto de interes o pedido..."></textarea>
+      <textarea id="message" name="message" required placeholder="Describe tu consulta, producto de interés o pedido..."></textarea>
     </div>
     <div class="form-group full-width">
       <label for="attachments">Archivos adjuntos</label>
       <div class="file-upload-wrapper">
         <svg viewBox="0 0 24 24" fill="none" class="upload-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-        <span class="upload-text"><strong>Haz clic para subir archivos</strong><br>Logos, diseños, imagenes de referencia (max 10MB)</span>
+        <span class="upload-text"><strong>Haz clic para subir archivos</strong><br>Logos, diseños, imágenes de referencia (máx. 10 MB)</span>
         <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf" multiple class="file-input-hidden" />
       </div>
+    </div>
+    <style>
+      @keyframes shakeError {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-5px); }
+        40%, 80% { transform: translateX(5px); }
+      }
+      .shake-animation {
+        animation: shakeError 0.4s ease-in-out;
+      }
+    </style>
+    <div class="form-group full-width" style="margin-top: 24px; margin-bottom: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+      <div id="recaptcha-error" style="display: none; color: #d93025; background: #fce8e6; border: 1px solid #fad2cf; padding: 8px 16px; border-radius: 8px; margin-bottom: 12px; font-weight: 500; font-size: 0.95rem; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(217, 48, 37, 0.15);">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        <span>Por favor, verifica que no eres un robot</span>
+      </div>
+      <div id="recaptcha-container" class="g-recaptcha" data-sitekey="6LetrigtAAAAAMm9bIxo_5cQXM-s8SosaZ1Ajh-s"></div>
     </div>
     <div class="actions full-width" style="margin-top: 12px;">
       <button type="submit" class="btn-primary btn-submit" style="width: 100%; border-radius: 30px; font-size: 1.15rem; padding: 14px 24px;">Enviar mensaje</button>
@@ -49,7 +67,7 @@ if (fileInput && uploadText) {
   fileInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length > 0) {
       if (e.target.files.length === 1) {
-        uploadText.innerHTML = `<strong>${e.target.files[0].name}</strong><br>Listo para enviar.`;
+        uploadText.innerHTML = `<strong>${escapeHtml(e.target.files[0].name)}</strong><br>Listo para enviar.`;
       } else {
         uploadText.innerHTML = `<strong>${e.target.files.length} archivos seleccionados</strong><br>Listos para enviar.`;
       }
@@ -62,24 +80,49 @@ if (fileInput && uploadText) {
 const form = document.getElementById('contact-form');
 const result = document.getElementById('contact-result');
 
+// Inyectar script de reCAPTCHA dinámicamente
+const recaptchaScript = document.createElement('script');
+recaptchaScript.src = "https://www.google.com/recaptcha/api.js";
+recaptchaScript.async = true;
+recaptchaScript.defer = true;
+document.head.appendChild(recaptchaScript);
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(form);
-  // Normaliza strings
   fd.set('name', (fd.get('name') || '').toString().trim());
   fd.set('email', (fd.get('email') || '').toString().trim());
   fd.set('phone', (fd.get('phone') || '').toString().trim());
   fd.set('message', (fd.get('message') || '').toString().trim());
 
+  const recaptchaResponse = fd.get('g-recaptcha-response');
+  const recaptchaError = document.getElementById('recaptcha-error');
+  const recaptchaContainer = document.getElementById('recaptcha-container');
+
+  if (!recaptchaResponse) {
+    if (recaptchaError) {
+      recaptchaError.style.display = 'flex';
+      // Animación de agitación para llamar fuertemente la atención
+      recaptchaContainer.classList.remove('shake-animation');
+      void recaptchaContainer.offsetWidth; // trigger reflow
+      recaptchaContainer.classList.add('shake-animation');
+    } else {
+      result.innerHTML = `<div class="contact-error">Por favor, marca la casilla «No soy un robot».</div>`;
+    }
+    return;
+  } else {
+    if (recaptchaError) recaptchaError.style.display = 'none';
+  }
+
   try {
     const r = await fetch('/api/contacts', { method: 'POST', body: fd });
     if (!r.ok) {
       const msg = await r.text();
-      result.innerHTML = `<div class="contact-error">No se pudo enviar: ${msg}</div>`;
+      result.innerHTML = `<div class="contact-error">No se pudo enviar: ${escapeHtml(msg)}</div>`;
       return;
     }
-    const name = fd.get('name');
-    const email = fd.get('email');
+    const name = escapeHtml(fd.get('name') || '');
+    const email = escapeHtml(fd.get('email') || '');
     result.innerHTML = `<div class="contact-success">Gracias ${name}, tu mensaje fue recibido. Te contactaremos al ${email}.</div>`;
     form.reset();
   } catch (err) {

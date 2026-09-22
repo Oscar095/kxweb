@@ -43,19 +43,13 @@ export const cartService = {
   },
   /** Cambia la cantidad total de un producto por delta (puede ser negativo). Consolida líneas duplicadas. */
   changeQty(productId, delta = 1) {
-    const id = productId;
-    // Totalizar cantidad actual de ese id (soporta estado legado con múltiples líneas)
-    const same = this.items.filter(it => it.id === id);
-    const others = this.items.filter(it => it.id !== id);
-    const currentTotal = same.reduce((sum, it) => sum + (Number(it._qty) || 1), 0);
-    const nextTotal = currentTotal + (Number(delta) || 0);
+    const idx = this.items.findIndex(it => it.id === productId);
+    if (idx === -1) return;
+    const nextTotal = (Number(this.items[idx]._qty) || 1) + (Number(delta) || 0);
     if (nextTotal <= 0) {
-      this.items = others;
+      this.items.splice(idx, 1);
     } else {
-      // Mantener una sola línea consolidada con la nueva cantidad
-      const base = same[0] || { id };
-      const precioCaja = computePricePerBox(base);
-      this.items = [...others, { ...base, _qty: nextTotal, precioCaja, price: precioCaja }];
+      this.items[idx] = { ...this.items[idx], _qty: nextTotal };
     }
     this._save();
     this._notify();
@@ -64,14 +58,12 @@ export const cartService = {
   setQty(productId, qty) {
     const q = Math.floor(Number(qty) || 0);
     if (q <= 0) return this.remove(productId);
-    const id = productId;
-    const same = this.items.filter(it => it.id === id);
-    const others = this.items.filter(it => it.id !== id);
-    const base = same[0] || { id };
-    const precioCaja = computePricePerBox(base);
-    this.items = [...others, { ...base, _qty: q, precioCaja, price: precioCaja }];
-    this._save();
-    this._notify();
+    const idx = this.items.findIndex(it => it.id === productId);
+    if (idx !== -1) {
+      this.items[idx] = { ...this.items[idx], _qty: q };
+      this._save();
+      this._notify();
+    }
   },
   remove(productId) {
     this.items = this.items.filter(p => p.id !== productId);

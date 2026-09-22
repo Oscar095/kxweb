@@ -106,6 +106,14 @@ async function ensureSchema() {
     END
   `);
 
+  // Ensure tipo (mimetype) column exists on library, to distinguish images from other files
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.library','tipo') IS NULL
+    BEGIN
+      ALTER TABLE dbo.library ADD tipo NVARCHAR(255) NULL;
+    END
+  `);
+
   // banco_imagenes (tabla solicitada)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[banco_imagenes]') AND type in (N'U'))
@@ -129,6 +137,29 @@ async function ensureSchema() {
         email NVARCHAR(255),
         phone NVARCHAR(100),
         message NVARCHAR(MAX),
+        attachments NVARCHAR(MAX),
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
+      );
+    END
+  `);
+
+  // denuncias (Canal Ético)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[denuncias]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.denuncias (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        name NVARCHAR(255),
+        email NVARCHAR(255),
+        phone NVARCHAR(100),
+        identification NVARCHAR(100),
+        accusedName NVARCHAR(255),
+        accusedRole NVARCHAR(255),
+        detail NVARCHAR(MAX),
+        incidentDate NVARCHAR(20),
+        incidentTime NVARCHAR(20),
+        othersAware BIT,
+        othersAwareDetail NVARCHAR(500),
         attachments NVARCHAR(MAX),
         createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
       );
@@ -204,6 +235,34 @@ async function ensureSchema() {
     IF COL_LENGTH('dbo.products','habilitado') IS NULL
     BEGIN
       ALTER TABLE dbo.products ADD habilitado BIT NOT NULL CONSTRAINT DF_products_habilitado DEFAULT (1);
+    END
+  `);
+
+  // Ensure es_personalizado column exists on products
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.products','es_personalizado') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD es_personalizado BIT NOT NULL CONSTRAINT DF_products_es_personalizado DEFAULT (0);
+    END
+  `);
+
+  // Ensure precio_personalizado_2000 column exists on products
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.products','precio_personalizado_2000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_2000 FLOAT NULL;
+    END
+    IF COL_LENGTH('dbo.products','precio_personalizado_4000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_4000 FLOAT NULL;
+    END
+    IF COL_LENGTH('dbo.products','precio_personalizado_8000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_8000 FLOAT NULL;
+    END
+    IF COL_LENGTH('dbo.products','precio_personalizado_20000') IS NULL
+    BEGIN
+      ALTER TABLE dbo.products ADD precio_personalizado_20000 FLOAT NULL;
     END
   `);
 
@@ -324,6 +383,53 @@ async function ensureSchema() {
     END
   `);
 
+  // Documentos legales (RUT / Cámara de Comercio) para personas jurídicas
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','documentos') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD documentos NVARCHAR(MAX) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','documentos_verificados') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD documentos_verificados BIT NULL CONSTRAINT DF_pedidos_documentos_verificados DEFAULT (0);
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','documentos_verificados_por') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD documentos_verificados_por NVARCHAR(100) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','documentos_verificados_at') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD documentos_verificados_at DATETIME2 NULL;
+    END
+  `);
+
+  // Bono (first-purchase discount) applied to this pedido, if any — snapshot of the
+  // percentage/value at purchase time so later edits to the bono don't rewrite history.
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','bono_id') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD bono_id INT NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','descuento_valor') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD descuento_valor DECIMAL(18,2) NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','descuento_porcentaje') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD descuento_porcentaje FLOAT NULL;
+    END
+  `);
+
   // pedido_items (line items for each order)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[pedido_items]') AND type in (N'U'))
@@ -356,6 +462,124 @@ async function ensureSchema() {
         region NVARCHAR(100) NULL,
         user_agent NVARCHAR(500) NULL,
         referrer NVARCHAR(500) NULL,
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
+      );
+    END
+  `);
+
+  // product_translations (English name/description overlay — additive, never touches dbo.products)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[product_translations]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.product_translations (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        product_id INT NOT NULL,
+        name_en NVARCHAR(MAX) NULL,
+        description_en NVARCHAR(MAX) NULL,
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_product_translations_product_id UNIQUE (product_id)
+      );
+    END
+  `);
+
+  // Ensure images_en column exists (English-specific product photos, optional)
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.product_translations','images_en') IS NULL
+    BEGIN
+      ALTER TABLE dbo.product_translations ADD images_en NVARCHAR(MAX) NULL;
+    END
+  `);
+
+  // category_translations (English category name/image overlay — additive, never touches dbo.categories)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[category_translations]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.category_translations (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        category_id INT NOT NULL,
+        nombre_en NVARCHAR(255) NULL,
+        imagen_en NVARCHAR(MAX) NULL,
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_category_translations_category_id UNIQUE (category_id)
+      );
+
+      -- One-time seed of confirmed English category names (only runs the moment
+      -- this table is first created, so later admin edits/deletions persist
+      -- across server restarts instead of being silently re-seeded).
+      INSERT INTO dbo.category_translations (category_id, nombre_en)
+      SELECT c.id, v.nombre_en
+      FROM dbo.categories c
+      INNER JOIN (VALUES
+        (N'Bebidas Calientes', N'Hot Cups'),
+        (N'Bebidas Frías', N'Cold Cups'),
+        (N'Contenedores', N'Food Tubs'),
+        (N'Empaques', N'Packaging'),
+        (N'Accesorios', N'Takeout Essentials'),
+        (N'Platos', N'Plates'),
+        (N'Porta Vasos', N'Cup Holders'),
+        (N'Tapas para Vasos', N'Cup Lids'),
+        (N'Tapas para Contenedores', N'Food Tub Lids'),
+        (N'Moldeados', N'Molded Plates'),
+        (N'Personalizados', N'Custom Packaging')
+      ) AS v(nombre_es, nombre_en) ON LTRIM(RTRIM(CAST(c.descripcion AS NVARCHAR(255)))) = v.nombre_es;
+    END
+  `);
+
+  // One-time terminology correction: earlier seed used "Hot/Cold Beverages" (describes
+  // the drink, not the product); the actual products are paper cups, so the industry-
+  // standard "Hot/Cold Cups" is correct. Idempotent — only touches rows still on the old value.
+  await pool.request().query(`
+    UPDATE dbo.category_translations SET nombre_en = N'Hot Cups' WHERE nombre_en = N'Hot Beverages';
+    UPDATE dbo.category_translations SET nombre_en = N'Cold Cups' WHERE nombre_en = N'Cold Beverages';
+  `);
+
+  // bonos (promotional popup campaigns — image, headline, button text, discount %, one active at a time)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[bonos]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.bonos (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        nombre NVARCHAR(255) NOT NULL,
+        titulo NVARCHAR(500) NULL,
+        titulo_en NVARCHAR(500) NULL,
+        texto_boton NVARCHAR(255) NULL,
+        texto_boton_en NVARCHAR(255) NULL,
+        categoria_link NVARCHAR(255) NULL,
+        porcentaje_descuento FLOAT NULL,
+        url NVARCHAR(MAX) NULL,
+        activo BIT NOT NULL DEFAULT (0),
+        createdAt DATETIME2 DEFAULT SYSUTCDATETIME(),
+        updatedAt DATETIME2 NULL
+      );
+    END
+  `);
+
+  // Vigencia del bono (fecha desde/hasta) — NULL en cualquiera de las dos = sin límite en ese
+  // extremo. Permite programar campañas ("por el tiempo que digamos") sin depender solo del
+  // toggle manual `activo`.
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.bonos','fecha_inicio') IS NULL
+    BEGIN
+      ALTER TABLE dbo.bonos ADD fecha_inicio DATETIME2 NULL;
+    END
+  `);
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.bonos','fecha_fin') IS NULL
+    BEGIN
+      ALTER TABLE dbo.bonos ADD fecha_fin DATETIME2 NULL;
+    END
+  `);
+
+  // admin_users (usuarios del panel de administración, con rol para permisos:
+  // 'admin' = acceso total, 'comercial' = pedidos/contactos/productos)
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[admin_users]') AND type in (N'U'))
+    BEGIN
+      CREATE TABLE dbo.admin_users (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        username NVARCHAR(100) NOT NULL UNIQUE,
+        passwordHash NVARCHAR(255) NOT NULL,
+        role NVARCHAR(50) NOT NULL DEFAULT ('admin'),
         createdAt DATETIME2 DEFAULT SYSUTCDATETIME()
       );
     END

@@ -1,7 +1,8 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 import { formatMoney } from './utils/format.js';
+import { SITE_CONFIG } from './utils/config.js';
 
 function parseProductDescription(text) {
   if (!text) return { subtitle: '', specsHtml: '', recommendationsHtml: '', brandHtml: '', remainingHtml: '' };
@@ -222,6 +223,15 @@ function renderProduct(p) {
     if (addBtn) {
       addBtn.disabled = !enabled;
       addBtn.title = enabled ? '' : (reason || 'No disponible');
+      if (!enabled) {
+        addBtn.style.setProperty('opacity', '0.5', 'important');
+        addBtn.style.setProperty('pointer-events', 'none', 'important');
+        addBtn.style.setProperty('cursor', 'not-allowed', 'important');
+      } else {
+        addBtn.style.removeProperty('opacity');
+        addBtn.style.removeProperty('pointer-events');
+        addBtn.style.removeProperty('cursor');
+      }
     }
   };
 
@@ -254,9 +264,9 @@ function renderProduct(p) {
 
     // Upstream dice agotado
     if (upstreamEstado !== 'En Existencia') {
-      stock.textContent = 'Agotado';
+      stock.textContent = 'Producto agotado';
       stock.className = 'pd-stock pd-stock--out';
-      setCartEnabled(false, 'Agotado');
+      setCartEnabled(false, 'Producto agotado');
       return;
     }
 
@@ -288,11 +298,85 @@ function renderProduct(p) {
   const unitario = unitarioRaw != null ? Number(unitarioRaw) : (cantidadNum && p.price ? Number(p.price) / cantidadNum : null);
   const precioCajaInicial = (Number.isFinite(unitario) && cantidadNum) ? (unitario * cantidadNum) : Number(p.price || 0);
   const precioConIvaInicial = Math.round(precioCajaInicial * 1.19);
-  price.innerHTML = '$' + formatMoney(precioConIvaInicial) + ' <span style="font-size:0.75rem;color:#666;">/ caja</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
+  const labelTextoTop = cantidadNum ? '/ ' + new Intl.NumberFormat('es-CO').format(cantidadNum) + ' und caja' : '/ caja';
+  price.innerHTML = '$' + formatMoney(precioConIvaInicial) + ` <span style="font-size:0.75rem;color:#666;">${labelTextoTop}</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>`;
   price.dataset.codigo = p.codigo || '';
+
+  // SEO: Update title and meta description dynamically
+  document.title = `${p.name || 'Producto'} — KosXpress | Empaques al por mayor`;
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) {
+    metaDesc.content = `${p.name || 'Producto'} — ${p.description ? p.description.substring(0, 120) : 'Empaques desechables y biodegradables'}. Compra al por mayor en KosXpress Colombia.`;
+  }
+  // SEO: Update OG meta tags
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  const ogDesc = document.querySelector('meta[property="og:description"]');
+  const ogImg = document.querySelector('meta[property="og:image"]');
+  if (ogTitle) ogTitle.content = p.name || 'Producto - KosXpress';
+  if (ogDesc) ogDesc.content = p.description ? p.description.substring(0, 200) : 'Empaques desechables y biodegradables en Colombia.';
+  const mainImg = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : (p.image || '');
+  if (ogImg && mainImg) ogImg.content = mainImg;
+
+  // SEO: canonical URL dinámica
+  let canonicalEl = document.querySelector('link[rel="canonical"]');
+  if (!canonicalEl) {
+    canonicalEl = document.createElement('link');
+    canonicalEl.rel = 'canonical';
+    document.head.appendChild(canonicalEl);
+  }
+  canonicalEl.href = `https://kosxpress.com/product?id=${p.id}`;
+
+  // SEO: Inject Schema.org Product JSON-LD
+  const existingSchema = document.getElementById('product-schema-ld');
+  if (existingSchema) existingSchema.remove();
+  const sku = (p.codigo_siesa || p.sku || p.SKU || p.item_ext || '').toString().trim();
+  const schemaData = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.name || '',
+    description: p.description ? p.description.substring(0, 300) : '',
+    image: mainImg || '',
+    sku: sku || undefined,
+    brand: {
+      '@type': 'Brand',
+      name: 'KOS Colombia'
+    },
+    offers: {
+      '@type': 'Offer',
+      price: precioConIvaInicial,
+      priceCurrency: 'COP',
+      availability: 'https://schema.org/InStock',
+      seller: {
+        '@type': 'Organization',
+        name: 'KosXpress'
+      },
+      url: window.location.href
+    }
+  };
+  if (categoriaNombre) {
+    schemaData.category = categoriaNombre;
+  }
+  const schemaScript = document.createElement('script');
+  schemaScript.id = 'product-schema-ld';
+  schemaScript.type = 'application/ld+json';
+  schemaScript.textContent = JSON.stringify(schemaData);
+  document.head.appendChild(schemaScript);
 
   const subtitleEl = document.getElementById('pd-subtitle');
   const descLeft = document.getElementById('pd-desc-left');
+
+  // Delivery info badge
+  const actionsRow = document.querySelector('.pd-actions-row');
+  if (actionsRow && !document.querySelector('.pd-delivery-badge')) {
+    const deliveryBadge = document.createElement('div');
+    deliveryBadge.className = 'pd-delivery-badge';
+    deliveryBadge.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+      <span>Entrega <strong>${SITE_CONFIG.DELIVERY_TIME}</strong> a ${SITE_CONFIG.DELIVERY_SCOPE}</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#4CAF50;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    `;
+    actionsRow.parentNode.insertBefore(deliveryBadge, actionsRow.nextSibling);
+  }
 
   if (p.description) {
     const parsed = parseProductDescription(p.description);
@@ -342,16 +426,31 @@ function renderProduct(p) {
           const estado = (data && (data.estado || data.status || '')).toString();
           const upb = Number(data?.unidades_por_caja);
           unidadesPorCajaSrv = Number.isFinite(upb) && upb > 0 ? upb : null;
-          upstreamEstado = estado === 'En Existencia' ? 'En Existencia' : 'Agotado';
-          inventarioExistencia = Number(data?.inventario);
-          renderStockAndCartState();
+
+          if (estado === 'En Existencia') {
+            upstreamEstado = 'En Existencia';
+            inventarioExistencia = Number(data?.inventario);
+            renderStockAndCartState();
+          } else if (data && data.error) {
+            // Cualquier fallo de consulta (timeout, error de Connekta, SKU inválido…)
+            // bloquea por seguridad. Se comprueba data.error genérico porque el motivo
+            // concreto varía: connekta_N, http_N, timeout, network_error…
+            stock.textContent = 'Producto agotado';
+            stock.className = 'pd-stock pd-stock--out';
+            upstreamEstado = 'Agotado';
+            inventarioExistencia = null;
+            setCartEnabled(false, 'Producto agotado');
+          } else {
+            upstreamEstado = 'Agotado';
+            inventarioExistencia = Number(data?.inventario);
+            renderStockAndCartState();
+          }
         })
         .catch(() => {
-          stock.textContent = 'Agotado';
+          stock.textContent = 'Producto agotado';
           stock.className = 'pd-stock pd-stock--out';
           upstreamEstado = 'Agotado';
-          inventarioExistencia = null;
-          setCartEnabled(false, 'Agotado');
+          setCartEnabled(false, 'Producto agotado');
         });
     }
   }
@@ -387,6 +486,75 @@ function renderProduct(p) {
     updateMain();
   });
 
+  // --- Mobile Lightbox (tap image to view fullscreen with pinch-to-zoom) ---
+  if (window.innerWidth <= 900) {
+    const lightbox = document.getElementById('pd-lightbox');
+    const lbImg = document.getElementById('pd-lightbox-img');
+    const lbClose = document.getElementById('pd-lightbox-close');
+    const lbPrev = document.getElementById('pd-lightbox-prev');
+    const lbNext = document.getElementById('pd-lightbox-next');
+    const lbCounter = document.getElementById('pd-lightbox-counter');
+    let lbIdx = 0;
+
+    const updateLightbox = () => {
+      if (lbImg) lbImg.src = imgs[lbIdx] || '/images/placeholder.svg';
+      if (lbCounter && imgs.length > 1) lbCounter.textContent = `${lbIdx + 1} / ${imgs.length}`;
+      if (lbPrev) lbPrev.style.display = imgs.length > 1 ? 'flex' : 'none';
+      if (lbNext) lbNext.style.display = imgs.length > 1 ? 'flex' : 'none';
+    };
+
+    const openLightbox = () => {
+      lbIdx = idx; // sync with main gallery index
+      updateLightbox();
+      if (lightbox) {
+        lightbox.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+      }
+    };
+
+    const closeLightbox = () => {
+      if (lightbox) {
+        lightbox.classList.remove('is-open');
+        document.body.style.overflow = '';
+      }
+    };
+
+    // Tap main image to open lightbox
+    if (wrap) {
+      wrap.style.cursor = 'zoom-in';
+      wrap.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        openLightbox();
+      });
+
+      // Add zoom hint badge
+      const hint = document.createElement('div');
+      hint.className = 'pd-zoom-hint';
+      hint.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg> Toca para ampliar`;
+      wrap.appendChild(hint);
+    }
+
+    // Close button
+    lbClose?.addEventListener('click', closeLightbox);
+
+    // Close on background tap (not on image or buttons)
+    lightbox?.addEventListener('click', (e) => {
+      if (e.target === lightbox || e.target.classList.contains('pd-lightbox-img-container')) closeLightbox();
+    });
+
+    // Prev/Next in lightbox
+    lbPrev?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      lbIdx = (lbIdx - 1 + imgs.length) % imgs.length;
+      updateLightbox();
+    });
+    lbNext?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      lbIdx = (lbIdx + 1) % imgs.length;
+      updateLightbox();
+    });
+  }
+
   async function recalcDetail() {
     const codigo = price.dataset.codigo;
     if (!codigo) return; // sin código no recalcula
@@ -401,7 +569,8 @@ function renderProduct(p) {
         return;
       }
       const data = await r.json();
-      const BOX_SIZE = 1000;
+      const upbStr = price.getAttribute('data-cantidad') || p.cantidad || p.Cantidad;
+      const BOX_SIZE = (Number.isFinite(Number(upbStr)) && Number(upbStr) > 0) ? Number(upbStr) : 1000;
       let unitario = Number(data.precioUnitario);
       if (!Number.isFinite(unitario) || unitario <= 0) {
         const totalEscalon = Number(data.precio);
@@ -411,12 +580,15 @@ function renderProduct(p) {
         }
       }
       if (!Number.isFinite(unitario) || unitario <= 0) {
-        // fallback: usar p.price / BOX_SIZE
-        unitario = Number(p.price) / BOX_SIZE;
+        // fallback
+        const basePrice = Number(p.price_unit ?? p.precio_unitario ?? ((p.price && p.cantidad) ? p.price / p.cantidad : p.price)) || 0;
+        unitario = basePrice;
       }
       const precioCaja = unitario * BOX_SIZE;
       const precioConIva = Math.round(precioCaja * 1.19);
-      price.innerHTML = '$' + formatMoney(precioConIva) + ' <span style="font-size:0.75rem;color:#666;">/ caja</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>';
+      const hasCantidadTop = !!(price.getAttribute('data-cantidad') || p.cantidad || p.Cantidad);
+      const labelText = hasCantidadTop ? '/ ' + new Intl.NumberFormat('es-CO').format(BOX_SIZE) + ' und caja' : '/ caja';
+      price.innerHTML = '$' + formatMoney(precioConIva) + ` <span style="font-size:0.75rem;color:#666;">${labelText}</span> <span style="font-size:0.7rem;color:#4CAF50;font-weight:600;">IVA incluido</span>`;
       price.classList.remove('loading');
     } catch { price.classList.remove('loading'); }
   }
@@ -431,18 +603,18 @@ function renderProduct(p) {
   addBtn?.addEventListener('click', () => {
     // Chequeo final antes de agregar
     if (upstreamEstado !== 'En Existencia') {
-      showToast('Producto Agotado', 'error');
+      showToast('Producto agotado', 'error');
       return;
     }
     if (exceedsInventory()) {
-      showToast('Producto Agotado', 'error');
+      showToast('Producto agotado', 'error');
       renderStockAndCartState();
       return;
     }
     const qty = Math.max(1, Number(document.getElementById('pd-qty').value) || 1);
     cartService.add(p, qty);
     window.dispatchEvent(new Event('toggle-cart'));
-    showToast('Agregado Exitosamente');
+    showToast('Agregado exitosamente');
   });
 }
 
@@ -609,6 +781,7 @@ async function init() {
       });
       wrap.addEventListener('mousemove', (e) => moveLens(e.clientX, e.clientY));
       wrap.addEventListener('touchstart', (e) => {
+        if (window.innerWidth <= 900) return; // Skip lens on mobile
         if (e.target.closest('button')) return;
         const t = e.touches[0];
         if (!t) return; e.preventDefault();
@@ -616,12 +789,13 @@ async function init() {
         moveLens(t.clientX, t.clientY);
       }, { passive: false });
       wrap.addEventListener('touchmove', (e) => {
+        if (window.innerWidth <= 900) return; // Skip lens on mobile
         if (e.target.closest('button')) return;
         const t = e.touches[0];
         if (!t) return; e.preventDefault();
         moveLens(t.clientX, t.clientY);
       }, { passive: false });
-      wrap.addEventListener('touchend', () => hideLens());
+      wrap.addEventListener('touchend', () => { if (window.innerWidth <= 900) return; hideLens(); });
     }
   } catch (e) {
     console.error(e);
@@ -630,3 +804,28 @@ async function init() {
 }
 
 init();
+
+if (typeof window !== 'undefined' && !window._qtyStepperGlobalListener) {
+  window._qtyStepperGlobalListener = true;
+  document.addEventListener('click', (e) => {
+    const control = e.target.closest('.qty-control-premium');
+    if (control) {
+      e.stopPropagation();
+      const minus = e.target.closest('.qty-btn-minus');
+      const plus = e.target.closest('.qty-btn-plus');
+      if (minus) {
+        const input = minus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Math.max(1, Number(input.value) - 1);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      } else if (plus) {
+        const input = plus.parentElement.querySelector('input');
+        if (input) {
+          input.value = Number(input.value) + 1;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+  });
+}

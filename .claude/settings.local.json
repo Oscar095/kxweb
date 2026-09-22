@@ -20,7 +20,14 @@
       "Bash(find 'c:\\\\Users\\\\oscaro\\\\OneDrive - kos colombia\\\\kxweb\\\\kxweb\\\\my-web-store' -name *.html -type f)",
       "Bash(node -c src/components/product-list.js)",
       "Bash(node -e \"const fs=require\\(''fs''\\); const h=fs.readFileSync\\(''src/products.html'',''utf8''\\); const open=h.match\\(/<[a-z][^>]*>/gi\\)||[]; const close=h.match\\(/<\\\\/[a-z]+>/gi\\)||[]; console.log\\(''Tags open:'', open.length, ''Tags close:'', close.length\\); if\\(h.includes\\(''</html>''\\)\\) console.log\\(''HTML complete''\\); else console.log\\(''Missing </html>''\\);\")",
-      "Bash(node -c src/search-page.js)"
+      "Bash(node -c src/search-page.js)",
+      "Read(//c/Users/karolc/.claude//**)",
+      "Read(//c/Users/karolc/.claude/**)",
+      "Bash(mkdir -p /c/Users/karolc/.claude/skills/localization-copywriter)",
+      "Bash(mkdir -p /c/Users/karolc/.claude/skills/fullstack-ux-architect)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\karolc\\.claude\\skills"
     ]
   }
 }

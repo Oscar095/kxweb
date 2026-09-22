@@ -1,9 +1,22 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
+import { SITE_CONFIG } from './utils/config.js';
 
 renderHeader(document.getElementById('site-header'));
 renderCartDrawer(document.getElementById('cart-drawer'));
+
+// Carrusel rotativo de la barra de confianza (SSL / datos / Wompi / verificado)
+(function initTrustBarCarousel() {
+  const items = document.querySelectorAll('.co-trust-msg');
+  if (!items.length) return;
+  let current = 0;
+  setInterval(() => {
+    items[current].classList.remove('active');
+    current = (current + 1) % items.length;
+    items[current].classList.add('active');
+  }, 3500);
+})();
 
 // ── utilities ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +85,44 @@ function showToast(msg, type = 'success') {
 
 let _fleteData = { fleteTotal: 0, fletePorCaja: 0, totalCajas: 0, tarifaKilo: 0, maxKilosLiquidar: 0 };
 
+// ── bono (first-purchase discount) state ────────────────────────────────────────
+// _bonoActivo: hay o no una promo corriendo (solo para mostrar el aviso mientras el
+// cliente aún no escribe su documento). _bonoPreview: resultado de validar ESE
+// documento contra /api/bonos/elegibilidad — solo una previsualización; el servidor
+// vuelve a decidir todo al guardar el pedido en POST /api/pedidos.
+let _bonoActivo = null;
+let _bonoPreview = { elegible: false, bono: null };
+
+async function loadBonoActivo() {
+  try {
+    const r = await fetch('/api/bonos?active=1');
+    if (!r.ok) return;
+    const list = await r.json();
+    _bonoActivo = (Array.isArray(list) && list.length) ? list[0] : null;
+    renderOrderSummary();
+  } catch (e) { /* sin promo activa, seguir sin descuento */ }
+}
+
+let _bonoCheckTimer = null;
+function checkBonoElegibilidad(tipoDocumento, nit) {
+  clearTimeout(_bonoCheckTimer);
+  const cleanNit = (tipoDocumento === 'CE' || tipoDocumento === 'PA') ? nit.trim() : nit.replace(/\D+/g, '');
+  if (!tipoDocumento || cleanNit.length < 5) {
+    _bonoPreview = { elegible: false, bono: null };
+    renderOrderSummary();
+    return;
+  }
+  _bonoCheckTimer = setTimeout(async () => {
+    try {
+      const qs = new URLSearchParams({ tipo_documento: tipoDocumento, nit: cleanNit });
+      const r = await fetch(`/api/bonos/elegibilidad?${qs.toString()}`);
+      if (!r.ok) return;
+      _bonoPreview = await r.json();
+      renderOrderSummary();
+    } catch (e) { /* deja la previsualización como estaba */ }
+  }, 500);
+}
+
 async function calcularFlete() {
   const citySelect = document.getElementById('city');
   const city = citySelect ? citySelect.value.trim() : '';
@@ -128,7 +179,22 @@ function renderOrderSummary() {
     map.set(it.id, existing);
   }
   const grouped = Array.from(map.values());
-  const { subtotal, iva, total, totalInCents } = computeTotals(items);
+  const { subtotal, iva, totalInCents } = computeTotals(items);
+
+  // Previsualización del descuento de primera compra — el servidor vuelve a calcular esto
+  // (y decide si de verdad aplica) al guardar el pedido, así que estos números son solo
+  // referenciales hasta que se envía el formulario.
+  const bonoConfirmado = _bonoPreview.elegible && _bonoPreview.bono;
+  // _bonoPreview.bono viene lleno tanto si es elegible como si NO lo es (p.ej. documento con
+  // compra previa) — solo está en null/pendiente mientras no se ha resuelto una respuesta
+  // concreta del servidor. Por eso el aviso "pendiente" debe desaparecer apenas llega esa
+  // respuesta, aunque haya sido negativa, para no insinuarle un descuento a quien no aplica.
+  const bonoPendiente = !_bonoPreview.bono && !!_bonoActivo;
+  const descuentoPct = bonoConfirmado ? Number(_bonoPreview.bono.porcentaje_descuento) : 0;
+  const descuentoValor = bonoConfirmado ? Math.round(subtotal * descuentoPct / 100) : 0;
+  const subtotalConDescuento = subtotal - descuentoValor;
+  const ivaConDescuento = bonoConfirmado ? Math.round(subtotalConDescuento * 0.19) : iva;
+  const totalConDescuento = subtotalConDescuento + ivaConDescuento;
 
   if (grouped.length === 0) {
     el.innerHTML = `
@@ -172,14 +238,25 @@ function renderOrderSummary() {
         <span class="co-summary-count">${grouped.length} ${grouped.length === 1 ? 'producto' : 'productos'}</span>
       </h3>
       <div class="co-summary-items">${rows}</div>
+      ${bonoPendiente ? `
+        <div class="co-summary-line" style="color:#00a4e4;font-size:.8rem;font-weight:600;">
+          🎉 Tienes ${_bonoActivo.porcentaje_descuento != null ? `${_bonoActivo.porcentaje_descuento}% OFF` : 'un bono'} en tu primera compra — se confirma con tu documento
+        </div>
+      ` : ''}
       <div class="co-summary-totals">
         <div class="co-summary-line">
           <span>Subtotal (sin IVA)</span>
           <span>${fmt(subtotal)}</span>
         </div>
+        ${bonoConfirmado ? `
+          <div class="co-summary-line" style="color:#16a34a;font-weight:600;">
+            <span>Descuento 1ª compra (${descuentoPct}%)</span>
+            <span>-${fmt(descuentoValor)}</span>
+          </div>
+        ` : ''}
         <div class="co-summary-line">
           <span>IVA (19%)</span>
-          <span>${fmt(iva)}</span>
+          <span>${fmt(ivaConDescuento)}</span>
         </div>
         <div class="co-summary-line">
           <span>Flete${_fleteData.fleteTotal > 0 ? ` (${fmt(_fleteData.fletePorCaja)} × ${_fleteData.totalCajas} cajas)` : ''}</span>
@@ -187,15 +264,15 @@ function renderOrderSummary() {
         </div>
         <div class="co-summary-total">
           <span>Total a pagar</span>
-          <span class="co-summary-total-amount">${fmt(total + _fleteData.fleteTotal)}</span>
+          <span class="co-summary-total-amount">${fmt(totalConDescuento + _fleteData.fleteTotal)}</span>
         </div>
       </div>
     </div>
   `;
 
   const flete = _fleteData.fleteTotal || 0;
-  const grandTotal = total + flete;
-  return { items, amountInCents: Math.round(grandTotal * 100), subtotal, iva, flete, totalValue: grandTotal };
+  const grandTotal = totalConDescuento + flete;
+  return { items, amountInCents: Math.round(grandTotal * 100), subtotal, iva: ivaConDescuento, flete, totalValue: grandTotal };
 }
 
 // ── related products ──────────────────────────────────────────────────────────
@@ -432,6 +509,33 @@ function setStep(n) {
   });
 }
 
+// ── delivery estimate by city (main cities = 1-3 days) ────────────────────────
+
+function normalizeCityForCompare(name) {
+  return (name || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toUpperCase();
+}
+
+function updateDeliveryEstimate() {
+  const citySelect = document.getElementById('city');
+  const el = document.getElementById('co-delivery-estimate');
+  if (!citySelect || !el) return;
+  const city = String(citySelect.value || '').trim();
+  if (!city) {
+    el.textContent = '';
+    return;
+  }
+  const mainCities = SITE_CONFIG.MAIN_CITIES || [];
+  const cityNorm = normalizeCityForCompare(city);
+  const isMain = mainCities.some(c => normalizeCityForCompare(c) === cityNorm);
+  el.textContent = isMain
+    ? 'Entrega estimada: 1-3 días'
+    : 'Otras ciudades: plazos variables según destino';
+}
+
 // ── departamento / ciudad cascading dropdowns ────────────────────────────────
 
 async function loadDepartamentos() {
@@ -462,6 +566,8 @@ async function loadDepartamentos() {
 
       if (!deptoId) {
         citySelect.innerHTML = '<option value="">Primero selecciona departamento</option>';
+        citySelect.disabled = false;
+        updateDeliveryEstimate();
         return;
       }
 
@@ -478,9 +584,12 @@ async function loadDepartamentos() {
           citySelect.appendChild(opt);
         }
         citySelect.disabled = false;
+        updateDeliveryEstimate();
       } catch (e) {
         console.error('Error cargando ciudades:', e);
         citySelect.innerHTML = '<option value="">Error cargando ciudades</option>';
+        citySelect.disabled = false;
+        updateDeliveryEstimate();
       }
     });
   } catch (e) {
@@ -502,20 +611,33 @@ document.addEventListener('DOMContentLoaded', () => {
   const dvField = document.getElementById('dv-field');
   const apellidosField = document.getElementById('apellidos-field');
   const nombresLabel = document.getElementById('nombres-label');
+  const rutField = document.getElementById('rut-field');
+  const camaraField = document.getElementById('camara-field');
+  const rutInput = document.getElementById('rutFile');
+  const camaraInput = document.getElementById('camaraFile');
 
   renderOrderSummary();
   showReturnMessageFromWompi();
   renderRelatedProducts();
   setupFieldValidation();
   loadDepartamentos();
+  loadBonoActivo();
+
+  // Previsualizar descuento de primera compra apenas el cliente escribe su documento
+  nitInput?.addEventListener('input', () => {
+    checkBonoElegibilidad(tipoDocSelect?.value || '', nitInput.value || '');
+  });
 
   // Keep summary in sync with cart changes (recalculate flete too)
   cartService.subscribe(() => calcularFlete());
   window.addEventListener('storage', e => { if (e.key === 'cart') calcularFlete(); });
 
-  // Recalculate flete when city changes
+  // Recalculate flete and delivery estimate when city changes
   const citySelect = document.getElementById('city');
-  citySelect?.addEventListener('change', () => calcularFlete());
+  citySelect?.addEventListener('change', () => {
+    calcularFlete();
+    updateDeliveryEstimate();
+  });
 
   // Tipo documento: mostrar/ocultar DV y ajustar validación del número
   tipoDocSelect?.addEventListener('change', () => {
@@ -532,6 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
         nitInput.value = nitInput.value.replace(/\D+/g, '');
       }
     }
+    checkBonoElegibilidad(tipo, nitInput?.value || '');
   });
 
   // Tipo persona: mostrar/ocultar apellidos, cambiar label nombres
@@ -539,6 +662,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const esJuridica = tipoPersonaSelect.value === 'J';
     if (apellidosField) apellidosField.style.display = esJuridica ? 'none' : '';
     if (nombresLabel) nombresLabel.textContent = esJuridica ? 'Razón social *' : 'Nombres *';
+    // RUT y Cámara de Comercio: obligatorios solo para persona jurídica
+    if (rutField) rutField.style.display = esJuridica ? '' : 'none';
+    if (camaraField) camaraField.style.display = esJuridica ? '' : 'none';
+    if (rutInput) rutInput.required = esJuridica;
+    if (camaraInput) camaraInput.required = esJuridica;
+    if (!esJuridica) {
+      if (rutInput) rutInput.value = '';
+      if (camaraInput) camaraInput.value = '';
+    }
     // Si es jurídica, auto-seleccionar NIT
     if (esJuridica && tipoDocSelect) {
       tipoDocSelect.value = 'NIT';
@@ -567,6 +699,74 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // --- Validate inventory for all cart items before processing ---
+    {
+      const cartItems = readCart();
+      // Group by id to get total qty per product
+      const qtyMap = new Map();
+      const itemMap = new Map();
+      for (const ci of cartItems) {
+        const qty = Math.max(1, Number(ci._qty) || 1);
+        qtyMap.set(ci.id, (qtyMap.get(ci.id) || 0) + qty);
+        if (!itemMap.has(ci.id)) itemMap.set(ci.id, ci);
+      }
+
+      let hasStockIssue = false;
+      const issues = [];
+
+      for (const [id, totalQty] of qtyMap.entries()) {
+        const item = itemMap.get(id);
+        const sku = (item.codigo_siesa || item.sku || item.SKU || item.item_ext || '').toString().trim();
+        if (!sku) continue;
+
+        try {
+          const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
+          if (!r.ok) {
+            hasStockIssue = true;
+            issues.push(`${item.name || 'Producto'}: no disponible`);
+            cartService.remove(id);
+            continue;
+          }
+          const data = await r.json();
+          const estado = (data && (data.estado || data.status || '')).toString();
+          if (estado !== 'En Existencia') {
+            hasStockIssue = true;
+            issues.push(`${item.name || 'Producto'}: agotado`);
+            cartService.remove(id);
+            continue;
+          }
+          const inventario = Number(data?.inventario);
+          if (Number.isFinite(inventario)) {
+            const rawUnits = item.cantidad ?? item.Cantidad ?? 1000;
+            const unitsPerBox = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
+            const maxBoxes = Math.floor(inventario / unitsPerBox);
+            if (totalQty > maxBoxes) {
+              hasStockIssue = true;
+              if (maxBoxes > 0) {
+                issues.push(`${item.name || 'Producto'}: ajustado a ${maxBoxes} caja${maxBoxes !== 1 ? 's' : ''}`);
+                cartService.setQty(id, maxBoxes);
+              } else {
+                issues.push(`${item.name || 'Producto'}: agotado`);
+                cartService.remove(id);
+              }
+            }
+          }
+        } catch {
+          // On error, block this item
+          hasStockIssue = true;
+          issues.push(`${item.name || 'Producto'}: error verificando stock`);
+          cartService.remove(id);
+        }
+      }
+
+      if (hasStockIssue) {
+        msgEl.textContent = 'Algunos productos excedían el inventario y fueron ajustados: ' + issues.join('; ') + '. Por favor revisa tu carrito y vuelve a intentar.';
+        msgEl.className = 'co-message co-message-error';
+        renderOrderSummary();
+        return;
+      }
+    }
+
     const tipoDoc = String(form.tipoDocumento?.value || '').trim();
     const rawNit = String(form.nitId?.value || '').trim();
     const nitId = (tipoDoc === 'CE' || tipoDoc === 'PA') ? rawNit : rawNit.replace(/\D+/g, '');
@@ -581,6 +781,22 @@ document.addEventListener('DOMContentLoaded', () => {
       msgEl.className = 'co-message co-message-error';
       document.getElementById('nitId')?.focus();
       return;
+    }
+
+    const esJuridicaSubmit = String(form.tipoPersona?.value || '').trim() === 'J';
+    if (esJuridicaSubmit) {
+      if (!rutInput?.files?.[0]) {
+        msgEl.textContent = 'Debes adjuntar el RUT para personas jurídicas.';
+        msgEl.className = 'co-message co-message-error';
+        rutInput?.focus();
+        return;
+      }
+      if (!camaraInput?.files?.[0]) {
+        msgEl.textContent = 'Debes adjuntar el certificado de Cámara de Comercio para personas jurídicas.';
+        msgEl.className = 'co-message co-message-error';
+        camaraInput?.focus();
+        return;
+      }
     }
 
     // Advance to step 2
@@ -667,10 +883,30 @@ document.addEventListener('DOMContentLoaded', () => {
       const pedidoId = saved?.id;
       if (!pedidoId) throw new Error('No se pudo obtener el id del pedido.');
 
+      // El monto a cobrar en Wompi es el que confirma el servidor (recalcula el descuento de
+      // primera compra de forma independiente), no el estimado en pantalla.
+      const finalAmountInCents = Number.isFinite(saved?.amountInCents) ? saved.amountInCents : amountInCents;
+      if (saved?.discountApplied) {
+        msgEl.textContent = `¡Descuento de primera compra aplicado (${saved.discountPercentage}%)!`;
+      }
+
+      // Persona jurídica: subir RUT y Cámara de Comercio (documentos verificables)
+      if (tipoPersonaVal === 'J') {
+        msgEl.textContent = 'Subiendo documentos...';
+        const docsFd = new FormData();
+        docsFd.append('rut', rutInput.files[0]);
+        docsFd.append('camaraComercio', camaraInput.files[0]);
+        const docsResp = await fetch(`/api/pedidos/${pedidoId}/documentos`, { method: 'POST', body: docsFd });
+        if (!docsResp.ok) {
+          const errText = await docsResp.text().catch(() => '');
+          throw new Error(`No se pudieron subir los documentos: ${errText || docsResp.status}`);
+        }
+      }
+
       // Advance to step 3
       setStep(3);
-      msgEl.textContent = '¡Pedido registrado! Abriendo pasarela de pago...';
-      await openWompi(form, amountInCents, pedidoId);
+      if (!saved?.discountApplied) msgEl.textContent = '¡Pedido registrado! Abriendo pasarela de pago...';
+      await openWompi(form, finalAmountInCents, pedidoId);
 
     } catch (err) {
       console.error(err);
@@ -682,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
           <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
-        Realizar Pedido Seguro
+        Realizar pedido seguro
       `;
     }
   });

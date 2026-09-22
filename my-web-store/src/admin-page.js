@@ -6,10 +6,15 @@ function renderNewPreviews(files) {
   if (!files || files.length === 0) return;
   [...files].forEach(f => {
     const url = URL.createObjectURL(f);
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = f.name;
-    wrap.appendChild(img);
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${url}" alt="${f.name}">
+      <div class="admin-img-preview-overlay">
+        <span style="font-size:0.65rem; color:var(--admin-text-muted); font-weight:600;">NUEVA</span>
+      </div>
+    `;
+    wrap.appendChild(item);
   });
 }
 
@@ -58,6 +63,7 @@ async function loadProducts() {
             <span style="font-weight: 600; color: var(--admin-text-main);">${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</span>
         </div>
         <div style="font-size: 0.85rem; color: #555; margin-top: 4px;"><strong>Unid./caja:</strong> ${safe(p.cantidad ?? p.Cantidad)} | <strong>SKU:</strong> ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
+        ${p.es_personalizado ? '<div style="font-size:0.75rem; color:#d97706; font-weight:700; text-transform:uppercase; margin-top:4px;">✨ Personalizado</div>' : ''}
         ${descHtml}
         <div class="gpc-actions">
           <button data-id="${p.id}" class="toggle-habilitado ${toggleClass}">
@@ -121,6 +127,22 @@ async function loadProducts() {
         // Set empaque select
         const selEmp = form.querySelector('#p-empaque');
         if (selEmp) selEmp.value = prod.row_empaque != null ? prod.row_empaque : '';
+        const selPers = form.querySelector('#p-personalizado');
+        if (selPers) {
+          selPers.value = String(prod.es_personalizado || 'false');
+          // Update visibility
+          const priceGroup = document.getElementById('p-precio-personalizado-group');
+          if (priceGroup) priceGroup.style.display = (selPers.value === 'true') ? 'block' : 'none';
+        }
+        const inputPersPrice2000 = form.querySelector('#p-precio-personalizado-2000');
+        if (inputPersPrice2000) inputPersPrice2000.value = prod.precio_personalizado_2000 != null ? prod.precio_personalizado_2000 : '';
+        const inputPersPrice4000 = form.querySelector('#p-precio-personalizado-4000');
+        if (inputPersPrice4000) inputPersPrice4000.value = prod.precio_personalizado_4000 != null ? prod.precio_personalizado_4000 : '';
+        const inputPersPrice8000 = form.querySelector('#p-precio-personalizado-8000');
+        if (inputPersPrice8000) inputPersPrice8000.value = prod.precio_personalizado_8000 != null ? prod.precio_personalizado_8000 : '';
+        const inputPersPrice20000 = form.querySelector('#p-precio-personalizado-20000');
+        if (inputPersPrice20000) inputPersPrice20000.value = prod.precio_personalizado_20000 != null ? prod.precio_personalizado_20000 : '';
+        
         form.description.value = prod.description || '';
         form.images.value = ''; // limpia selección
 
@@ -130,31 +152,24 @@ async function loadProducts() {
         if (window.__currentImages.length === 0 && prod.image) window.__currentImages.push(prod.image);
 
         window.__currentImages.forEach((url, idx) => {
-          const wrap = document.createElement('div');
-          wrap.style.position = 'relative';
+          const item = document.createElement('div');
+          item.className = 'admin-img-preview-item';
+          
+          item.innerHTML = `
+            <img src="${url}" alt="${prod.name || ''}">
+            <div class="admin-img-preview-overlay">
+              <button type="button" class="admin-btn-icon danger remove-current" data-idx="${idx}" title="Quitar imagen">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+              </button>
+            </div>
+          `;
 
-          const im = document.createElement('img');
-          im.src = url;
-          im.alt = prod.name || '';
-          im.style.maxHeight = '120px';
-          im.style.width = '100%';
-          im.style.objectFit = 'contain';
-          wrap.appendChild(im);
-
-          const rm = document.createElement('button');
-          rm.textContent = 'Quitar';
-          rm.type = 'button';
-          rm.style.marginTop = '4px';
-          rm.style.width = '100%';
-          rm.className = 'admin-btn-secondary';
-          rm.style.padding = '4px';
-          rm.addEventListener('click', () => {
+          item.querySelector('.remove-current').addEventListener('click', () => {
             window.__currentImages.splice(idx, 1);
-            wrap.remove();
+            item.remove();
           });
-          wrap.appendChild(rm);
 
-          cur.appendChild(wrap);
+          cur.appendChild(item);
         });
 
         // compute total if both values available
@@ -222,6 +237,11 @@ async function submitForm(ev) {
     payload.cantidad = formEl.querySelector('#p-cantidad')?.value || '';
     payload.category = formEl.querySelector('#p-category')?.value || '';
     payload.row_empaque = formEl.querySelector('#p-empaque')?.value || '';
+    payload.es_personalizado = formEl.querySelector('#p-personalizado')?.value || 'false';
+    payload.precio_personalizado_2000 = formEl.querySelector('#p-precio-personalizado-2000')?.value || '';
+    payload.precio_personalizado_4000 = formEl.querySelector('#p-precio-personalizado-4000')?.value || '';
+    payload.precio_personalizado_8000 = formEl.querySelector('#p-precio-personalizado-8000')?.value || '';
+    payload.precio_personalizado_20000 = formEl.querySelector('#p-precio-personalizado-20000')?.value || '';
     payload.description = formEl.querySelector('#p-desc')?.value || '';
 
     // Files selected
@@ -283,6 +303,13 @@ async function submitForm(ev) {
   }
 }
 
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'p-personalizado') {
+    const priceGroup = document.getElementById('p-precio-personalizado-group');
+    if (priceGroup) priceGroup.style.display = (e.target.value === 'true') ? 'block' : 'none';
+  }
+});
+
 async function uploadFileFromBrowser(file) {
   // Upload via server to avoid CORS issues
   const fd = new FormData();
@@ -297,10 +324,15 @@ async function uploadFileFromBrowser(file) {
   return j.blobUrl;
 }
 
+let currentAdminRole = 'admin';
+
 async function ensureAuth() {
   try {
     const r = await fetch('/api/admin/me', { cache: 'no-store' });
-    return r.ok;
+    if (!r.ok) return false;
+    const data = await r.json().catch(() => ({}));
+    currentAdminRole = data.role || 'admin';
+    return true;
   } catch { return false; }
 }
 
@@ -311,6 +343,25 @@ async function showLogin() {
 async function showAdmin() {
   document.getElementById('login-section').style.display = 'none';
   document.getElementById('admin-section').style.display = '';
+}
+
+// El rol 'comercial' solo ve Pedidos, Contactos y Productos (con precios).
+// Todo lo demás (dashboard, categorías, banners, logos, biblioteca, bonos, usuarios) queda oculto.
+function applyRolePermissions() {
+  const restricted = ['nav-categories', 'nav-categories-en', 'nav-banners', 'nav-logos', 'nav-library', 'nav-bonos', 'nav-dashboard', 'nav-products-en', 'nav-users'];
+  if (currentAdminRole === 'admin') {
+    restricted.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+    return;
+  }
+  restricted.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const dashView = document.getElementById('view-dashboard');
+  if (dashView?.classList.contains('active')) {
+    dashView.classList.remove('active');
+    document.getElementById('nav-dashboard')?.classList.remove('active');
+    document.getElementById('view-pedidos')?.classList.add('active');
+    document.getElementById('nav-pedidos')?.classList.add('active');
+    loadPedidos();
+  }
 }
 
 async function initAdmin() {
@@ -482,6 +533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     await showAdmin();
     await initAdmin();
+    applyRolePermissions();
   }
 
   // Login form
@@ -503,8 +555,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         msg.textContent = 'Error: ' + t;
         return;
       }
+      const data = await r.json().catch(() => ({}));
+      currentAdminRole = data.role || 'admin';
       await showAdmin();
       await initAdmin();
+      applyRolePermissions();
     } catch (err) {
       console.error(err);
       msg.textContent = 'No se pudo iniciar sesión';
@@ -522,10 +577,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     { nav: 'nav-pedidos', view: 'view-pedidos', load: loadPedidos },
     { nav: 'nav-contacts', view: 'view-contacts', load: loadContacts },
     { nav: 'nav-products', view: 'view-products' },
+    { nav: 'nav-products-en', view: 'view-products-en', load: loadProductsEnList },
     { nav: 'nav-categories', view: 'view-categories', load: loadCategoriesList },
+    { nav: 'nav-categories-en', view: 'view-categories-en', load: loadCategoriesEnList },
     { nav: 'nav-banners', view: 'view-banners', load: loadBanners },
     { nav: 'nav-logos', view: 'view-logos', load: loadLogos },
     { nav: 'nav-library', view: 'view-library', load: loadLibrary },
+    { nav: 'nav-bonos', view: 'view-bonos', load: loadBonosAdmin },
+    { nav: 'nav-users', view: 'view-users', load: loadUsers },
   ];
 
   function switchView(viewId) {
@@ -577,6 +636,133 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('cat-id').value = '';
     document.getElementById('cat-desc').value = '';
   });
+
+  // Product English-translation form handlers
+  document.getElementById('pt-cancel-btn')?.addEventListener('click', closeProductEnForm);
+
+  document.getElementById('pt-images')?.addEventListener('change', (e) => renderPtNewPreviews(e.target.files));
+
+  document.getElementById('product-en-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = document.getElementById('product-en-status');
+    const product_id = Number(document.getElementById('pt-product-id').value);
+    if (!product_id) return;
+    const name_en = document.getElementById('pt-name-en').value.trim();
+    const description_en = document.getElementById('pt-desc-en').value.trim();
+    status.textContent = 'Guardando...';
+    try {
+      const fileInput = document.getElementById('pt-images');
+      const files = fileInput ? Array.from(fileInput.files) : [];
+      if (ptCurrentImages.length + files.length > 4) {
+        status.textContent = 'No se pueden agregar más de 4 fotos.';
+        return;
+      }
+      const uploadedUrls = [];
+      for (const f of files) {
+        uploadedUrls.push(await uploadFileFromBrowser(f));
+      }
+      const images_en = [...ptCurrentImages, ...uploadedUrls];
+
+      const r = await fetch('/api/product-translations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id, name_en, description_en, images_en }),
+        credentials: 'same-origin'
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        status.textContent = 'Error: ' + txt;
+        return;
+      }
+      status.innerHTML = '<strong style="color:green">Traducción guardada.</strong>';
+      await loadProductsEnList();
+      closeProductEnForm();
+    } catch (err) { console.error(err); status.textContent = 'Error guardando la traducción'; }
+  });
+
+  document.getElementById('pt-delete-btn')?.addEventListener('click', async () => {
+    const status = document.getElementById('product-en-status');
+    const product_id = Number(document.getElementById('pt-product-id').value);
+    if (!product_id) return;
+    if (!confirm('¿Eliminar la traducción en inglés de este producto (nombre, descripción y fotos)?')) return;
+    try {
+      const r = await fetch(`/api/product-translations/${encodeURIComponent(product_id)}`, { method: 'DELETE', credentials: 'same-origin' });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        status.textContent = 'Error: ' + txt;
+        return;
+      }
+      status.textContent = 'Traducción eliminada.';
+      await loadProductsEnList();
+      closeProductEnForm();
+    } catch (err) { console.error(err); status.textContent = 'Error eliminando la traducción'; }
+  });
+
+  document.getElementById('pt-search')?.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    const filtered = !q ? ptAllProducts : ptAllProducts.filter(p =>
+      (p.name || '').toLowerCase().includes(q) || (p.codigo_siesa || '').toLowerCase().includes(q)
+    );
+    renderProductsEnGrid(filtered);
+  });
+
+  // Bonos form handlers
+  document.getElementById('bono-form')?.addEventListener('submit', submitBonoForm);
+  document.getElementById('bono-cancel')?.addEventListener('click', resetBonoForm);
+
+  // Usuarios form handler
+  document.getElementById('user-form')?.addEventListener('submit', submitUserForm);
+
+  // Category English-translation form handlers
+  document.getElementById('ct-cancel-btn')?.addEventListener('click', closeCategoryEnForm);
+  document.getElementById('ct-image')?.addEventListener('change', (e) => renderCtNewPreview(e.target.files));
+
+  document.getElementById('category-en-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = document.getElementById('category-en-status');
+    const category_id = Number(document.getElementById('ct-category-id').value);
+    if (!category_id) return;
+    const nombre_en = document.getElementById('ct-name-en').value.trim();
+    status.textContent = 'Guardando...';
+    try {
+      const fileInput = document.getElementById('ct-image');
+      const file = fileInput && fileInput.files[0];
+      const imagen_en = file ? await uploadFileFromBrowser(file) : ctCurrentImageUrl;
+
+      const r = await fetch('/api/category-translations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category_id, nombre_en, imagen_en: imagen_en || '' }),
+        credentials: 'same-origin'
+      });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        status.textContent = 'Error: ' + txt;
+        return;
+      }
+      status.innerHTML = '<strong style="color:green">Traducción guardada.</strong>';
+      await loadCategoriesEnList();
+      closeCategoryEnForm();
+    } catch (err) { console.error(err); status.textContent = 'Error guardando la traducción'; }
+  });
+
+  document.getElementById('ct-delete-btn')?.addEventListener('click', async () => {
+    const status = document.getElementById('category-en-status');
+    const category_id = Number(document.getElementById('ct-category-id').value);
+    if (!category_id) return;
+    if (!confirm('¿Eliminar la traducción en inglés de esta categoría (nombre e imagen)?')) return;
+    try {
+      const r = await fetch(`/api/category-translations/${encodeURIComponent(category_id)}`, { method: 'DELETE', credentials: 'same-origin' });
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        status.textContent = 'Error: ' + txt;
+        return;
+      }
+      status.textContent = 'Traducción eliminada.';
+      await loadCategoriesEnList();
+      closeCategoryEnForm();
+    } catch (err) { console.error(err); status.textContent = 'Error eliminando la traducción'; }
+  });
 });
 
 // Load categories into the categories-list panel
@@ -616,6 +802,151 @@ async function loadCategoriesList() {
   } catch (e) { console.error('loadCategoriesList error', e); }
 }
 
+// ---- Productos (Inglés) — card grid + edit form ----
+// Does not touch dbo.products — only reads/writes the name_en/description_en/images_en
+// overlay that the server joins into GET /api/products and stores via
+// POST /api/product-translations.
+let ptAllProducts = [];
+let ptCurrentImages = [];
+
+async function loadProductsEnList() {
+  const grid = document.getElementById('products-en-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/products', { cache: 'no-store' });
+    ptAllProducts = r.ok ? await r.json() : [];
+    renderProductsEnGrid(ptAllProducts);
+  } catch (e) {
+    console.error('loadProductsEnList error', e);
+    grid.innerHTML = '<p>Error cargando productos.</p>';
+  }
+}
+
+function renderProductsEnGrid(products) {
+  const grid = document.getElementById('products-en-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const safe = (v) => (v == null ? '' : v);
+
+  for (const p of products) {
+    const card = document.createElement('div');
+    card.className = 'glass-product-card';
+
+    const img = document.createElement('img');
+    img.className = 'gpc-image';
+    img.alt = p.name || '';
+    img.loading = 'lazy';
+    img.src = (p.images_en && p.images_en[0]) || (p.images && p.images[0]) || p.image || '/images/placeholder.svg';
+    img.onerror = () => { img.src = '/images/placeholder.svg'; };
+
+    const details = document.createElement('div');
+    details.className = 'gpc-content';
+    const isTranslated = !!(p.name_en || p.description_en || (p.images_en && p.images_en.length));
+    const statusBadge = isTranslated
+      ? '<span style="font-size:0.72rem; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:10px;">Traducido</span>'
+      : '<span style="font-size:0.72rem; font-weight:700; color:#92400e; background:#fef3c7; padding:2px 8px; border-radius:10px;">Sin traducir</span>';
+
+    details.innerHTML = `
+      <h3 class="gpc-title">${safe(p.name)}</h3>
+      <div class="gpc-meta">
+        <span class="gpc-tag">${safe(p.codigo_siesa) || 'Sin SKU'}</span>
+        ${statusBadge}
+      </div>
+      ${p.name_en ? `<div style="font-size:0.85rem; color:#555; margin-top:6px;"><strong>EN:</strong> ${safe(p.name_en)}</div>` : ''}
+      <div class="gpc-actions">
+        <button type="button" data-id="${p.id}" class="fill-form-en gpc-btn-edit">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          Editar Inglés
+        </button>
+      </div>
+    `;
+
+    card.appendChild(img);
+    card.appendChild(details);
+    grid.appendChild(card);
+  }
+
+  grid.querySelectorAll('.fill-form-en').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const prod = ptAllProducts.find(x => String(x.id) === String(id));
+      if (prod) openProductEnForm(prod);
+    });
+  });
+}
+
+function openProductEnForm(product) {
+  document.getElementById('pt-product-id').value = product.id;
+  document.getElementById('pt-sku-ref').value = product.codigo_siesa || '';
+  document.getElementById('pt-name-ref').value = product.name || '';
+  document.getElementById('pt-desc-ref').value = product.description || '';
+  document.getElementById('pt-name-en').value = product.name_en || '';
+  document.getElementById('pt-desc-en').value = product.description_en || '';
+  document.getElementById('pt-images').value = '';
+  document.getElementById('pt-new-previews').innerHTML = '';
+  renderPtCurrentImages(product.images_en || []);
+
+  const deleteBtn = document.getElementById('pt-delete-btn');
+  if (deleteBtn) deleteBtn.style.display = (product.name_en || product.description_en || (product.images_en && product.images_en.length)) ? 'inline-block' : 'none';
+  document.getElementById('product-en-status').textContent = '';
+  document.getElementById('product-en-form-container').style.display = 'block';
+  document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeProductEnForm() {
+  document.getElementById('product-en-form')?.reset();
+  document.getElementById('pt-product-id').value = '';
+  document.getElementById('pt-new-previews').innerHTML = '';
+  document.getElementById('pt-current-images').innerHTML = '';
+  document.getElementById('pt-delete-btn').style.display = 'none';
+  document.getElementById('product-en-status').textContent = '';
+  document.getElementById('product-en-form-container').style.display = 'none';
+  ptCurrentImages = [];
+}
+
+function renderPtCurrentImages(urls) {
+  const wrap = document.getElementById('pt-current-images');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  ptCurrentImages = [...(urls || [])];
+  ptCurrentImages.forEach((url, idx) => {
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${url}" alt="">
+      <div class="admin-img-preview-overlay">
+        <button type="button" class="admin-btn-icon danger remove-pt-current" data-idx="${idx}" title="Quitar imagen">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+    `;
+    item.querySelector('.remove-pt-current').addEventListener('click', () => {
+      ptCurrentImages.splice(idx, 1);
+      renderPtCurrentImages(ptCurrentImages);
+    });
+    wrap.appendChild(item);
+  });
+}
+
+function renderPtNewPreviews(files) {
+  const wrap = document.getElementById('pt-new-previews');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!files || files.length === 0) return;
+  [...files].forEach(f => {
+    const url = URL.createObjectURL(f);
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${url}" alt="${f.name}">
+      <div class="admin-img-preview-overlay">
+        <span style="font-size:0.65rem; color:var(--admin-text-muted); font-weight:600;">NUEVA</span>
+      </div>
+    `;
+    wrap.appendChild(item);
+  });
+}
+
 // ---- Biblioteca ----
 async function loadLibrary() {
   try {
@@ -624,28 +955,55 @@ async function loadLibrary() {
     const grid = document.getElementById('library-grid');
     grid.innerHTML = '';
     for (const it of items) {
+      const isImage = (it.tipo || '').startsWith('image/');
+
       const wrap = document.createElement('div');
       wrap.style.position = 'relative';
       wrap.style.borderRadius = '6px';
       wrap.style.overflow = 'hidden';
 
-      const img = document.createElement('img');
-      img.src = it.url;
-      img.alt = it.nombre || '';
-      img.title = `${it.nombre} (#${it.id})`;
-      img.style.width = '100%';
-      img.style.height = '88px';
-      img.style.objectFit = 'cover';
+      let preview;
+      if (isImage) {
+        preview = document.createElement('img');
+        preview.src = it.url;
+        preview.style.objectFit = 'cover';
+      } else {
+        preview = document.createElement('div');
+        preview.style.display = 'flex';
+        preview.style.flexDirection = 'column';
+        preview.style.alignItems = 'center';
+        preview.style.justifyContent = 'center';
+        preview.style.gap = '4px';
+        preview.style.background = 'var(--admin-bg-soft, #f1f1f1)';
+        preview.innerHTML = `
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 2c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"/></svg>
+          <span style="font-size:0.65rem; padding:0 4px; text-align:center; word-break:break-word;">${(it.nombre || '').slice(0, 30)}</span>
+        `;
+      }
+      preview.alt = it.nombre || '';
+      preview.title = `${it.nombre} (#${it.id})`;
+      preview.style.width = '100%';
+      preview.style.height = '88px';
 
       const bar = document.createElement('div');
       bar.style.display = 'flex';
+      bar.style.flexWrap = 'wrap';
       bar.style.gap = '6px';
       bar.style.padding = '4px';
 
-      const addBtn = document.createElement('button');
-      addBtn.textContent = 'Usar';
-      addBtn.type = 'button';
-      addBtn.addEventListener('click', () => addLibrarySelection(it));
+      if (isImage) {
+        const addBtn = document.createElement('button');
+        addBtn.textContent = 'Usar';
+        addBtn.type = 'button';
+        addBtn.addEventListener('click', () => addLibrarySelection(it));
+        bar.appendChild(addBtn);
+      } else {
+        const openBtn = document.createElement('button');
+        openBtn.textContent = 'Abrir';
+        openBtn.type = 'button';
+        openBtn.addEventListener('click', () => window.open(it.url, '_blank', 'noopener'));
+        bar.appendChild(openBtn);
+      }
 
       const copyBtn = document.createElement('button');
       copyBtn.textContent = 'Copiar URL';
@@ -664,7 +1022,7 @@ async function loadLibrary() {
       delBtn.style.background = '#d9534f';
       delBtn.style.color = '#fff';
       delBtn.addEventListener('click', async () => {
-        if (!confirm(`Eliminar imagen de biblioteca #${it.id}?`)) return;
+        if (!confirm(`Eliminar archivo de biblioteca #${it.id}?`)) return;
         try {
           const rr = await fetch(`/api/biblioteca/${it.id}`, { method: 'DELETE', credentials: 'same-origin' });
           if (!rr.ok) return alert('No se pudo eliminar');
@@ -677,7 +1035,7 @@ async function loadLibrary() {
 
       bar.appendChild(copyBtn);
       bar.appendChild(delBtn);
-      wrap.appendChild(img);
+      wrap.appendChild(preview);
       wrap.appendChild(bar);
       grid.appendChild(wrap);
     }
@@ -707,21 +1065,18 @@ function renderLibrarySelection() {
   if (!wrap) return;
   wrap.innerHTML = '';
   for (const it of (window.__libSelected || [])) {
-    const cell = document.createElement('div');
-    const img = document.createElement('img');
-    img.src = it.url;
-    img.alt = it.nombre || '';
-    img.style.width = '100%';
-    img.style.height = '88px';
-    img.style.objectFit = 'cover';
-    const rm = document.createElement('button');
-    rm.textContent = 'Quitar';
-    rm.type = 'button';
-    rm.style.marginTop = '4px';
-    rm.addEventListener('click', () => removeLibrarySelection(it.id));
-    cell.appendChild(img);
-    cell.appendChild(rm);
-    wrap.appendChild(cell);
+    const item = document.createElement('div');
+    item.className = 'admin-img-preview-item';
+    item.innerHTML = `
+      <img src="${it.url}" alt="${it.nombre || ''}">
+      <div class="admin-img-preview-overlay">
+        <button type="button" class="admin-btn-icon danger remove-lib" data-id="${it.id}" title="Quitar de selección">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+    `;
+    item.querySelector('.remove-lib').addEventListener('click', () => removeLibrarySelection(it.id));
+    wrap.appendChild(item);
   }
 }
 async function submitLibraryForm(ev) {
@@ -1220,7 +1575,7 @@ async function loadDashboard() {
         options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
       });
     } else if (ctxTV) {
-      ctxTV.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+      ctxTV.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
     }
 
     // Chart: Top vistos
@@ -1240,26 +1595,26 @@ async function loadDashboard() {
         options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
       });
     } else if (ctxTVi) {
-      ctxTVi.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+      ctxTVi.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
     }
 
     // Table: Top paises
     const paisesEl = el('table-paises');
     if (paisesEl && data.topPaises) {
-      paisesEl.innerHTML = data.topPaises.length ? `<table class="admin-table"><thead><tr><th>Pais</th><th>Visitas</th></tr></thead><tbody>${data.topPaises.map(p => `<tr><td>${p.country}</td><td>${fmtNum(p.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+      paisesEl.innerHTML = data.topPaises.length ? `<table class="admin-table"><thead><tr><th>País</th><th>Visitas</th></tr></thead><tbody>${data.topPaises.map(p => `<tr><td>${p.country}</td><td>${fmtNum(p.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
     }
 
     // Table: Top ciudades
     const ciudadesEl = el('table-ciudades');
     if (ciudadesEl && data.topCiudades) {
-      ciudadesEl.innerHTML = data.topCiudades.length ? `<table class="admin-table"><thead><tr><th>Ciudad</th><th>Pais</th><th>Visitas</th></tr></thead><tbody>${data.topCiudades.map(c => `<tr><td>${c.city}</td><td>${c.country}</td><td>${fmtNum(c.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aun</p>';
+      ciudadesEl.innerHTML = data.topCiudades.length ? `<table class="admin-table"><thead><tr><th>Ciudad</th><th>País</th><th>Visitas</th></tr></thead><tbody>${data.topCiudades.map(c => `<tr><td>${c.city}</td><td>${c.country}</td><td>${fmtNum(c.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
     }
 
     // Recent orders
     const recentEl = el('dash-pedidos-recientes');
     if (recentEl && data.pedidosRecientes) {
       if (!data.pedidosRecientes.length) {
-        recentEl.innerHTML = '<p style="color:var(--admin-text-muted);">No hay pedidos aun.</p>';
+        recentEl.innerHTML = '<p style="color:var(--admin-text-muted);">No hay pedidos aún.</p>';
       } else {
         recentEl.innerHTML = `<table class="admin-table"><thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>${data.pedidosRecientes.map(p => `<tr><td>${p.id}</td><td>${p.name || ''}</td><td>${fmtCOP(p.total_value)}</td><td>${renderStatusBadge(p.payment_status)}</td><td>${formatDate(p.createdAt)}</td></tr>`).join('')}</tbody></table>`;
       }
@@ -1315,7 +1670,7 @@ async function loadPedidos(page) {
     if (!tbody) return;
 
     if (!data.data || data.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--admin-text-muted);padding:32px;">No se encontraron pedidos</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--admin-text-muted);padding:32px;">No se encontraron pedidos</td></tr>';
     } else {
       tbody.innerHTML = data.data.map(p => `
         <tr>
@@ -1324,6 +1679,7 @@ async function loadPedidos(page) {
           <td>${p.email || ''}</td>
           <td>${p.city || ''}</td>
           <td>${fmtCOP(p.total_value)}</td>
+          <td>${p.bono_id ? `<span style="color:#16a34a;font-weight:700;" title="Descuento: ${fmtCOP(p.descuento_valor)} (${p.descuento_porcentaje}%)">🎉 -${p.descuento_porcentaje}%</span>` : '—'}</td>
           <td>${renderStatusBadge(p.payment_status)}</td>
           <td>${formatDate(p.createdAt)}</td>
           <td><button class="admin-btn-primary admin-btn-sm" onclick="window.__viewPedido(${p.id})">Ver</button></td>
@@ -1346,7 +1702,7 @@ async function loadPedidos(page) {
   } catch (e) {
     console.error('loadPedidos error', e);
     const tbody = document.getElementById('pedidos-tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--admin-danger);">Error cargando pedidos</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--admin-danger);">Error cargando pedidos</td></tr>';
   }
 }
 
@@ -1360,10 +1716,14 @@ window.__viewPedido = async (id) => {
     const data = await r.json();
     const p = data.pedido;
     const items = data.items || [];
+    const documentos = data.documentos || [];
 
     const modal = document.getElementById('pedido-modal');
     const body = document.getElementById('pedido-modal-body');
     if (!modal || !body) return;
+
+    const downloadBtn = document.getElementById('pedido-download-btn');
+    if (downloadBtn) downloadBtn.href = `/api/admin/pedidos/${id}/descargar`;
 
     const itemsHtml = items.length ? `
       <table class="admin-table" style="margin-top:16px;">
@@ -1374,21 +1734,21 @@ window.__viewPedido = async (id) => {
     body.innerHTML = `
       <div class="pedido-detail-grid">
         <div class="pedido-detail-section">
-          <h4>Informacion del Pedido</h4>
+          <h4>Información del Pedido</h4>
           <div class="pedido-detail-row"><strong>Pedido #:</strong> ${p.id}</div>
           <div class="pedido-detail-row"><strong>Estado:</strong> ${renderStatusBadge(p.payment_status)}</div>
           <div class="pedido-detail-row"><strong>ID Wompi:</strong> ${p.id_wompi || 'N/A'}</div>
-          <div class="pedido-detail-row"><strong>Metodo de Pago:</strong> ${p.payment_method || 'N/A'}</div>
+          <div class="pedido-detail-row"><strong>Método de Pago:</strong> ${p.payment_method || 'N/A'}</div>
           <div class="pedido-detail-row"><strong>Fecha:</strong> ${formatDate(p.createdAt)}</div>
           ${p.updatedAt ? `<div class="pedido-detail-row"><strong>Actualizado:</strong> ${formatDate(p.updatedAt)}</div>` : ''}
         </div>
         <div class="pedido-detail-section">
           <h4>Datos del Cliente</h4>
           <div class="pedido-detail-row"><strong>Nombre:</strong> ${p.name || ''}</div>
-          <div class="pedido-detail-row"><strong>NIT/Cedula:</strong> ${p.nit_id || ''}</div>
+          <div class="pedido-detail-row"><strong>NIT/Cédula:</strong> ${p.nit_id || ''}</div>
           <div class="pedido-detail-row"><strong>Email:</strong> ${p.email || ''}</div>
-          <div class="pedido-detail-row"><strong>Telefono:</strong> ${p.phone || ''}</div>
-          <div class="pedido-detail-row"><strong>Direccion:</strong> ${p.address || ''}</div>
+          <div class="pedido-detail-row"><strong>Teléfono:</strong> ${p.phone || ''}</div>
+          <div class="pedido-detail-row"><strong>Dirección:</strong> ${p.address || ''}</div>
           <div class="pedido-detail-row"><strong>Ciudad:</strong> ${p.city || ''}</div>
           ${p.notes ? `<div class="pedido-detail-row"><strong>Notas:</strong> ${p.notes}</div>` : ''}
         </div>
@@ -1397,6 +1757,7 @@ window.__viewPedido = async (id) => {
         <h4>Totales</h4>
         <div class="pedido-totals">
           <div><strong>Subtotal:</strong> ${fmtCOP(p.subtotal)}</div>
+          ${p.bono_id ? `<div style="color:#16a34a;"><strong>Descuento 1ª compra (${p.descuento_porcentaje}%):</strong> -${fmtCOP(p.descuento_valor)}</div>` : ''}
           <div><strong>IVA:</strong> ${fmtCOP(p.iva)}</div>
           <div style="font-size:1.2rem;"><strong>Total:</strong> ${fmtCOP(p.total_value)}</div>
         </div>
@@ -1405,12 +1766,46 @@ window.__viewPedido = async (id) => {
         <h4>Productos del Pedido</h4>
         ${itemsHtml}
       </div>
+      ${documentos.length ? `
+      <div class="pedido-detail-section" style="margin-top:16px;">
+        <h4>Documentos Legales ${p.documentos_verificados ? '<span class="admin-badge badge-success">Verificado</span>' : '<span class="admin-badge badge-warning">Pendiente de verificación</span>'}</h4>
+        ${documentos.map(d => `
+          <div class="pedido-detail-row" style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
+            <span><strong>${d.tipo === 'RUT' ? 'RUT' : 'Cámara de Comercio'}:</strong> ${d.filename || ''}</span>
+            <a href="${d.url}" target="_blank" rel="noopener" class="admin-btn-secondary admin-btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Descargar
+            </a>
+          </div>`).join('')}
+        ${p.documentos_verificados_por ? `<div class="pedido-detail-row"><small style="color:var(--admin-text-muted);">Verificado por ${p.documentos_verificados_por} el ${formatDate(p.documentos_verificados_at)}</small></div>` : ''}
+        <div style="margin-top:10px;">
+          <button type="button" class="${p.documentos_verificados ? 'admin-btn-secondary' : 'admin-btn-primary'} admin-btn-sm" onclick="window.__toggleDocsVerificados(${p.id}, ${p.documentos_verificados ? 'false' : 'true'})">
+            ${p.documentos_verificados ? 'Marcar como no verificado' : 'Marcar como verificado'}
+          </button>
+        </div>
+      </div>` : ''}
     `;
 
     modal.style.display = 'flex';
   } catch (e) {
     console.error('viewPedido error', e);
     alert('Error cargando detalle del pedido');
+  }
+};
+
+window.__toggleDocsVerificados = async (id, verificado) => {
+  try {
+    const r = await fetch(`/api/admin/pedidos/${id}/documentos/verificar`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ verificado })
+    });
+    if (!r.ok) throw new Error('Error actualizando verificación');
+    window.__viewPedido(id);
+  } catch (e) {
+    console.error('toggleDocsVerificados error', e);
+    alert('No se pudo actualizar el estado de verificación');
   }
 };
 
@@ -1474,6 +1869,476 @@ async function loadContacts(page) {
     const tbody = document.getElementById('contacts-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--admin-danger);">Error cargando contactos</td></tr>';
   }
+}
+
+// ---- Bonos (promotional popup campaigns) ----
+
+async function loadBonoCategoriaOptions() {
+  const sel = document.getElementById('bono-categoria');
+  if (!sel) return;
+  const currentVal = sel.value;
+  try {
+    const r = await fetch('/api/categories', { cache: 'no-store' });
+    const cats = r.ok ? await r.json() : [];
+    // categoria_link must be the category NAME (matches p.category_name on the storefront filter),
+    // not the numeric id used elsewhere for dbo.products.category. "all" es un valor especial
+    // que products-page.js ya entiende como "sin filtro" (catálogo completo).
+    sel.innerHTML = '<option value="">(usar categoría por defecto del popup)</option>' +
+      '<option value="all">Todos (ver todo el catálogo)</option>' +
+      cats.map(c => {
+        const label = c.descripcion || c.nombre || '';
+        return `<option value="${label.replace(/"/g, '&quot;')}">${label}</option>`;
+      }).join('');
+    if (currentVal) sel.value = currentVal;
+  } catch (e) { console.error('No se pudieron cargar categorías para bonos', e); }
+}
+
+async function loadBonosAdmin() {
+  await loadBonoCategoriaOptions();
+  const grid = document.getElementById('bonos-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/bonos', { cache: 'no-store' });
+    const items = r.ok ? await r.json() : [];
+    renderBonosGrid(items);
+  } catch (e) {
+    console.error('Error cargando bonos', e);
+    grid.innerHTML = '<p>Error cargando bonos.</p>';
+  }
+}
+
+function formatFechaCorta(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// "Vigente ahora" / "Programado" (aún no empieza) / "Vencido" (ya pasó fecha_fin) — solo
+// relevante si el bono está activo; combinado con el badge Activo/Inactivo de arriba.
+function buildVigenciaBadge(b) {
+  if (!b.activo) return '';
+  const now = Date.now();
+  const inicio = b.fecha_inicio ? new Date(b.fecha_inicio).getTime() : null;
+  const fin = b.fecha_fin ? new Date(b.fecha_fin).getTime() : null;
+  if (fin != null && now > fin) {
+    return '<span style="font-size:0.72rem; font-weight:700; color:#b91c1c; background:#fee2e2; padding:2px 8px; border-radius:10px;">Vencido</span>';
+  }
+  if (inicio != null && now < inicio) {
+    return '<span style="font-size:0.72rem; font-weight:700; color:#92400e; background:#fef3c7; padding:2px 8px; border-radius:10px;">Programado</span>';
+  }
+  return '<span style="font-size:0.72rem; font-weight:700; color:#1d4ed8; background:#dbeafe; padding:2px 8px; border-radius:10px;">Vigente ahora</span>';
+}
+
+// Convierte un ISO datetime (o Date) al formato "YYYY-MM-DD" que espera <input type="date">
+function toDateInputValue(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+function renderBonosGrid(items) {
+  const grid = document.getElementById('bonos-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  for (const b of items) {
+    const card = document.createElement('div');
+    card.className = 'glass-product-card';
+    if (!b.activo) card.style.opacity = '0.6';
+
+    const img = document.createElement('img');
+    img.className = 'gpc-image';
+    img.alt = b.nombre || 'Bono';
+    img.loading = 'lazy';
+    img.src = b.url || '/images/placeholder.svg';
+    img.onerror = () => { img.src = '/images/placeholder.svg'; };
+
+    const details = document.createElement('div');
+    details.className = 'gpc-content';
+    const activeBadge = b.activo
+      ? '<span style="font-size:0.72rem; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:10px;">Activo</span>'
+      : '<span style="font-size:0.72rem; font-weight:700; color:#555; background:#eee; padding:2px 8px; border-radius:10px;">Inactivo</span>';
+    const pct = (b.porcentaje_descuento != null) ? `${b.porcentaje_descuento}% OFF` : '';
+    const vigenciaBadge = buildVigenciaBadge(b);
+    const vigenciaTexto = (b.fecha_inicio || b.fecha_fin)
+      ? `<div style="font-size:0.75rem; color:#777; margin-top:4px;">${b.fecha_inicio ? `Desde ${formatFechaCorta(b.fecha_inicio)}` : ''}${(b.fecha_inicio && b.fecha_fin) ? ' — ' : ''}${b.fecha_fin ? `Hasta ${formatFechaCorta(b.fecha_fin)}` : ''}</div>`
+      : '';
+
+    details.innerHTML = `
+      <h3 class="gpc-title">${b.nombre || ''}</h3>
+      <div class="gpc-meta">
+        ${activeBadge}
+        ${vigenciaBadge}
+        ${pct ? `<span class="gpc-tag">${pct}</span>` : ''}
+      </div>
+      ${vigenciaTexto}
+      ${b.titulo ? `<div style="font-size:0.85rem; color:#555; margin-top:6px;">${b.titulo}</div>` : ''}
+      <div class="gpc-actions">
+        ${!b.activo
+          ? `<button type="button" data-id="${b.id}" class="activate-bono gpc-btn-toggle-on">Activar</button>`
+          : `<button type="button" data-id="${b.id}" class="deactivate-bono gpc-btn-toggle-off">Desactivar</button>`}
+        <button type="button" data-id="${b.id}" class="edit-bono gpc-btn-edit">Editar</button>
+        <button type="button" data-id="${b.id}" class="delete-bono gpc-btn-delete">Eliminar</button>
+      </div>
+    `;
+
+    card.appendChild(img);
+    card.appendChild(details);
+    grid.appendChild(card);
+  }
+
+  grid.querySelectorAll('.activate-bono').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      try {
+        const r = await fetch(`/api/bonos/${encodeURIComponent(id)}/activate`, { method: 'PATCH', credentials: 'same-origin' });
+        if (!r.ok) return alert('Error activando bono');
+        await loadBonosAdmin();
+      } catch (err) { console.error(err); alert('Error activando bono'); }
+    });
+  });
+
+  grid.querySelectorAll('.deactivate-bono').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      try {
+        const r = await fetch(`/api/bonos/${encodeURIComponent(id)}/deactivate`, { method: 'PATCH', credentials: 'same-origin' });
+        if (!r.ok) return alert('Error desactivando bono');
+        await loadBonosAdmin();
+      } catch (err) { console.error(err); alert('Error desactivando bono'); }
+    });
+  });
+
+  grid.querySelectorAll('.edit-bono').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const b = items.find(x => String(x.id) === String(id));
+      if (!b) return;
+      document.getElementById('bono-id').value = b.id;
+      document.getElementById('bono-nombre').value = b.nombre || '';
+      document.getElementById('bono-porcentaje').value = b.porcentaje_descuento != null ? b.porcentaje_descuento : '';
+      document.getElementById('bono-titulo').value = b.titulo || '';
+      document.getElementById('bono-titulo-en').value = b.titulo_en || '';
+      document.getElementById('bono-texto-boton').value = b.texto_boton || '';
+      document.getElementById('bono-texto-boton-en').value = b.texto_boton_en || '';
+      document.getElementById('bono-categoria').value = b.categoria_link || '';
+      document.getElementById('bono-fecha-inicio').value = toDateInputValue(b.fecha_inicio);
+      document.getElementById('bono-fecha-fin').value = toDateInputValue(b.fecha_fin);
+      document.getElementById('bono-imagen').value = '';
+      document.getElementById('bono-status').textContent = '';
+      document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  grid.querySelectorAll('.delete-bono').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      if (!confirm(`Eliminar bono #${id}?`)) return;
+      try {
+        const r = await fetch(`/api/bonos/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin' });
+        if (!r.ok) return alert('Error eliminando bono');
+        await loadBonosAdmin();
+      } catch (err) { console.error(err); alert('Error eliminando bono'); }
+    });
+  });
+}
+
+async function submitBonoForm(ev) {
+  ev.preventDefault();
+  const status = document.getElementById('bono-status');
+  status.textContent = 'Guardando...';
+  try {
+    const id = document.getElementById('bono-id').value;
+    const imgInput = document.getElementById('bono-imagen');
+    if (!id && !imgInput.files[0]) {
+      status.textContent = 'La imagen es obligatoria para crear un bono nuevo.';
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('nombre', document.getElementById('bono-nombre').value.trim());
+    fd.append('porcentaje_descuento', document.getElementById('bono-porcentaje').value || '');
+    fd.append('titulo', document.getElementById('bono-titulo').value.trim());
+    fd.append('titulo_en', document.getElementById('bono-titulo-en').value.trim());
+    fd.append('texto_boton', document.getElementById('bono-texto-boton').value.trim());
+    fd.append('texto_boton_en', document.getElementById('bono-texto-boton-en').value.trim());
+    fd.append('categoria_link', document.getElementById('bono-categoria').value || '');
+    fd.append('fecha_inicio', document.getElementById('bono-fecha-inicio').value || '');
+    fd.append('fecha_fin', document.getElementById('bono-fecha-fin').value || '');
+    if (imgInput.files[0]) fd.append('imagen', imgInput.files[0]);
+
+    const url = id ? `/api/bonos/${encodeURIComponent(id)}` : '/api/bonos';
+    const method = id ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, body: fd, credentials: 'same-origin' });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      status.textContent = 'Error: ' + txt;
+      return;
+    }
+    status.innerHTML = '<strong style="color:green">Bono guardado.</strong>';
+    resetBonoForm();
+    await loadBonosAdmin();
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'Error guardando el bono';
+  }
+}
+
+function resetBonoForm() {
+  document.getElementById('bono-form')?.reset();
+  document.getElementById('bono-id').value = '';
+  document.getElementById('bono-status').textContent = '';
+}
+
+// ---- Usuarios del panel (solo rol admin) ----
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+  try {
+    const r = await fetch('/api/admin/users', { cache: 'no-store', credentials: 'same-origin' });
+    const items = r.ok ? await r.json() : [];
+    renderUsersTable(items);
+  } catch (e) {
+    console.error('Error cargando usuarios', e);
+    tbody.innerHTML = '<tr><td colspan="4">Error cargando usuarios.</td></tr>';
+  }
+}
+
+function renderUsersTable(items) {
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody) return;
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="4">Sin usuarios aún.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(u => {
+    const fecha = u.createdAt ? new Date(u.createdAt).toLocaleDateString('es-CO') : '';
+    const isAdmin = u.role === 'admin';
+    const roleBadge = isAdmin
+      ? '<span class="admin-badge badge-info">Administrador</span>'
+      : '<span class="admin-badge badge-muted">Comercial</span>';
+    return `
+      <tr>
+        <td>${u.username}</td>
+        <td>${roleBadge}</td>
+        <td>${fecha}</td>
+        <td>
+          <div class="admin-table-actions">
+            <button type="button" class="admin-btn-secondary admin-btn-sm reset-user-pw" data-id="${u.id}" data-username="${u.username}">Restablecer contraseña</button>
+            <button type="button" class="admin-btn-danger-sm delete-user" data-id="${u.id}" data-username="${u.username}">Eliminar</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.delete-user').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const username = e.currentTarget.getAttribute('data-username');
+      if (!confirm(`¿Eliminar el usuario "${username}"?`)) return;
+      try {
+        const r = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin' });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          alert('Error: ' + (j.message || r.status));
+          return;
+        }
+        await loadUsers();
+      } catch (err) { console.error(err); alert('Error eliminando usuario'); }
+    });
+  });
+
+  tbody.querySelectorAll('.reset-user-pw').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const username = e.currentTarget.getAttribute('data-username');
+      const password = prompt(`Nueva contraseña para "${username}":`);
+      if (!password) return;
+      try {
+        const r = await fetch(`/api/admin/users/${encodeURIComponent(id)}/password`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+          credentials: 'same-origin'
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          alert('Error: ' + (j.message || r.status));
+          return;
+        }
+        alert('Contraseña actualizada.');
+      } catch (err) { console.error(err); alert('Error actualizando contraseña'); }
+    });
+  });
+}
+
+async function submitUserForm(ev) {
+  ev.preventDefault();
+  const status = document.getElementById('user-status');
+  status.textContent = 'Guardando...';
+  try {
+    const username = document.getElementById('user-username').value.trim();
+    const password = document.getElementById('user-password').value;
+    const role = document.getElementById('user-role').value;
+    const r = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, role }),
+      credentials: 'same-origin'
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      status.textContent = 'Error: ' + (j.message || r.status);
+      return;
+    }
+    status.innerHTML = '<strong style="color:green">Usuario creado.</strong>';
+    document.getElementById('user-form')?.reset();
+    await loadUsers();
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'Error creando el usuario';
+  }
+}
+
+// ---- Categorías (Inglés) — card grid + edit form ----
+// Does not touch dbo.categories — only reads/writes the nombre_en/imagen_en
+// overlay that the server joins into GET /api/categories and stores via
+// POST /api/category-translations.
+let ctAllCategories = [];
+let ctCurrentImageUrl = null;
+
+async function loadCategoriesEnList() {
+  const grid = document.getElementById('categories-en-grid');
+  if (!grid) return;
+  try {
+    const r = await fetch('/api/categories', { cache: 'no-store' });
+    ctAllCategories = r.ok ? await r.json() : [];
+    renderCategoriesEnGrid(ctAllCategories);
+  } catch (e) {
+    console.error('loadCategoriesEnList error', e);
+    grid.innerHTML = '<p>Error cargando categorías.</p>';
+  }
+}
+
+function renderCategoriesEnGrid(categories) {
+  const grid = document.getElementById('categories-en-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const safe = (v) => (v == null ? '' : v);
+
+  for (const c of categories) {
+    const label = c.descripcion || c.nombre || '';
+    const card = document.createElement('div');
+    card.className = 'glass-product-card';
+
+    const img = document.createElement('img');
+    img.className = 'gpc-image';
+    img.alt = label;
+    img.loading = 'lazy';
+    img.src = c.imagen_en || '/images/placeholder.svg';
+    img.onerror = () => { img.src = '/images/placeholder.svg'; };
+
+    const details = document.createElement('div');
+    details.className = 'gpc-content';
+    const isTranslated = !!(c.nombre_en || c.imagen_en);
+    const statusBadge = isTranslated
+      ? '<span style="font-size:0.72rem; font-weight:700; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:10px;">Traducido</span>'
+      : '<span style="font-size:0.72rem; font-weight:700; color:#92400e; background:#fef3c7; padding:2px 8px; border-radius:10px;">Sin traducir</span>';
+
+    details.innerHTML = `
+      <h3 class="gpc-title">${safe(label)}</h3>
+      <div class="gpc-meta">${statusBadge}</div>
+      ${c.nombre_en ? `<div style="font-size:0.85rem; color:#555; margin-top:6px;"><strong>EN:</strong> ${safe(c.nombre_en)}</div>` : ''}
+      <div class="gpc-actions">
+        <button type="button" data-id="${c.id}" class="fill-form-cat-en gpc-btn-edit">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          Editar Inglés
+        </button>
+      </div>
+    `;
+
+    card.appendChild(img);
+    card.appendChild(details);
+    grid.appendChild(card);
+  }
+
+  grid.querySelectorAll('.fill-form-cat-en').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const cat = ctAllCategories.find(x => String(x.id) === String(id));
+      if (cat) openCategoryEnForm(cat);
+    });
+  });
+}
+
+function openCategoryEnForm(cat) {
+  document.getElementById('ct-category-id').value = cat.id;
+  document.getElementById('ct-name-ref').value = cat.descripcion || cat.nombre || '';
+  document.getElementById('ct-name-en').value = cat.nombre_en || '';
+  document.getElementById('ct-image').value = '';
+  document.getElementById('ct-new-preview').innerHTML = '';
+  renderCtCurrentImage(cat.imagen_en || '');
+
+  const deleteBtn = document.getElementById('ct-delete-btn');
+  if (deleteBtn) deleteBtn.style.display = (cat.nombre_en || cat.imagen_en) ? 'inline-block' : 'none';
+  document.getElementById('category-en-status').textContent = '';
+  document.getElementById('category-en-form-container').style.display = 'block';
+  document.querySelector('.admin-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeCategoryEnForm() {
+  document.getElementById('category-en-form')?.reset();
+  document.getElementById('ct-category-id').value = '';
+  document.getElementById('ct-new-preview').innerHTML = '';
+  document.getElementById('ct-current-image').innerHTML = '';
+  document.getElementById('ct-delete-btn').style.display = 'none';
+  document.getElementById('category-en-status').textContent = '';
+  document.getElementById('category-en-form-container').style.display = 'none';
+  ctCurrentImageUrl = null;
+}
+
+function renderCtCurrentImage(url) {
+  const wrap = document.getElementById('ct-current-image');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  ctCurrentImageUrl = url || null;
+  if (!ctCurrentImageUrl) return;
+  const item = document.createElement('div');
+  item.className = 'admin-img-preview-item';
+  item.innerHTML = `
+    <img src="${ctCurrentImageUrl}" alt="">
+    <div class="admin-img-preview-overlay">
+      <button type="button" class="admin-btn-icon danger remove-ct-current" title="Quitar imagen">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+      </button>
+    </div>
+  `;
+  item.querySelector('.remove-ct-current').addEventListener('click', () => {
+    renderCtCurrentImage('');
+  });
+  wrap.appendChild(item);
+}
+
+function renderCtNewPreview(files) {
+  const wrap = document.getElementById('ct-new-preview');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!files || files.length === 0) return;
+  const f = files[0];
+  const url = URL.createObjectURL(f);
+  const item = document.createElement('div');
+  item.className = 'admin-img-preview-item';
+  item.innerHTML = `
+    <img src="${url}" alt="${f.name}">
+    <div class="admin-img-preview-overlay">
+      <span style="font-size:0.65rem; color:var(--admin-text-muted); font-weight:600;">NUEVA</span>
+    </div>
+  `;
+  wrap.appendChild(item);
 }
 
 window.__loadContactsPage = (p) => loadContacts(p);

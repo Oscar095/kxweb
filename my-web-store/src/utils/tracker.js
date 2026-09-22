@@ -25,4 +25,42 @@
   const params = new URLSearchParams(location.search);
   const productId = params.get('id') && location.pathname.includes('product') ? Number(params.get('id')) : null;
   track(page, productId);
+
+  // --- Ultra-Reliable Scroll Reveal ---
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('revealed');
+        entry.target.classList.remove('reveal-prep');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  function initReveal() {
+    const reveals = document.querySelectorAll('.reveal');
+    reveals.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      // Only hide it if it's actually below the current view
+      if (rect.top > window.innerHeight && !el.classList.contains('revealed')) {
+        el.classList.add('reveal-prep');
+        revealObserver.observe(el);
+      } else {
+        el.classList.add('revealed');
+      }
+    });
+  }
+
+  // Run as soon as possible and on all load events
+  initReveal();
+  window.addEventListener('load', initReveal);
+  window.addEventListener('content-loaded', () => setTimeout(initReveal, 100));
+
+  // FAIL-SAFE: Reveal everything after a short delay
+  setTimeout(() => {
+    document.querySelectorAll('.reveal-prep').forEach(el => {
+      el.classList.add('revealed');
+      el.classList.remove('reveal-prep');
+    });
+  }, 1200);
 })();

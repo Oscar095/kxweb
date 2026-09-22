@@ -4,7 +4,9 @@
   "description": "A virtual store to showcase and sell products online.",
   "main": "src/app.js",
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "feed": "node generate-feed.js",
+    "feed:watch": "node generate-feed.js --watch"
   },
   "keywords": [
     "store",
@@ -15,13 +17,16 @@
   "license": "MIT",
   "dependencies": {
     "@azure/storage-blob": "^12.29.1",
+    "archiver": "^7.0.1",
+    "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
     "dotenv": "^17.2.2",
     "express": "^4.19.2",
     "mongoose": "^8.18.1",
     "mssql": "^9.1.1",
     "multer": "^2.0.2",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^9.0.3"
   },
   "devDependencies": {
     "sharp": "^0.34.5"

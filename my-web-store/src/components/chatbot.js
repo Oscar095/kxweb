@@ -9,30 +9,35 @@ export function initChatbot() {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      width: 62px;
-      height: 62px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary) 0%, #0077b6 100%);
-      color: #fff;
+      width: 78px;
+      height: 78px;
+      background: transparent;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 20px rgba(0,159,227,0.45), 0 0 0 0 rgba(0,159,227,0.3);
       cursor: pointer;
       z-index: 9999;
-      transition: transform 0.3s cubic-bezier(0.2,0.8,0.2,1), box-shadow 0.3s ease;
+      transition: transform 0.3s cubic-bezier(0.2,0.8,0.2,1);
       border: none;
-      animation: chatbot-pulse 2.5s infinite;
+      padding: 0;
     }
     .kos-chatbot-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 28px rgba(0,159,227,0.55);
-      animation: none;
+      transform: scale(1.08);
     }
     .kos-chatbot-btn svg { width: 30px; height: 30px; fill: currentColor; }
-    @keyframes chatbot-pulse {
-      0%, 100% { box-shadow: 0 4px 20px rgba(0,159,227,0.45), 0 0 0 0 rgba(0,159,227,0.3); }
-      50% { box-shadow: 0 4px 20px rgba(0,159,227,0.45), 0 0 0 10px rgba(0,159,227,0); }
+    .kos-chatbot-btn img {
+      height: 96%;
+      width: auto;
+      object-fit: contain;
+      pointer-events: none;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.3));
+      animation: koski-idle 2.4s ease-in-out infinite;
+    }
+    .kos-chatbot-btn:hover img { animation-play-state: paused; }
+    @keyframes koski-idle {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-3px) rotate(-4deg); }
+      75% { transform: translateY(-3px) rotate(4deg); }
     }
 
     /* ===== CHAT WINDOW ===== */
@@ -62,7 +67,9 @@ export function initChatbot() {
       pointer-events: auto;
       transform: translateY(0) scale(1);
     }
-    .kos-chatbot-window.open + .kos-chatbot-btn {
+    
+    /* Force hide button when open */
+    .chat-open .kos-chatbot-btn {
       display: none !important;
     }
 
@@ -86,16 +93,28 @@ export function initChatbot() {
       width: 38px;
       height: 38px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.2);
+      background: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      overflow: hidden;
+      cursor: pointer;
+      transform: scale(1);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .kos-chatbot-avatar svg {
-      width: 20px;
-      height: 20px;
-      fill: #fff;
+    .kos-chatbot-avatar.koski-burst {
+      position: relative;
+      z-index: 5;
+      transform: scale(1.6);
+    }
+    .kos-chatbot-avatar video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 30%;
+      display: block;
+      pointer-events: none;
     }
     .kos-chatbot-header-text {
       display: flex;
@@ -203,6 +222,15 @@ export function initChatbot() {
     }
     .chatbot-msg.user .chatbot-msg-time { text-align: right; }
     .chatbot-msg.bot .chatbot-msg-time { text-align: left; }
+
+    .chatbot-msg.bot a {
+      color: var(--primary, #0077b6);
+      text-decoration: underline;
+      word-break: break-all;
+    }
+    .chatbot-msg.bot a:hover {
+      opacity: 0.8;
+    }
 
     /* ===== TYPING INDICATOR ===== */
     .typing-indicator {
@@ -401,20 +429,28 @@ export function initChatbot() {
     }
 
     /* ===== MOBILE RESPONSIVE ===== */
-    @media (max-width: 480px) {
+    @media (max-width: 600px) {
       .kos-chatbot-window {
-        width: calc(100vw - 32px);
-        height: auto;
-        min-height: 400px;
-        max-height: calc(100dvh - 120px);
-        bottom: 90px;
-        top: auto;
+        width: calc(100% - 32px);
+        height: min(580px, calc(100% - 140px));
+        bottom: 24px;
         right: 16px;
         left: 16px;
-        border-radius: 20px;
-        max-width: none;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      }
+      .kos-chatbot-btn {
+        width: 68px;
+        height: 68px;
+        bottom: 20px;
+        right: 20px;
+      }
+      .kos-chatbot-suggestions {
+        padding: 0 10px 8px;
+        gap: 4px;
       }
     }
+
   `;
   document.head.appendChild(style);
 
@@ -422,29 +458,32 @@ export function initChatbot() {
   container.innerHTML = `
     <!-- Welcome Bubble -->
     <div class="kos-welcome-bubble" id="kos-welcome-bubble">
-      Hola, soy Koski, tu Asistente Personal
+      Hola, soy Koski, tu asistente personal
     </div>
 
     <!-- Chat Window -->
     <div class="kos-chatbot-window">
       <div class="kos-chatbot-header">
         <div class="kos-chatbot-header-info">
-          <div class="kos-chatbot-avatar">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.03 2 11c0 2.82 1.494 5.334 3.824 6.953C5.617 19.344 5.166 21 5.166 21s1.777-.113 3.655-1.121C9.696 20.301 10.82 20.5 12 20.5c5.523 0 10-4.03 10-9s-4.477-9-10-9z"/></svg>
+          <div class="kos-chatbot-avatar" id="kos-chatbot-avatar" role="button" tabindex="0" aria-label="Ver a Koski saludando">
+            <video id="kos-avatar-video" muted loop playsinline preload="auto">
+              <source src="/images/koski/koski-saludo.mp4" type="video/mp4">
+            </video>
           </div>
           <div class="kos-chatbot-header-text">
             <span class="kos-chatbot-header-name">Koski Agent</span>
-            <span class="kos-chatbot-header-status"><span class="kos-status-dot"></span> En linea</span>
+            <span class="kos-chatbot-header-status"><span class="kos-status-dot"></span> En línea</span>
           </div>
         </div>
         <button class="kos-chatbot-close">&#x2715;</button>
       </div>
       <div class="kos-chatbot-messages" id="chatbot-msg-container">
-        <div class="chatbot-msg bot">Hola! Soy Koski, tu asistente de IA. Estoy aqui para ayudarte en lo que necesites.</div>
+        <div class="chatbot-msg bot">¡Hola! Soy Koski, tu asistente de IA. Estoy aquí para ayudarte en lo que necesites.</div>
         <div class="kos-chatbot-suggestions" id="chatbot-suggestions">
-          <button class="kos-suggestion-chip" data-msg="Quiero hacer un pedido">Hacer un pedido</button>
-          <button class="kos-suggestion-chip" data-msg="Necesito informacion sobre sus productos">Informacion de productos</button>
-          <button class="kos-suggestion-chip" data-msg="Necesito ayuda con mi pedido">Ayuda con mi pedido</button>
+          <button class="kos-suggestion-chip" data-msg="Quiero cotizar al por mayor">📦 Cotizar al por mayor</button>
+          <button class="kos-suggestion-chip" data-msg="Necesito hablar con un asesor humano">👤 Hablar con asesor</button>
+          <button class="kos-suggestion-chip" data-msg="Quiero seguir el estado de mi pedido">📋 Seguir mi pedido</button>
+          <button class="kos-suggestion-chip" data-msg="Necesito información sobre sus productos">ℹ️ Info de productos</button>
         </div>
         <div class="typing-indicator" id="chatbot-typing">
           <span class="typing-label">Escribiendo</span>
@@ -465,7 +504,7 @@ export function initChatbot() {
 
     <!-- Floating Button (Moved after window for CSS sibling selector) -->
     <button class="kos-chatbot-btn" aria-label="Abrir chat">
-      <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.03 2 11c0 2.82 1.494 5.334 3.824 6.953C5.617 19.344 5.166 21 5.166 21s1.777-.113 3.655-1.121C9.696 20.301 10.82 20.5 12 20.5c5.523 0 10-4.03 10-9s-4.477-9-10-9z"/></svg>
+      <img src="/images/koski/koski-icon-240.png?v=2" alt="Koski" />
     </button>
 
   `;
@@ -481,14 +520,49 @@ export function initChatbot() {
   const typingInd = container.querySelector('#chatbot-typing');
   const suggestionsEl = container.querySelector('#chatbot-suggestions');
 
+  // Koski avatar: white circle with the waving video inside. Opening the chat
+  // (or tapping the avatar) makes it pop bigger while it waves, then it settles
+  // back to its normal size but keeps looping so it's always a little alive.
+  const avatarEl = container.querySelector('#kos-chatbot-avatar');
+  const avatarVideo = container.querySelector('#kos-avatar-video');
+  let koskiBurstTimer = null;
+
+  const playKoskiGreet = () => {
+    if (!avatarEl || !avatarVideo) return;
+    avatarVideo.currentTime = 0;
+    avatarVideo.play().catch(() => {});
+    avatarEl.classList.add('koski-burst');
+
+    clearTimeout(koskiBurstTimer);
+    koskiBurstTimer = setTimeout(() => {
+      avatarEl.classList.remove('koski-burst');
+    }, 3000); // roughly one wave cycle, then it shrinks back but keeps looping
+  };
+
+  if (avatarEl) {
+    avatarEl.addEventListener('click', playKoskiGreet);
+    avatarEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        playKoskiGreet();
+      }
+    });
+  }
+
   const toggleWindow = () => {
     windowEl.classList.toggle('open');
     const isOpen = windowEl.classList.contains('open');
     if (isOpen) {
+      document.body.classList.add('chat-open');
+      btnOpen.style.display = 'none'; // Force hide
       input.focus();
-      btnOpen.style.display = 'none';
+      playKoskiGreet();
     } else {
-      btnOpen.style.display = '';
+      document.body.classList.remove('chat-open');
+      btnOpen.style.display = ''; // Restore
+      clearTimeout(koskiBurstTimer);
+      if (avatarEl) avatarEl.classList.remove('koski-burst');
+      if (avatarVideo) avatarVideo.pause();
     }
   };
 
@@ -511,7 +585,7 @@ export function initChatbot() {
   // Time formatter
   const getTime = () => {
     const now = new Date();
-    return now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit' });
+    return now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   };
 
   const appendMessage = (text, sender, isError = false) => {
@@ -522,6 +596,10 @@ export function initChatbot() {
     if (sender === 'bot' && !isError) {
       let formattedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
       formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      formattedText = formattedText.replace(
+        /(https?:\/\/[^\s<>"')\]]+)/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      );
       content = formattedText;
     } else if (isError) {
       content = text;
@@ -627,13 +705,13 @@ export function initChatbot() {
         } catch {
           replyText = textResponse && textResponse.trim() ? textResponse : null;
           if (!replyText) {
-            appendError('Recibi una respuesta vacia. Por favor intenta de nuevo.', text);
+            appendError('Recibí una respuesta vacía. Por favor intenta de nuevo.', text);
             return;
           }
         }
         appendMessage(replyText, 'bot');
       } else {
-        appendError('Ocurrio un problema al procesar tu solicitud. Por favor intenta de nuevo en unos momentos.', text);
+        appendError('Ocurrió un problema al procesar tu solicitud. Por favor intenta de nuevo en unos momentos.', text);
       }
 
       input.focus();
@@ -641,7 +719,7 @@ export function initChatbot() {
       console.error('Chatbot error:', err);
       showTyping(false);
       setInputEnabled(true);
-      appendError('No pude conectar con el servidor. Verifica tu conexion e intenta de nuevo.', text);
+      appendError('No pude conectar con el servidor. Verifica tu conexión e intenta de nuevo.', text);
       input.focus();
     }
   };

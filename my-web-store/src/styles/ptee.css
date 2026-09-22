@@ -1,0 +1,240 @@
+/* canal-etico.css */
+.ce-page {
+    background-color: #f8fafc;
+    color: #1e293b;
+    font-family: 'Outfit', sans-serif;
+}
+
+.ce-section {
+    padding: 5rem 0;
+}
+
+.bg-white {
+    background-color: #ffffff;
+}
+
+/* HERO BANNER */
+.ce-hero {
+    position: relative;
+    background-color: #11345d; /* Dark Blue */
+    color: #ffffff;
+    padding: 8rem 0;
+    overflow: hidden;
+    text-align: center;
+}
+
+.ce-hero-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    height: 600px;
+    z-index: 1;
+    opacity: 0.8;
+}
+
+.ce-planet-bg {
+    width: 100%;
+    height: 100%;
+    animation: ce-rotate 60s linear infinite;
+}
+
+.ce-hero-container {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.ce-hero-icon-layer {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    padding: 24px;
+    margin-bottom: 1rem;
+    box-shadow: 0 0 30px rgba(0, 159, 227, 0.4);
+    animation: ce-float 5s ease-in-out infinite;
+}
+
+.ce-shield-icon {
+    color: #009FE3;
+}
+
+.ce-hero-title {
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin: 0;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+/* CONTENT STYLES */
+.ce-content-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.ce-text-lead {
+    font-size: 1.25rem;
+    line-height: 1.8;
+    color: #334155;
+    text-align: justify;
+    font-weight: 300;
+}
+
+.ce-section-title {
+    font-size: 2.5rem;
+    color: #11345d;
+    margin-bottom: 2rem;
+    font-weight: 800;
+    border-bottom: 3px solid #f28c30;
+    display: inline-block;
+    padding-bottom: 0.5rem;
+}
+
+.ce-text-regular {
+    font-size: 1.15rem;
+    line-height: 1.7;
+    color: #475569;
+}
+
+.ce-policy-list {
+    list-style: none;
+    padding: 0;
+    margin: 2rem 0 0 0;
+}
+
+.ce-policy-list li {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #334155;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.ce-policy-list li:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px rgba(0,0,0,0.05);
+    border-color: #009FE3;
+}
+
+.ce-policy-list li span {
+    font-weight: 800;
+    color: #009FE3;
+    font-size: 1.2rem;
+    min-width: 28px;
+}
+
+/* CONTACT GRID */
+.ce-contact-section {
+    background: radial-gradient(circle at center, #11345d 0%, #0a1f38 100%);
+    color: #fff;
+}
+
+.ce-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .ce-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ce-contact-text h3 {
+    font-size: 2rem;
+    color: #fff;
+    margin: 1.5rem 0 1rem 0;
+    line-height: 1.3;
+}
+
+.ce-contact-text p {
+    color: #94a3b8;
+    font-size: 1.1rem;
+}
+
+.ce-contact-icon {
+    color: #f28c30;
+}
+
+.ce-contact-box {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    padding: 2rem;
+}
+
+.ce-contact-box-header h4 {
+    color: #fff;
+    font-size: 1.4rem;
+    margin: 0 0 1.5rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 1rem;
+}
+
+.ce-emails-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ce-emails-list li {
+    margin-bottom: 1rem;
+}
+
+.ce-emails-list li a {
+    color: #bae6fd;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.1rem;
+    font-weight: 400;
+    transition: color 0.2s;
+    word-break: break-all;
+}
+
+.ce-emails-list li a:hover {
+    color: #f28c30;
+}
+
+.ce-emails-list li a svg {
+    flex-shrink: 0;
+    color: #009FE3;
+}
+
+/* ANIMATIONS */
+@keyframes ce-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes ce-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}

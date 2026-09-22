@@ -1,11 +1,13 @@
-import { renderHeader } from './components/header.js?v=3';
+import { renderHeader } from './components/header.js?v=999';
 import { renderProducts } from './components/product-list.js';
+import { applyOutOfStockToCard } from './components/product-item.js';
 import { attachDynamicPriceBehavior } from './components/product-item.js';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
 import { formatMoney } from './utils/format.js';
 
-console.log('app.js (módulo) cargado');
+console.log('[KosXpress] app.js?v=38.0 (módulo) cargado');
+window._inventoryCache = window._inventoryCache || new Map();
 
 function renderBestSellers(products, mount) {
   if (!mount || !products.length) return;
@@ -34,7 +36,7 @@ function renderBestSellers(products, mount) {
     return `
       <article class="bs-card" data-id="${p.id}" data-sku="${skuAttr}" style="opacity:1;">
         <div class="bs-card-visual" style="position:relative; cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='/product?id=${p.id}'; }">
-          <div class="out-of-stock-badge" style="display: none; position: absolute; top: 8px; left: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.70rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase;">No disponible</div>
+          <div class="out-of-stock-badge" style="display: none; position: absolute; bottom: 8px; right: 8px; background-color: var(--secondary, #f28c30); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; pointer-events: none; text-transform: uppercase; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">No disponible</div>
           <span class="bs-card-rank">#${idx + 1}</span>
           <img class="bs-card-img" src="${imgSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/images/placeholder.svg'">
           <span class="bs-card-flame">🔥</span>
@@ -43,11 +45,15 @@ function renderBestSellers(products, mount) {
           <a href="/product?id=${p.id}" class="bs-card-name-link">
             <h3 class="bs-card-name">${p.name}</h3>
           </a>
-          <p class="price bs-card-price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${p.codigo || ''}">
+          <p class="price bs-card-price" data-base-price="${unitPrice}" data-cantidad="${cantidadNum ?? ''}" data-codigo="${skuAttr}">
             $${formatMoney(totalConIva)}<span class="bs-per-box"> / caja</span> <span style="font-size:0.65rem;color:#4CAF50;font-weight:600;">IVA incluido</span>
           </p>
           <div class="bs-card-actions">
-            <input id="bs-qty-${p.id}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
+            <div class="qty-control-premium" style="width: 105px; flex-shrink: 0; height: 36px;">
+              <button type="button" class="qty-btn qty-btn-minus">-</button>
+              <input id="bs-qty-${p.id}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1" style="width: 33px; padding: 0;">
+              <button type="button" class="qty-btn qty-btn-plus">+</button>
+            </div>
             <button class="add-to-cart bs-add-btn btn-primary" data-id="${p.id}"${skuAttr ? ' disabled title="Consultando inventario..."' : ''}>${skuAttr ? 'Consultando...' : 'Agregar'}</button>
           </div>
         </div>
@@ -71,37 +77,22 @@ function renderBestSellers(products, mount) {
         const sku = it.getAttribute('data-sku');
         if (!sku) return;
         const inv = data[sku];
+        // Solo marcar como agotado si la respuesta es positiva Y dice "Agotado".
+        // Si no hay info (inv undefined) no se alarma al usuario.
+        const isOk = (inv && inv.estado === 'En Existencia');
         const btn = it.querySelector('.add-to-cart');
-        if (!inv || inv.estado !== 'En Existencia') {
-          const badge = it.querySelector('.out-of-stock-badge');
-          const img = it.querySelector('.bs-card-img');
-          if (badge) badge.style.setProperty('display', 'block', 'important');
-          if (img) {
-            img.style.setProperty('filter', 'grayscale(1)', 'important');
-            img.style.setProperty('opacity', '0.5', 'important');
-          }
-          if (btn) {
-            btn.disabled = true;
-            btn.textContent = 'No disponible';
-            btn.title = 'No disponible';
-            btn.style.backgroundColor = '#ccc';
-            btn.style.borderColor = '#ccc';
-            btn.style.color = '#777';
-            btn.style.cursor = 'not-allowed';
-          }
+        if (inv && !isOk) {
+          applyOutOfStockToCard(it);
         } else if (btn) {
+          // El botón nace en "Consultando...": aquí se habilita.
           btn.disabled = false;
           btn.textContent = 'Agregar';
           btn.title = '';
         }
       });
     }).catch(() => {
-      // Si la consulta falla no se deja el botón colgado en "Consultando...":
-      // se cae a agotado, que es la política acordada ante inventario desconocido.
-      items.forEach(it => {
-        const btn = it.querySelector('.add-to-cart');
-        if (btn && btn.disabled) { btn.textContent = 'No disponible'; btn.title = 'No disponible'; }
-      });
+      // Si la consulta falla no se deja el botón colgado en "Consultando...".
+      items.forEach(it => applyOutOfStockToCard(it));
     });
   }
 
@@ -130,6 +121,48 @@ async function init() {
     const allProducts = await resProd.json();
     const products = allProducts.filter(p => p.habilitado !== false && p.habilitado !== 0);
     const categories = resCat.ok ? await resCat.json() : [];
+
+    // Bulk inventory check para todos los productos y llenar el caché local
+    const getSku = (p) => (p.codigo_siesa || p.sku || p.SKU || p.item_ext || p.codigo || '').toString().trim();
+    const allSkus = products.map(getSku).filter(Boolean);
+
+    if (allSkus.length > 0) {
+      console.log('[KosXpress] Iniciando bulk inventory check para', allSkus.length, 'SKUs');
+      fetch('/api/inventario-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skus: [...new Set(allSkus)] })
+      })
+        .then(async r => {
+          const data = await r.json();
+          console.log('[KosXpress] Bulk inventory data recibida:', Object.keys(data).length, 'items');
+
+          products.forEach(p => {
+            const sku = getSku(p);
+            const inv = data[sku];
+            if (inv) {
+              const isOk = (inv.estado === 'En Existencia');
+              // Si el estado no es "En Existencia", lo marcamos como agotado (incluyendo casos de error upstream)
+              if (!isOk) {
+                window._inventoryCache.set(Number(p.id), 'no-disponible');
+              } else {
+                window._inventoryCache.set(Number(p.id), 'disponible');
+              }
+            }
+          });
+
+          // Aplicar estilos a tarjetas ya renderizadas (Best Sellers)
+          const currentCards = document.querySelectorAll('.v2-card, .bs-card');
+          console.log('[KosXpress] Aplicando estilos a', currentCards.length, 'tarjetas existentes');
+          currentCards.forEach(card => {
+            const pid = Number(card.dataset.id);
+            if (window._inventoryCache.get(pid) === 'no-disponible') {
+              applyOutOfStockToCard(card);
+            }
+          });
+        })
+        .catch(err => console.error('[KosXpress] Error en bulk inventory check:', err));
+    }
 
     const productsMount = document.getElementById('products');
     const categoryHub = document.getElementById('category-grid');
@@ -334,11 +367,11 @@ async function init() {
     // Delegado: manejar clicks "Agregar" y leer cantidad del input
     document.addEventListener('click', async (e) => {
       const btn = e.target.closest('.add-to-cart');
-      if (!btn) return;
+      if (!btn || btn.disabled) return;
       const id = Number(btn.dataset.id);
       const product = products.find(p => p.id === id);
       if (!product) return;
-      const card = btn.closest('.product') || btn.closest('.bs-card');
+      const card = btn.closest('.v2-card') || btn.closest('.product') || btn.closest('.bs-card');
       const qtyInput = card?.querySelector('.qty-input');
       const qty = Math.max(1, Number(qtyInput?.value) || 1);
 
@@ -347,7 +380,7 @@ async function init() {
       const onAddSuccess = () => {
         cartService.add(product, qty);
         btn.classList.add('added');
-        showToast('Agregado Exitosamente');
+        showToast('Agregado exitosamente');
         setTimeout(() => btn.classList.remove('added'), 350);
       };
 
@@ -371,7 +404,7 @@ async function init() {
         const inventarioExistencia = Number(data?.inventario);
 
         if (estado !== 'En Existencia') {
-          showToast('Producto Agotado', 'error');
+          showToast('Producto agotado', 'error');
           return;
         }
 
@@ -382,7 +415,7 @@ async function init() {
         const unitsPerBox = Number(rawUnits) > 0 ? Number(rawUnits) : null;
 
         if (unitsPerBox && Number.isFinite(inventarioExistencia) && qty * unitsPerBox > inventarioExistencia) {
-          showToast('Producto Agotado', 'error');
+          showToast('Producto agotado', 'error');
           return;
         }
 
@@ -390,7 +423,7 @@ async function init() {
       } catch (err) {
         console.error('Error checando inventario', err);
         // Fallback if network issue
-        showToast('Producto Agotado', 'error');
+        showToast('Producto agotado', 'error');
       } finally {
         setBtnLoading(false);
       }

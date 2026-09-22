@@ -1,16 +1,28 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const fetch = require('node-fetch');
 const dotenv = require('dotenv');
+const nodemailer = require('nodemailer');
+const bcrypt = require('bcryptjs');
 
 // Cargar variables desde la raíz del proyecto (independiente del cwd)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
+// Transporte SMTP para notificaciones por correo (ej. denuncias del Canal Ético)
+const mailTransporter = process.env.SMTP_HOST ? nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: Number(process.env.SMTP_PORT) === 465,
+  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
+}) : null;
+
 // switching to SQL Server + Azure Blob storage
 const db = require('./db');
 const inventarioApi = require('./inventario');
 const { StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions, BlobServiceClient } = require('@azure/storage-blob');
+const archiver = require('archiver');
 
 const multer = require('multer');
 const upload = multer({
@@ -61,6 +73,13 @@ function toBuffer(val) {
 const PAYU_ENABLED = process.env.PAYU_ENABLED === 'true';
 const PORT = process.env.PORT || 3000;
 
+process.on('uncaughtException', err => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
 // Wompi
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY;
 const WOMPI_INTEGRITY_SECRET = process.env.WOMPI_INTEGRITY_SECRET;
@@ -98,15 +117,28 @@ function setCookie(res, name, value, opts = {}) {
   if (opts.secure) parts.push('Secure');
   res.setHeader('Set-Cookie', parts.join('; '));
 }
+// Cualquier usuario logueado del panel (admin o comercial).
 function requireAdmin(req, res, next) {
   const { adminToken } = getCookies(req);
   const data = verifyToken(adminToken);
   if (!data || data.sub !== 'admin') return res.status(401).json({ message: 'No autorizado' });
+  req.adminUser = data;
+  next();
+}
+
+// Solo el rol 'admin' (banners, logos, biblioteca, bonos, categorías,
+// dashboard, gestión de usuarios) — el rol 'comercial' queda fuera de esto.
+function requireFullAdmin(req, res, next) {
+  const { adminToken } = getCookies(req);
+  const data = verifyToken(adminToken);
+  if (!data || data.sub !== 'admin') return res.status(401).json({ message: 'No autorizado' });
+  if ((data.role || 'admin') !== 'admin') return res.status(403).json({ message: 'Esta sección es solo para el administrador principal' });
+  req.adminUser = data;
   next();
 }
 
 // --- Firma para Wompi ---
-app.post('/api/wompi/signature', (req, res) => {
+app.post('/api/wompi/signature', async (req, res) => {
   try {
     if (!WOMPI_PUBLIC_KEY || !WOMPI_INTEGRITY_SECRET) {
       return res.status(500).json({ message: 'WOMPI_PUBLIC_KEY o WOMPI_INTEGRITY_SECRET no configurados' });
@@ -115,7 +147,26 @@ app.post('/api/wompi/signature', (req, res) => {
     const { reference, amountInCents, currency, redirectUrl, redirectPath } = req.body || {};
     if (!reference || typeof reference !== 'string') return res.status(400).json({ message: 'reference requerida' });
 
-    const cents = Number(amountInCents);
+    // Si la referencia es de un pedido real (PED-<id>), el monto a firmar SIEMPRE sale del
+    // total_value guardado en dbo.pedidos, nunca del amountInCents que mande el cliente. Sin
+    // esto, cualquiera podría llamar este endpoint directo (sin pasar por el checkout) y pedir
+    // una firma válida para un monto distinto al que realmente quedó registrado en el pedido.
+    let cents;
+    const pedMatch = /^PED-(\d+)$/.exec(reference);
+    if (pedMatch) {
+      const pedidoId = Number(pedMatch[1]);
+      const rows = await db.query('SELECT total_value FROM dbo.pedidos WHERE id = @id', { id: pedidoId });
+      const totalValue = rows && rows[0] ? Number(rows[0].total_value) : NaN;
+      if (!Number.isFinite(totalValue) || totalValue <= 0) {
+        return res.status(400).json({ message: 'Pedido no encontrado o sin total válido' });
+      }
+      cents = Math.round(totalValue * 100);
+      if (Number.isFinite(Number(amountInCents)) && Number(amountInCents) !== cents) {
+        console.warn(`[wompi/signature] amountInCents del cliente (${amountInCents}) no coincide con el pedido ${pedidoId} (${cents}); se usa el del pedido.`);
+      }
+    } else {
+      cents = Number(amountInCents);
+    }
     if (!Number.isFinite(cents) || cents <= 0) return res.status(400).json({ message: 'amountInCents inválido' });
 
     const cur = (currency || 'COP').toUpperCase();
@@ -259,13 +310,33 @@ app.post('/api/pedidos', async (req, res) => {
     const notes = (b.notes == null ? '' : String(b.notes)).trim();
     const paymentMethod = (b.paymentMethod == null ? '' : String(b.paymentMethod)).trim();
     const subtotal = Number(b.subtotal) || 0;
-    const ivaVal = Number(b.iva) || 0;
+    let ivaVal = Number(b.iva) || 0;
     const fleteVal = Number(b.flete) || 0;
-    const totalValue = Number(b.total_value) || 0;
+    let totalValue = Number(b.total_value) || 0;
 
     if (!nitId) return res.status(400).json({ message: 'Número de documento requerido' });
     if (!name || !email || !phone || !address || !city) {
       return res.status(400).json({ message: 'name, email, phone, address y city son requeridos' });
+    }
+
+    // Bono de primera compra: el servidor decide de forma independiente si aplica y cuánto —
+    // nunca se confía en un descuento que venga del cliente. Si el documento ya tiene algún
+    // pedido registrado, o no hay bono vigente, se sigue con los totales tal como los mandó el cliente.
+    let bonoAplicado = null;
+    let descuentoValor = 0;
+    let descuentoPorcentaje = null;
+    try {
+      const { elegible, bono } = await getBonoElegible(tipoDocumento, nitId);
+      if (elegible && bono) {
+        descuentoPorcentaje = bono.porcentaje_descuento;
+        descuentoValor = Math.round(subtotal * descuentoPorcentaje / 100);
+        const subtotalDescontado = Math.max(0, subtotal - descuentoValor);
+        ivaVal = Math.round(subtotalDescontado * 0.19);
+        totalValue = subtotalDescontado + ivaVal + fleteVal;
+        bonoAplicado = bono;
+      }
+    } catch (bonoErr) {
+      console.warn('Error resolviendo bono de primera compra:', bonoErr.message);
     }
 
     // Detectar tabla/columnas reales (por si la tabla fue creada manualmente con otros nombres)
@@ -321,7 +392,10 @@ app.post('/api/pedidos', async (req, res) => {
       pais: pick(['pais']),
       tipoPersona: pick(['tipo_persona']),
       regimen: pick(['regimen']),
-      fechaNacimiento: pick(['fecha_nacimiento'])
+      fechaNacimiento: pick(['fecha_nacimiento']),
+      bonoId: pick(['bono_id']),
+      descuentoValor: pick(['descuento_valor']),
+      descuentoPorcentaje: pick(['descuento_porcentaje'])
     };
 
     const missing = ['nit', 'name', 'email', 'phone', 'address', 'city']
@@ -367,6 +441,9 @@ app.post('/api/pedidos', async (req, res) => {
     add(mapping.tipoPersona, 'tipoPersona', tipoPersona || null);
     add(mapping.regimen, 'regimen', regimen || null);
     add(mapping.fechaNacimiento, 'fechaNacimiento', fechaNacimiento || null);
+    add(mapping.bonoId, 'bonoId', bonoAplicado ? bonoAplicado.id : null);
+    add(mapping.descuentoValor, 'descuentoValor', bonoAplicado ? descuentoValor : null);
+    add(mapping.descuentoPorcentaje, 'descuentoPorcentaje', bonoAplicado ? descuentoPorcentaje : null);
 
     // Intentar devolver id si existe columna id
     const idCol = pick(['id', 'Id', 'ID']);
@@ -410,23 +487,23 @@ app.post('/api/pedidos', async (req, res) => {
     if (!clienteExiste) {
       try {
         const terceroBody = {
-        tipo_documento: tipoDocumento || null,
-        numero_documento: nitId,
-        digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
-        nombres: nombres || null,
-        apellidos: apellidos || null,
-        nombre_completo: nombreCompleto || null,
-        fecha_nacimiento: fechaNacimiento || null,
-        email: email,
-        telefono: telefonoFijo || null,
-        celular: phone || null,
-        direccion: address || null,
-        ciudad: city || null,
-        departamento: departamento || null,
-        pais: pais || 'CO',
-        tipo_persona: tipoPersona || 'N',
-        regimen: regimen || null
-      };
+          tipo_documento: tipoDocumento || null,
+          numero_documento: nitId,
+          digito_verificacion: tipoDocumento === 'NIT' ? (digitoVerificacion || null) : null,
+          nombres: nombres || null,
+          apellidos: apellidos || null,
+          nombre_completo: nombreCompleto || null,
+          fecha_nacimiento: fechaNacimiento || null,
+          email: email,
+          telefono: telefonoFijo || null,
+          celular: phone || null,
+          direccion: address || null,
+          ciudad: city || null,
+          departamento: departamento || null,
+          pais: pais || 'CO',
+          tipo_persona: tipoPersona || 'N',
+          regimen: regimen || null
+        };
         fetch('https://kx-endpoints.azurewebsites.net/crear-tercero', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -442,13 +519,95 @@ app.post('/api/pedidos', async (req, res) => {
       console.log(`Cliente ${tipoDocumento} ${nitId} ya existe en pedidos, omitiendo crear-tercero`);
     }
 
-    res.status(201).json({ ok: true, id: id ?? null });
+    // amountInCents es el monto autoritativo: el checkout debe usar este valor (y no el que
+    // calculó localmente) para abrir Wompi, así lo cobrado siempre coincide con lo guardado aquí.
+    res.status(201).json({
+      ok: true,
+      id: id ?? null,
+      amountInCents: Math.round(totalValue * 100),
+      discountApplied: !!bonoAplicado,
+      discountValue: bonoAplicado ? descuentoValor : 0,
+      discountPercentage: bonoAplicado ? descuentoPorcentaje : null
+    });
   } catch (e) {
     console.error('POST /api/pedidos error', e);
     res.status(500).json({
       message: 'Error guardando pedido',
       detail: (e && e.message) ? String(e.message).slice(0, 300) : undefined
     });
+  }
+});
+
+// --- Documentos de pedido (RUT / Cámara de Comercio para personas jurídicas) ---
+// Contenedor privado y separado de "images": son documentos de identidad/legales,
+// no deben quedar con lectura pública anónima como el resto de adjuntos del sitio.
+const pedidoDocUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB por archivo
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg)$/.test(file.mimetype) || file.mimetype === 'application/pdf') return cb(null, true);
+    cb(new Error('Solo se permiten imágenes (png, jpg) o PDF'));
+  }
+});
+const docsContainerName = process.env.AZURE_DOCS_CONTAINER || 'documentos-legales';
+
+app.post('/api/pedidos/:id/documentos', pedidoDocUpload.fields([{ name: 'rut', maxCount: 1 }, { name: 'camaraComercio', maxCount: 1 }]), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID de pedido inválido' });
+
+    const pedidoRows = await db.query('SELECT id FROM dbo.pedidos WHERE id = @id', { id });
+    if (!pedidoRows || !pedidoRows.length) return res.status(404).json({ message: 'Pedido no encontrado' });
+
+    const rutFile = req.files?.rut?.[0];
+    const camaraFile = req.files?.camaraComercio?.[0];
+    if (!rutFile || !camaraFile) {
+      return res.status(400).json({ message: 'Se requieren ambos documentos: RUT y Cámara de Comercio' });
+    }
+    if (!blobServiceClient) {
+      return res.status(500).json({ message: 'Almacenamiento no configurado' });
+    }
+
+    const containerClient = blobServiceClient.getContainerClient(docsContainerName);
+    try { await containerClient.createIfNotExists(); } catch { /* privado: sin access:'blob' */ }
+
+    const uploadDoc = async (file, tipo) => {
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.originalname}`;
+      const blobName = `Pedidos/${id}/${tipo}/${filename}`;
+      const blockClient = containerClient.getBlockBlobClient(blobName);
+      // Content-Disposition: attachment fuerza la descarga real del archivo (con su nombre
+      // original) en vez de abrirlo dentro del navegador al usar el enlace firmado.
+      const asciiFallback = file.originalname.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, "'");
+      const contentDisposition = `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(file.originalname)}`;
+      await blockClient.uploadData(file.buffer, {
+        blobHTTPHeaders: { blobContentType: file.mimetype, blobContentDisposition: contentDisposition }
+      });
+      return {
+        tipo,
+        filename: file.originalname,
+        type: file.mimetype,
+        size: file.size,
+        container: docsContainerName,
+        blobName,
+        uploadedAt: new Date().toISOString()
+      };
+    };
+
+    const documentos = [
+      await uploadDoc(rutFile, 'RUT'),
+      await uploadDoc(camaraFile, 'CAMARA_COMERCIO')
+    ];
+
+    await db.query(
+      `UPDATE dbo.pedidos SET documentos = @documentos, documentos_verificados = 0, documentos_verificados_por = NULL, documentos_verificados_at = NULL WHERE id = @id`,
+      { id, documentos: JSON.stringify(documentos) }
+    );
+
+    res.status(201).json({ ok: true, documentos: documentos.map(d => ({ tipo: d.tipo, filename: d.filename })) });
+  } catch (e) {
+    console.error('POST /api/pedidos/:id/documentos error', e);
+    const detail = e && e.message ? String(e.message).slice(0, 600) : String(e);
+    res.status(500).json({ message: 'Error subiendo documentos', detail });
   }
 });
 
@@ -465,9 +624,31 @@ const contactUpload = multer({
 app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res) => {
   try {
     const { name, email, phone, message } = req.body || {};
+    const recaptchaResponse = req.body['g-recaptcha-response'];
+    
     if (!name || !email || !message) {
       return res.status(400).json({ message: 'name, email y message son requeridos' });
     }
+
+    if (!recaptchaResponse) {
+      return res.status(400).json({ message: 'Por favor, verifica que no eres un robot.' });
+    }
+
+    // Verificar con Google
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET || '6LetrigtAAAAAFdEZ0HO4z9mXZblhHMTEwVMtQTO';
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${recaptchaResponse}`;
+    
+    try {
+      const gRes = await fetch(verifyUrl, { method: 'POST' });
+      const gData = await gRes.json();
+      if (!gData.success) {
+        return res.status(400).json({ message: 'Error de validación reCAPTCHA. Intenta nuevamente.' });
+      }
+    } catch (gErr) {
+      console.error('Error verificando reCAPTCHA:', gErr);
+      return res.status(500).json({ message: 'Error comunicándose con el servicio de validación de reCAPTCHA.' });
+    }
+
     const files = Array.isArray(req.files) ? req.files : [];
 
     // Subir cada adjunto a Azure Blob Storage → Contactos/
@@ -540,17 +721,156 @@ app.post('/api/contacts', contactUpload.array('attachments', 6), async (req, res
   }
 });
 
+// --- Denuncias API (Canal Ético) ---
+const denunciaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB por archivo
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype) || file.mimetype === 'application/pdf') return cb(null, true);
+    cb(new Error('Solo se permiten imágenes (png, jpg, gif, webp) o PDF'));
+  }
+});
+
+app.post('/api/denuncias', denunciaUpload.array('attachments', 6), async (req, res) => {
+  try {
+    const {
+      name, email, phone, identification,
+      accusedName, accusedRole, detail,
+      incidentDate, incidentTime, othersAware, othersAwareDetail
+    } = req.body || {};
+    const recaptchaResponse = req.body['g-recaptcha-response'];
+
+    // El único campo obligatorio es el detalle: el canal admite denuncias anónimas.
+    if (!detail || !String(detail).trim()) {
+      return res.status(400).json({ message: 'Describe el motivo de la denuncia' });
+    }
+
+    if (!recaptchaResponse) {
+      return res.status(400).json({ message: 'Por favor, verifica que no eres un robot.' });
+    }
+
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET || '6LetrigtAAAAAFdEZ0HO4z9mXZblhHMTEwVMtQTO';
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${recaptchaResponse}`;
+
+    try {
+      const gRes = await fetch(verifyUrl, { method: 'POST' });
+      const gData = await gRes.json();
+      if (!gData.success) {
+        return res.status(400).json({ message: 'Error de validación reCAPTCHA. Intenta nuevamente.' });
+      }
+    } catch (gErr) {
+      console.error('Error verificando reCAPTCHA:', gErr);
+      return res.status(500).json({ message: 'Error comunicándose con el servicio de validación de reCAPTCHA.' });
+    }
+
+    const files = Array.isArray(req.files) ? req.files : [];
+
+    // Subir cada adjunto a Azure Blob Storage → Denuncias/
+    const attachmentMeta = [];
+    if (files.length > 0 && blobServiceClient) {
+      const containerClient = blobServiceClient.getContainerClient(containerName);
+      try { await containerClient.createIfNotExists({ access: 'blob' }); } catch { /* ignore */ }
+      for (const f of files) {
+        const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.originalname}`;
+        const blobName = rootPath ? `${rootPath}/Denuncias/${filename}` : `Denuncias/${filename}`;
+        const blockClient = containerClient.getBlockBlobClient(blobName);
+        await blockClient.uploadData(f.buffer, { blobHTTPHeaders: { blobContentType: f.mimetype } });
+        const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+        const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+        attachmentMeta.push({ filename: f.originalname, type: f.mimetype, size: f.size, url: blobUrl });
+      }
+    } else {
+      for (const f of files) {
+        attachmentMeta.push({ filename: f.originalname, type: f.mimetype, size: f.size });
+      }
+    }
+
+    const r = await db.query(
+      `INSERT INTO dbo.denuncias (name, email, phone, identification, accusedName, accusedRole, detail, incidentDate, incidentTime, othersAware, othersAwareDetail, attachments)
+       OUTPUT INSERTED.id
+       VALUES (@name, @email, @phone, @identification, @accusedName, @accusedRole, @detail, @incidentDate, @incidentTime, @othersAware, @othersAwareDetail, @attachments);`,
+      {
+        name: String(name || '').trim(),
+        email: String(email || '').trim(),
+        phone: String(phone || '').trim(),
+        identification: String(identification || '').trim(),
+        accusedName: String(accusedName || '').trim(),
+        accusedRole: String(accusedRole || '').trim(),
+        detail: String(detail).trim(),
+        incidentDate: String(incidentDate || '').trim(),
+        incidentTime: String(incidentTime || '').trim(),
+        othersAware: othersAware === 'si',
+        othersAwareDetail: String(othersAwareDetail || '').trim(),
+        attachments: JSON.stringify(attachmentMeta)
+      }
+    );
+    const savedId = r && r[0] && r[0].id;
+
+    // Enviar correo al oficial de cumplimiento (fire-and-forget, no bloquea la respuesta)
+    if (mailTransporter) {
+      const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const row = (label, value) => value ? `<tr><td style="padding:6px 12px;color:#64748b;font-weight:600;white-space:nowrap;vertical-align:top;">${esc(label)}</td><td style="padding:6px 12px;color:#1e293b;">${esc(value)}</td></tr>` : '';
+      const attachmentsHtml = attachmentMeta.length
+        ? attachmentMeta.map(a => `<li><a href="${esc(a.url || '#')}">${esc(a.filename)}</a></li>`).join('')
+        : '<li>Sin adjuntos</li>';
+
+      const html = `
+        <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;">
+          <h2 style="color:#11345d;">Nueva denuncia — Canal Ético KOS Colombia</h2>
+          <table style="border-collapse:collapse;width:100%;">
+            ${row('Nombre', name || 'Anónimo')}
+            ${row('Correo', email)}
+            ${row('Teléfono', phone)}
+            ${row('N° identificación', identification)}
+            ${row('Denunciado', accusedName)}
+            ${row('Cargo denunciado', accusedRole)}
+            ${row('Fecha del suceso', incidentDate)}
+            ${row('Hora del suceso', incidentTime)}
+            ${row('¿Alguien más se enteró?', othersAware === 'si' ? `Sí — ${esc(othersAwareDetail)}` : 'No')}
+          </table>
+          <h3 style="color:#11345d;margin-top:20px;">Motivo de la denuncia</h3>
+          <p style="white-space:pre-wrap;color:#1e293b;">${esc(detail)}</p>
+          <h3 style="color:#11345d;margin-top:20px;">Adjuntos</h3>
+          <ul>${attachmentsHtml}</ul>
+          <p style="color:#94a3b8;font-size:0.85rem;margin-top:24px;">Denuncia #${savedId} recibida el ${new Date().toLocaleString('es-CO')} a través del formulario web del Canal Ético.</p>
+        </div>
+      `;
+
+      mailTransporter.sendMail({
+        from: `"Canal Ético KOS Colombia" <${process.env.SMTP_USER}>`,
+        to: process.env.COMPLIANCE_EMAIL || 'oficialdecumplimiento@koscolombia.com',
+        replyTo: email || undefined,
+        subject: `Nueva denuncia recibida — Canal Ético (#${savedId})`,
+        html
+      }).then(() => {
+        console.log(`[mail-denuncia] Correo enviado para denuncia ${savedId}`);
+      }).catch(err => console.error('[mail-denuncia] Error enviando correo:', err.message || err));
+    }
+
+    res.status(201).json({ ok: true, id: savedId });
+  } catch (e) {
+    console.error('[denuncias] Error:', e);
+    const detail = e && e.message ? String(e.message).slice(0, 600) : String(e);
+    res.status(500).json({ message: 'Error guardando denuncia', detail });
+  }
+});
+
 // --- Admin Auth API ---
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
-    if (!ADMIN_PASSWORD) return res.status(500).json({ message: 'ADMIN_PASSWORD no configurada' });
-    if ((username || ADMIN_USER) !== ADMIN_USER || password !== ADMIN_PASSWORD) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
-    }
-    const token = signToken({ sub: 'admin', user: ADMIN_USER, iat: Date.now() });
+    if (!username || !password) return res.status(401).json({ message: 'Credenciales inválidas' });
+    const rows = await db.query(
+      `SELECT id, username, passwordHash, role FROM dbo.admin_users WHERE username = @username`,
+      { username }
+    );
+    const user = rows[0];
+    if (!user) return res.status(401).json({ message: 'Credenciales inválidas' });
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return res.status(401).json({ message: 'Credenciales inválidas' });
+    const token = signToken({ sub: 'admin', user: user.username, role: user.role, iat: Date.now() });
     setCookie(res, 'adminToken', token, { httpOnly: true, sameSite: 'Lax' });
-    res.json({ ok: true, user: ADMIN_USER });
+    res.json({ ok: true, user: user.username, role: user.role });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Error en login' });
@@ -566,7 +886,67 @@ app.get('/api/admin/me', (req, res) => {
   const { adminToken } = getCookies(req);
   const data = verifyToken(adminToken);
   if (!data || data.sub !== 'admin') return res.status(401).json({ ok: false });
-  res.json({ ok: true, user: data.user });
+  res.json({ ok: true, user: data.user, role: data.role || 'admin' });
+});
+
+// --- Admin Users API (gestión de usuarios del panel, solo rol admin) ---
+app.get('/api/admin/users', requireFullAdmin, async (req, res) => {
+  try {
+    const rows = await db.query(`SELECT id, username, role, createdAt FROM dbo.admin_users ORDER BY createdAt ASC`);
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error obteniendo usuarios' });
+  }
+});
+
+app.post('/api/admin/users', requireFullAdmin, async (req, res) => {
+  try {
+    const { username, password, role } = req.body || {};
+    if (!username || !password) return res.status(400).json({ message: 'Usuario y contraseña son requeridos' });
+    const finalRole = role === 'comercial' ? 'comercial' : 'admin';
+    const existing = await db.query(`SELECT id FROM dbo.admin_users WHERE username = @username`, { username });
+    if (existing.length) return res.status(409).json({ message: 'Ese nombre de usuario ya existe' });
+    const hash = await bcrypt.hash(password, 10);
+    await db.query(
+      `INSERT INTO dbo.admin_users (username, passwordHash, role) VALUES (@username, @hash, @role)`,
+      { username, hash, role: finalRole }
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error creando usuario' });
+  }
+});
+
+app.delete('/api/admin/users/:id', requireFullAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const rows = await db.query(`SELECT username FROM dbo.admin_users WHERE id = @id`, { id });
+    const target = rows[0];
+    if (target && target.username === req.adminUser.user) {
+      return res.status(400).json({ message: 'No puedes eliminar tu propio usuario' });
+    }
+    await db.query(`DELETE FROM dbo.admin_users WHERE id = @id`, { id });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error eliminando usuario' });
+  }
+});
+
+app.patch('/api/admin/users/:id/password', requireFullAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { password } = req.body || {};
+    if (!password) return res.status(400).json({ message: 'Contraseña requerida' });
+    const hash = await bcrypt.hash(password, 10);
+    await db.query(`UPDATE dbo.admin_users SET passwordHash = @hash WHERE id = @id`, { id, hash });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Error actualizando contraseña' });
+  }
 });
 
 // --- Chatbot Proxy API ---
@@ -594,18 +974,107 @@ app.post('/api/chatbot', async (req, res) => {
 
 // Servir frontend estático
 const staticDir = path.resolve(__dirname, '..', 'src');
+
+// Ruta dedicada para feed.xml: sin caché y Content-Type correcto para XML
+app.get('/feed.xml', (req, res) => {
+  const feedPath = path.join(staticDir, 'feed.xml');
+  if (!fs.existsSync(feedPath)) {
+    return res.status(404).send('feed.xml no encontrado. Ejecuta: node generate-feed.js');
+  }
+  res.setHeader('Content-Type', 'application/xml; charset=UTF-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(feedPath);
+});
+
+// Sitio en inglés: en construcción, oculto de buscadores hasta que se lance oficialmente.
+// (Quitar este bloque cuando el sitio /en/ esté listo para publicarse.)
+app.use('/en', (req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
+
+// Inyección centralizada de tags de analítica/ads en el <head> de cada página HTML.
+// Para añadir o cambiar un tag en todo el sitio, edita server/partials/*.html: no hay
+// que tocar cada .html individualmente (equivalente a un include de PHP).
+const htmlPartialsDir = path.join(__dirname, 'partials');
+const headPartials = fs.readdirSync(htmlPartialsDir)
+  .filter(f => f.endsWith('.html'))
+  .sort()
+  .map(f => fs.readFileSync(path.join(htmlPartialsDir, f), 'utf8').trim())
+  .join('\n');
+
+const htmlInjectCache = new Map(); // ruta absoluta -> { mtimeMs, content }
+
+function resolveHtmlFile(reqPath) {
+  let rel = decodeURIComponent(reqPath);
+  if (rel.endsWith('/')) rel += 'index.html';
+  else if (!path.extname(rel)) rel += '.html';
+  if (!rel.endsWith('.html')) return null;
+
+  const filePath = path.join(staticDir, rel);
+  if (!filePath.startsWith(staticDir + path.sep)) return null; // evita path traversal
+  return filePath;
+}
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+
+  const filePath = resolveHtmlFile(req.path);
+  if (!filePath) return next();
+
+  fs.stat(filePath, (err, stats) => {
+    if (err || !stats.isFile()) return next();
+
+    const cached = htmlInjectCache.get(filePath);
+    const html = cached && cached.mtimeMs === stats.mtimeMs
+      ? cached.content
+      : (() => {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const injected = raw.includes('</head>')
+          ? raw.replace('</head>', `${headPartials}\n</head>`)
+          : raw;
+        htmlInjectCache.set(filePath, { mtimeMs: stats.mtimeMs, content: injected });
+        return injected;
+      })();
+
+    res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(html);
+  });
+});
+
 app.use(express.static(staticDir, {
   extensions: ['html'],
   maxAge: '7d',
   setHeaders(res, filePath) {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
+    if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
   }
 }));
 
+// Siembra el usuario admin inicial (desde .env) en dbo.admin_users si la tabla está vacía,
+// para migrar del login por variable de entorno al sistema de usuarios en base de datos.
+async function seedAdminUser() {
+  try {
+    const rows = await db.query('SELECT COUNT(*) AS cnt FROM dbo.admin_users');
+    if (rows[0]?.cnt > 0) return;
+    if (!ADMIN_PASSWORD) return;
+    const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+    await db.query(
+      `INSERT INTO dbo.admin_users (username, passwordHash, role) VALUES (@username, @hash, 'admin')`,
+      { username: ADMIN_USER, hash }
+    );
+    console.log(`[admin_users] Usuario admin inicial creado desde .env: ${ADMIN_USER}`);
+  } catch (e) {
+    console.error('[admin_users] Error sembrando usuario admin inicial:', e.message);
+  }
+}
+
 // Inicializar esquema SQL y conexión
-db.ensureSchema().then(() => console.log('SQL Server schema ensured')).catch(err => console.error('Error asegurando esquema SQL', err));
+db.ensureSchema().then(() => { console.log('SQL Server schema ensured'); return seedAdminUser(); }).catch(err => console.error('Error asegurando esquema SQL', err));
 
 // Exponer pool SQL en app.locals (opcional, útil para debug/operaciones futuras)
 db.getPool().then(pool => { app.locals.sqlPool = pool; }).catch(() => { /* ignore */ });
@@ -681,6 +1150,7 @@ function mapProductRow(d) {
   if (d.image2) { const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
   if (d.image3) { const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
   if (d.image4) { const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+  const imgsEn = d.images_en ? (() => { try { return JSON.parse(d.images_en); } catch { return []; } })() : [];
   return {
     id: d.id,
     codigo_siesa: d.codigo_siesa || '',
@@ -694,11 +1164,19 @@ function mapProductRow(d) {
     empaque_descripcion: d.empaque_descripcion || '',
     description: d.description || '',
     habilitado: d.habilitado != null ? !!d.habilitado : true,
+    es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
+    precio_personalizado_2000: d.precio_personalizado_2000 != null ? Number(d.precio_personalizado_2000) : null,
+    precio_personalizado_4000: d.precio_personalizado_4000 != null ? Number(d.precio_personalizado_4000) : null,
+    precio_personalizado_8000: d.precio_personalizado_8000 != null ? Number(d.precio_personalizado_8000) : null,
+    precio_personalizado_20000: d.precio_personalizado_20000 != null ? Number(d.precio_personalizado_20000) : null,
     images: imgs,
     image: imgs[0] || '/images/placeholder.svg',
     image2: d.image2 || '',
     image3: d.image3 || '',
-    image4: d.image4 || ''
+    image4: d.image4 || '',
+    name_en: d.name_en || null,
+    description_en: d.description_en || null,
+    images_en: imgsEn
   };
 }
 
@@ -708,7 +1186,7 @@ app.get('/api/products', async (req, res) => {
     if (productsCache.data && (now - productsCache.ts) < PRODUCTS_CACHE_TTL) {
       return res.json(productsCache.data);
     }
-    const sqlQuery = `SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id ORDER BY p.id`;
+    const sqlQuery = `SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion, pt.name_en, pt.description_en, pt.images_en FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id LEFT JOIN dbo.product_translations pt ON pt.product_id = p.id ORDER BY p.id`;
     const rows = await db.query(sqlQuery);
     const out = rows.map(mapProductRow);
     productsCache.data = out;
@@ -726,13 +1204,14 @@ app.get('/api/products/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
     // JOIN para obtener el nombre de la categoría
-    const rows = await db.query('SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id WHERE p.id = @id', { id });
+    const rows = await db.query('SELECT p.*, c.descripcion AS category_name, te.descripcion AS empaque_descripcion, pt.name_en, pt.description_en, pt.images_en FROM dbo.products p LEFT JOIN dbo.categories c ON p.category = c.Id LEFT JOIN dbo.tipos_empaques te ON p.row_empaque = te.id LEFT JOIN dbo.product_translations pt ON pt.product_id = p.id WHERE p.id = @id', { id });
     const d = rows[0];
     if (!d) return res.status(404).json({ message: 'Producto no encontrado' });
     const imgs = d.images ? (() => { try { return JSON.parse(d.images); } catch { return []; } })() : [];
     if (d.image2) { const v = d.image2.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
     if (d.image3) { const v = d.image3.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
     if (d.image4) { const v = d.image4.toString(); if (v && !imgs.includes(v)) imgs.push(v); }
+    const imgsEn = d.images_en ? (() => { try { return JSON.parse(d.images_en); } catch { return []; } })() : [];
     const out = {
       id: d.id,
       codigo_siesa: d.codigo_siesa || '',
@@ -745,11 +1224,19 @@ app.get('/api/products/:id', async (req, res) => {
       empaque_descripcion: d.empaque_descripcion || '',
       description: d.description || '',
       habilitado: d.habilitado != null ? !!d.habilitado : true,
+      es_personalizado: d.es_personalizado != null ? !!d.es_personalizado : false,
+      precio_personalizado_2000: d.precio_personalizado_2000 != null ? Number(d.precio_personalizado_2000) : null,
+      precio_personalizado_4000: d.precio_personalizado_4000 != null ? Number(d.precio_personalizado_4000) : null,
+      precio_personalizado_8000: d.precio_personalizado_8000 != null ? Number(d.precio_personalizado_8000) : null,
+      precio_personalizado_20000: d.precio_personalizado_20000 != null ? Number(d.precio_personalizado_20000) : null,
       image: (Array.isArray(imgs) && imgs[0]) || '/images/placeholder.svg',
       images: imgs,
       image2: d.image2 || '',
       image3: d.image3 || '',
-      image4: d.image4 || ''
+      image4: d.image4 || '',
+      name_en: d.name_en || null,
+      description_en: d.description_en || null,
+      images_en: imgsEn
     };
     res.json(out);
   } catch (e) {
@@ -758,14 +1245,61 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
+// API Product Translations (English name/description overlay)
+// Upsert: creates or updates the translation row for a given product_id
+app.post('/api/product-translations', requireFullAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const product_id = Number(b.product_id);
+    if (Number.isNaN(product_id)) return res.status(400).json({ message: 'product_id inválido' });
+    const name_en = (b.name_en || '').toString().trim();
+    const description_en = (b.description_en || '').toString().trim();
+    const images_en = Array.isArray(b.images_en) ? JSON.stringify(b.images_en.filter(Boolean).slice(0, 4)) : null;
+    await db.query(
+      `IF EXISTS (SELECT 1 FROM dbo.product_translations WHERE product_id = @product_id)
+       BEGIN
+         UPDATE dbo.product_translations SET name_en = @name_en, description_en = @description_en, images_en = @images_en, updatedAt = SYSUTCDATETIME() WHERE product_id = @product_id;
+       END
+       ELSE
+       BEGIN
+         INSERT INTO dbo.product_translations (product_id, name_en, description_en, images_en) VALUES (@product_id, @name_en, @description_en, @images_en);
+       END`,
+      { product_id, name_en: name_en || null, description_en: description_en || null, images_en }
+    );
+    productsCache.data = null; // invalidar caché
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/product-translations POST error', e);
+    res.status(500).json({ message: 'Error guardando traducción' });
+  }
+});
+
+// Delete a product's English translation (reverts the English site to the Spanish fallback)
+app.delete('/api/product-translations/:productId', requireFullAdmin, async (req, res) => {
+  try {
+    const product_id = Number(req.params.productId);
+    if (Number.isNaN(product_id)) return res.status(400).json({ message: 'product_id inválido' });
+    const r = await db.query('DELETE FROM dbo.product_translations WHERE product_id = @product_id; SELECT @@ROWCOUNT AS affected;', { product_id });
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Traducción no encontrada' });
+    productsCache.data = null; // invalidar caché
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/product-translations DELETE error', e);
+    res.status(500).json({ message: 'Error eliminando traducción' });
+  }
+});
+
 // API Categories
 app.get('/api/categories', async (req, res) => {
   try {
-    const rows = await db.query('SELECT * FROM dbo.categories ORDER BY Id');
+    const rows = await db.query('SELECT c.*, ct.nombre_en, ct.imagen_en FROM dbo.categories c LEFT JOIN dbo.category_translations ct ON ct.category_id = c.Id ORDER BY c.Id');
     const cats = (rows || []).map(r => ({
       id: (r.Id || r.id || r.ID || null),
       nombre: (r.nombre || r.Nombre || r.name || ''),
-      descripcion: (r.descripcion || r.Descripcion || r.description || '')
+      descripcion: (r.descripcion || r.Descripcion || r.description || ''),
+      nombre_en: r.nombre_en || null,
+      imagen_en: r.imagen_en || null
     }));
     res.json(cats);
   } catch (e) {
@@ -802,7 +1336,7 @@ app.get('/api/ciudades', async (req, res) => {
 });
 
 // Create category
-app.post('/api/categories', requireAdmin, async (req, res) => {
+app.post('/api/categories', requireFullAdmin, async (req, res) => {
   try {
     const b = req.body || {};
     const descripcion = (b.descripcion || b.description || b.nombre || b.name || '').toString().trim();
@@ -817,7 +1351,7 @@ app.post('/api/categories', requireAdmin, async (req, res) => {
 });
 
 // Update category
-app.put('/api/categories/:id', requireAdmin, async (req, res) => {
+app.put('/api/categories/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -835,7 +1369,7 @@ app.put('/api/categories/:id', requireAdmin, async (req, res) => {
 });
 
 // Delete category
-app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
+app.delete('/api/categories/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -847,6 +1381,48 @@ app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('/api/categories DELETE error', e);
     res.status(500).json({ message: 'Error eliminando categoría' });
+  }
+});
+
+// API Category Translations (English name/image overlay)
+// Upsert: creates or updates the translation row for a given category_id
+app.post('/api/category-translations', requireFullAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const category_id = Number(b.category_id);
+    if (Number.isNaN(category_id)) return res.status(400).json({ message: 'category_id inválido' });
+    const nombre_en = (b.nombre_en || '').toString().trim();
+    const imagen_en = (b.imagen_en || '').toString().trim();
+    await db.query(
+      `IF EXISTS (SELECT 1 FROM dbo.category_translations WHERE category_id = @category_id)
+       BEGIN
+         UPDATE dbo.category_translations SET nombre_en = @nombre_en, imagen_en = @imagen_en, updatedAt = SYSUTCDATETIME() WHERE category_id = @category_id;
+       END
+       ELSE
+       BEGIN
+         INSERT INTO dbo.category_translations (category_id, nombre_en, imagen_en) VALUES (@category_id, @nombre_en, @imagen_en);
+       END`,
+      { category_id, nombre_en: nombre_en || null, imagen_en: imagen_en || null }
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/category-translations POST error', e);
+    res.status(500).json({ message: 'Error guardando traducción de categoría' });
+  }
+});
+
+// Delete a category's English translation (reverts the English site to the Spanish fallback)
+app.delete('/api/category-translations/:categoryId', requireFullAdmin, async (req, res) => {
+  try {
+    const category_id = Number(req.params.categoryId);
+    if (Number.isNaN(category_id)) return res.status(400).json({ message: 'category_id inválido' });
+    const r = await db.query('DELETE FROM dbo.category_translations WHERE category_id = @category_id; SELECT @@ROWCOUNT AS affected;', { category_id });
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Traducción no encontrada' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/category-translations DELETE error', e);
+    res.status(500).json({ message: 'Error eliminando traducción de categoría' });
   }
 });
 
@@ -865,8 +1441,8 @@ app.get('/api/tipo-empaque', async (req, res) => {
 // Listar biblioteca (metadatos)
 app.get('/api/biblioteca', async (req, res) => {
   try {
-    const rows = await db.query('SELECT id,nombre,url FROM dbo.library ORDER BY id');
-    const out = rows.map(r => ({ id: r.id, nombre: r.nombre, url: process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url) }));
+    const rows = await db.query('SELECT id,nombre,url,tipo FROM dbo.library ORDER BY id');
+    const out = rows.map(r => ({ id: r.id, nombre: r.nombre, tipo: r.tipo || null, url: process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url) }));
     res.json(out);
   } catch (e) {
     console.error(e);
@@ -891,20 +1467,21 @@ app.get('/api/biblioteca/:id/imagen', async (req, res) => {
 });
 
 // Crear elemento de biblioteca (protegido)
+const LIBRARY_ALLOWED_MIME = /^(image\/(png|jpeg|jpg|gif|webp|svg\+xml)|application\/(pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document|vnd\.ms-excel|vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet|zip|x-zip-compressed)|text\/(plain|csv))$/;
 const libUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype)) return cb(null, true);
-    cb(new Error('Solo se permiten imágenes PNG/JPG/GIF/WebP'));
+    if (LIBRARY_ALLOWED_MIME.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Tipo de archivo no permitido. Se aceptan imágenes, PDF, Word, Excel, ZIP y texto plano.'));
   }
 });
 
-app.post('/api/biblioteca', requireAdmin, libUpload.single('imagen'), async (req, res) => {
+app.post('/api/biblioteca', requireFullAdmin, libUpload.single('imagen'), async (req, res) => {
   try {
     const { nombre } = req.body || {};
     console.log('[POST /api/biblioteca] request received', { nombre: nombre || null, file: req.file ? { originalname: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype } : null });
-    if (!nombre || !req.file) return res.status(400).json({ message: 'nombre e imagen son requeridos' });
+    if (!nombre || !req.file) return res.status(400).json({ message: 'nombre y archivo son requeridos' });
     if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
 
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
@@ -938,7 +1515,7 @@ app.post('/api/biblioteca', requireAdmin, libUpload.single('imagen'), async (req
     const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
     const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
     try {
-      const resIns = await db.query(`INSERT INTO dbo.library (nombre,url) OUTPUT INSERTED.id VALUES (@nombre,@url);`, { nombre: String(nombre).trim(), url: blobUrl });
+      const resIns = await db.query(`INSERT INTO dbo.library (nombre,url,tipo) OUTPUT INSERTED.id VALUES (@nombre,@url,@tipo);`, { nombre: String(nombre).trim(), url: blobUrl, tipo: req.file.mimetype });
       const newId = resIns[0] && resIns[0].id;
       console.log('[POST /api/biblioteca] metadata saved id=', newId);
     } catch (errDb) {
@@ -1004,7 +1581,7 @@ const bannerUpload = multer({
   }
 });
 
-app.post('/api/banners', requireAdmin, bannerUpload.single('imagen'), async (req, res) => {
+app.post('/api/banners', requireFullAdmin, bannerUpload.single('imagen'), async (req, res) => {
   try {
     const { nombre } = req.body || {};
     if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
@@ -1035,7 +1612,7 @@ app.post('/api/banners', requireAdmin, bannerUpload.single('imagen'), async (req
   }
 });
 
-app.patch('/api/banners/:id', requireAdmin, async (req, res) => {
+app.patch('/api/banners/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1095,7 +1672,7 @@ app.patch('/api/banners/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/banners/:id', requireAdmin, async (req, res) => {
+app.delete('/api/banners/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1131,8 +1708,286 @@ app.delete('/api/banners/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ============ API Bonos (promotional popup campaigns) ============
+const bonoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|jpg|gif|webp)$/.test(file.mimetype)) return cb(null, true);
+    cb(new Error('Solo se permiten imágenes PNG/JPG/GIF/WebP'));
+  }
+});
+
+function mapBonoRow(r) {
+  return {
+    id: r.id,
+    nombre: r.nombre || '',
+    titulo: r.titulo || '',
+    titulo_en: r.titulo_en || '',
+    texto_boton: r.texto_boton || '',
+    texto_boton_en: r.texto_boton_en || '',
+    categoria_link: r.categoria_link || '',
+    porcentaje_descuento: r.porcentaje_descuento != null ? Number(r.porcentaje_descuento) : null,
+    url: r.url ? (process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url)) : '',
+    activo: !!r.activo,
+    fecha_inicio: r.fecha_inicio || null,
+    fecha_fin: r.fecha_fin || null,
+    createdAt: r.createdAt || null
+  };
+}
+
+// Public — the storefront popup reads this without being logged in as admin
+app.get('/api/bonos', async (req, res) => {
+  try {
+    const onlyActive = String(req.query.active || '').toLowerCase();
+    // "active=1" also enforces the vigencia window, so a scheduled/expired bono stops showing
+    // up on the storefront on its own, without the admin having to flip `activo` by hand.
+    const where = (onlyActive === '1' || onlyActive === 'true' || onlyActive === 'yes')
+      ? 'WHERE activo = 1 AND (fecha_inicio IS NULL OR fecha_inicio <= SYSUTCDATETIME()) AND (fecha_fin IS NULL OR fecha_fin >= SYSUTCDATETIME())'
+      : '';
+    const rows = await db.query(`SELECT * FROM dbo.bonos ${where} ORDER BY activo DESC, createdAt DESC, id DESC`);
+    res.json((rows || []).map(mapBonoRow));
+  } catch (e) {
+    console.error('GET /api/bonos error', e);
+    res.status(500).json({ message: 'Error listando bonos' });
+  }
+});
+
+// Resuelve si hay un bono vigente y si el documento dado califica: "primera compra" = ese
+// número de documento no tiene NINGÚN pedido previo registrado (sin importar si ese pedido
+// llegó a pagarse) — así de simple, a propósito, para que cualquier documento que ya esté en
+// dbo.pedidos deje de ser candidato al bono. Usado tanto por el endpoint de previsualización
+// del checkout como por la creación del pedido (fuente de verdad del descuento).
+async function getBonoElegible(tipoDocumento, nitId) {
+  const rows = await db.query(
+    `SELECT TOP 1 * FROM dbo.bonos
+     WHERE activo = 1
+       AND (fecha_inicio IS NULL OR fecha_inicio <= SYSUTCDATETIME())
+       AND (fecha_fin IS NULL OR fecha_fin >= SYSUTCDATETIME())
+     ORDER BY createdAt DESC, id DESC`
+  );
+  const bono = rows && rows[0] ? mapBonoRow(rows[0]) : null;
+  if (!bono || bono.porcentaje_descuento == null || bono.porcentaje_descuento <= 0) {
+    return { elegible: false, bono: null };
+  }
+  if (!tipoDocumento || !nitId) {
+    return { elegible: false, bono };
+  }
+  const prev = await db.query(
+    `SELECT TOP 1 1 AS found FROM dbo.pedidos WHERE tipo_documento = @td AND nit_id = @nit`,
+    { td: tipoDocumento, nit: nitId }
+  );
+  const yaCompro = prev && prev.length > 0;
+  return { elegible: !yaCompro, bono };
+}
+
+// Público — el checkout lo consulta en vivo apenas el cliente escribe su documento, para
+// mostrar el descuento antes de enviar el pedido. La aplicación real/autoritativa ocurre en
+// POST /api/pedidos, que vuelve a resolver esto en el servidor.
+app.get('/api/bonos/elegibilidad', async (req, res) => {
+  try {
+    const tipoDocumento = String(req.query.tipo_documento || '').trim();
+    const rawNit = String(req.query.nit || '').trim();
+    const nitId = (tipoDocumento === 'CE' || tipoDocumento === 'PA') ? rawNit : rawNit.replace(/\D+/g, '');
+    const { elegible, bono } = await getBonoElegible(tipoDocumento, nitId);
+    res.json({
+      elegible,
+      bono: bono ? { id: bono.id, porcentaje_descuento: bono.porcentaje_descuento, titulo: bono.titulo } : null
+    });
+  } catch (e) {
+    console.error('GET /api/bonos/elegibilidad error', e);
+    res.status(500).json({ message: 'Error verificando elegibilidad' });
+  }
+});
+
+// Fechas de vigencia llegan como "YYYY-MM-DD" (input type=date). fecha_fin se ancla al final
+// del día para que el bono siga vigente durante todo el día elegido como cierre.
+function parseFechaInicio(v) {
+  const s = (v == null ? '' : String(v)).trim();
+  if (!s) return null;
+  const d = new Date(s.includes('T') ? s : `${s}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+function parseFechaFin(v) {
+  const s = (v == null ? '' : String(v)).trim();
+  if (!s) return null;
+  const d = new Date(s.includes('T') ? s : `${s}T23:59:59`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+app.post('/api/bonos', requireFullAdmin, bonoUpload.single('imagen'), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const nombre = (b.nombre || '').toString().trim();
+    if (!nombre) return res.status(400).json({ message: 'nombre requerido' });
+    if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
+    if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
+    const basePath = rootPath ? `${rootPath}/Bonos` : 'Bonos';
+    const blobName = `${basePath}/${filename}`;
+
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
+    const blockClient = containerClient.getBlockBlobClient(blobName);
+    await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+
+    const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+    const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+
+    const r = await db.query(
+      `INSERT INTO dbo.bonos (nombre, titulo, titulo_en, texto_boton, texto_boton_en, categoria_link, porcentaje_descuento, url, fecha_inicio, fecha_fin, activo)
+       OUTPUT INSERTED.id
+       VALUES (@nombre, @titulo, @titulo_en, @texto_boton, @texto_boton_en, @categoria_link, @porcentaje_descuento, @url, @fecha_inicio, @fecha_fin, 0);`,
+      {
+        nombre,
+        titulo: (b.titulo || '').toString().trim() || null,
+        titulo_en: (b.titulo_en || '').toString().trim() || null,
+        texto_boton: (b.texto_boton || '').toString().trim() || null,
+        texto_boton_en: (b.texto_boton_en || '').toString().trim() || null,
+        categoria_link: (b.categoria_link || '').toString().trim() || null,
+        porcentaje_descuento: (b.porcentaje_descuento != null && b.porcentaje_descuento !== '') ? Number(b.porcentaje_descuento) : null,
+        url: blobUrl,
+        fecha_inicio: parseFechaInicio(b.fecha_inicio),
+        fecha_fin: parseFechaFin(b.fecha_fin)
+      }
+    );
+    const id = r && r[0] && (r[0].id || r[0].Id);
+    res.status(201).json({ ok: true, id: id ?? null, url: blobUrl });
+  } catch (e) {
+    console.error('POST /api/bonos error', e);
+    res.status(500).json({ message: 'Error creando bono' });
+  }
+});
+
+app.put('/api/bonos/:id', requireFullAdmin, bonoUpload.single('imagen'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const b = req.body || {};
+
+    let newUrl = null;
+    if (req.file) {
+      if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
+      const basePath = rootPath ? `${rootPath}/Bonos` : 'Bonos';
+      const blobName = `${basePath}/${filename}`;
+      const containerClient = blobServiceClient.getContainerClient(containerName);
+      try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
+      const blockClient = containerClient.getBlockBlobClient(blobName);
+      await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+      const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+      newUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+    }
+
+    const sets = [
+      'nombre = @nombre', 'titulo = @titulo', 'titulo_en = @titulo_en',
+      'texto_boton = @texto_boton', 'texto_boton_en = @texto_boton_en',
+      'categoria_link = @categoria_link', 'porcentaje_descuento = @porcentaje_descuento',
+      'fecha_inicio = @fecha_inicio', 'fecha_fin = @fecha_fin',
+      'updatedAt = SYSUTCDATETIME()'
+    ];
+    const params = {
+      id,
+      nombre: (b.nombre || '').toString().trim(),
+      titulo: (b.titulo || '').toString().trim() || null,
+      titulo_en: (b.titulo_en || '').toString().trim() || null,
+      texto_boton: (b.texto_boton || '').toString().trim() || null,
+      texto_boton_en: (b.texto_boton_en || '').toString().trim() || null,
+      categoria_link: (b.categoria_link || '').toString().trim() || null,
+      porcentaje_descuento: (b.porcentaje_descuento != null && b.porcentaje_descuento !== '') ? Number(b.porcentaje_descuento) : null,
+      fecha_inicio: parseFechaInicio(b.fecha_inicio),
+      fecha_fin: parseFechaFin(b.fecha_fin)
+    };
+    if (newUrl) { sets.push('url = @url'); params.url = newUrl; }
+
+    const r = await db.query(`UPDATE dbo.bonos SET ${sets.join(', ')} WHERE id = @id; SELECT @@ROWCOUNT AS affected;`, params);
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Bono no encontrado' });
+    res.json({ ok: true, url: newUrl || undefined });
+  } catch (e) {
+    console.error('PUT /api/bonos/:id error', e);
+    res.status(500).json({ message: 'Error actualizando bono' });
+  }
+});
+
+// Sets this bono as the single active one, deactivating every other bono
+app.patch('/api/bonos/:id/activate', requireFullAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const r = await db.query(
+      `UPDATE dbo.bonos SET activo = 0 WHERE id <> @id;
+       UPDATE dbo.bonos SET activo = 1 WHERE id = @id;
+       SELECT @@ROWCOUNT AS affected;`,
+      { id }
+    );
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Bono no encontrado' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PATCH /api/bonos/:id/activate error', e);
+    res.status(500).json({ message: 'Error activando bono' });
+  }
+});
+
+// Apaga este bono puntual (no toca los demás) — deja de mostrarse en el popup y de aplicarse
+// en el checkout, sin necesidad de activar otro bono en su lugar.
+app.patch('/api/bonos/:id/deactivate', requireFullAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+    const r = await db.query(
+      `UPDATE dbo.bonos SET activo = 0 WHERE id = @id; SELECT @@ROWCOUNT AS affected;`,
+      { id }
+    );
+    const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
+    if (affected === 0) return res.status(404).json({ message: 'Bono no encontrado' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PATCH /api/bonos/:id/deactivate error', e);
+    res.status(500).json({ message: 'Error desactivando bono' });
+  }
+});
+
+app.delete('/api/bonos/:id', requireFullAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const rows = await db.query('SELECT url FROM dbo.bonos WHERE id = @id', { id });
+    const row = rows && rows[0];
+    if (!row) return res.status(404).json({ message: 'Bono no encontrado' });
+    const url = row.url;
+
+    try {
+      if (blobServiceClient && url) {
+        const u = new URL(url);
+        const path = u.pathname.replace(/^\//, '');
+        const idx = path.indexOf('/');
+        if (idx >= 0) {
+          const cont = path.slice(0, idx);
+          const blobName = path.slice(idx + 1);
+          const decodedBlobName = decodeURIComponent(blobName);
+          const containerClient = blobServiceClient.getContainerClient(cont);
+          const blockClient = containerClient.getBlockBlobClient(decodedBlobName);
+          await blockClient.deleteIfExists();
+        }
+      }
+    } catch (delErr) {
+      console.warn('DELETE /api/bonos blob delete warning', delErr && delErr.message);
+    }
+
+    await db.query('DELETE FROM dbo.bonos WHERE id = @id', { id });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE /api/bonos/:id error', e);
+    res.status(500).json({ message: 'Error eliminando bono' });
+  }
+});
+
 // Eliminar elemento de biblioteca (protegido)
-app.delete('/api/biblioteca/:id', requireAdmin, async (req, res) => {
+app.delete('/api/biblioteca/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -1251,6 +2106,11 @@ app.post('/api/products', requireAdmin, async (req, res) => {
     const price_unit = (b.price_unit != null ? Number(b.price_unit) : (b.precio_unitario != null ? Number(b.precio_unitario) : null));
     const cantidad = (b.cantidad != null ? Number(b.cantidad) : (b.Cantidad != null ? Number(b.Cantidad) : null));
     const row_empaque = asNumber(b.row_empaque) ?? null;
+    const es_personalizado = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
+    const precio_personalizado_2000 = b.precio_personalizado_2000 != null && b.precio_personalizado_2000 !== '' ? Number(b.precio_personalizado_2000) : null;
+    const precio_personalizado_4000 = b.precio_personalizado_4000 != null && b.precio_personalizado_4000 !== '' ? Number(b.precio_personalizado_4000) : null;
+    const precio_personalizado_8000 = b.precio_personalizado_8000 != null && b.precio_personalizado_8000 !== '' ? Number(b.precio_personalizado_8000) : null;
+    const precio_personalizado_20000 = b.precio_personalizado_20000 != null && b.precio_personalizado_20000 !== '' ? Number(b.precio_personalizado_20000) : null;
     if (!name) return res.status(400).json({ message: 'Nombre requerido' });
 
     // images: can be array or JSON string
@@ -1270,11 +2130,12 @@ app.post('/api/products', requireAdmin, async (req, res) => {
 
     // Validate categoryParam resolved and exists (FK)
     if (categoryParam == null) return res.status(400).json({ message: 'category requerido o inválida' });
-    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque });
-    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque)
+    console.log('[POST /api/products] inserting', { codigo_siesa, name, categoryParam, imagesCount: images.length, cantidad, row_empaque, es_personalizado, precio_personalizado_2000 });
+    const resIns = await db.query(`INSERT INTO dbo.products (codigo_siesa,name,price_unit,cantidad,category,description,images,image2,image3,image4,row_empaque,es_personalizado,precio_personalizado_2000,precio_personalizado_4000,precio_personalizado_8000,precio_personalizado_20000)
         OUTPUT INSERTED.id
-        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque);`, {
-      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque
+        VALUES (@codigo_siesa,@name,@price_unit,@cantidad,@category,@description,@images,@image2,@image3,@image4,@row_empaque,@es_personalizado,@precio_personalizado_2000,@precio_personalizado_4000,@precio_personalizado_8000,@precio_personalizado_20000);`, {
+      codigo_siesa, name, price_unit, cantidad, category: categoryParam, description, images: JSON.stringify(images), image2: img2, image3: img3, image4: img4, row_empaque, es_personalizado: es_personalizado ? 1 : 0, 
+      precio_personalizado_2000, precio_personalizado_4000, precio_personalizado_8000, precio_personalizado_20000
     });
     const newId = resIns[0] && resIns[0].id;
     productsCache.data = null; // invalidar caché
@@ -1352,7 +2213,7 @@ app.get('/api/precio', async (req, res) => {
     if (!escalones.length) {
       // Derivar escalones de los productos con este código
       const codigoStr = String(codigo);
-      const prodDocs = await db.query('SELECT cantidad FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
+      const prodDocs = await db.query('SELECT cantidad FROM dbo.products WHERE codigo_siesa = @codigo', { codigo: codigoStr });
       escalones = prodDocs.map(p => p.cantidad).filter(Number.isFinite).map(Number);
     }
     escalones = escalones.filter(c => Number.isFinite(c)).sort((a, b) => a - b);
@@ -1386,7 +2247,7 @@ app.get('/api/precio', async (req, res) => {
       ]
     };
     // try direct match in SQL
-    const prodRows = await db.query(`SELECT * FROM dbo.products WHERE codigo = @codigo AND cantidad = @escalon`, { codigo: codigoStr, escalon: escalonNum });
+    const prodRows = await db.query(`SELECT * FROM dbo.products WHERE codigo_siesa = @codigo AND cantidad = @escalon`, { codigo: codigoStr, escalon: escalonNum });
     let prod = prodRows[0];
     if (debugPrecio === 'true') {
       console.log('[DEBUG /api/precio]', { codigo, cantidadReal, escalon, found: !!prod });
@@ -1394,7 +2255,7 @@ app.get('/api/precio', async (req, res) => {
     let chosen = prod;
     if (!chosen) {
       // Fallback: buscar el producto con mayor Cantidad <= escalon (ya debería ser escalon) o el máximo disponible para el código
-      const allCode = await db.query('SELECT * FROM dbo.products WHERE codigo = @codigo', { codigo: codigoStr });
+      const allCode = await db.query('SELECT * FROM dbo.products WHERE codigo_siesa = @codigo', { codigo: codigoStr });
       const withQty = allCode.map(p => ({ doc: p, qty: Number(p.cantidad) })).filter(x => Number.isFinite(x.qty));
       const floorCandidates = withQty.filter(x => x.qty <= escalonNum).sort((a, b) => b.qty - a.qty);
       if (floorCandidates.length) chosen = floorCandidates[0].doc; else if (withQty.length) {
@@ -1408,9 +2269,10 @@ app.get('/api/precio', async (req, res) => {
     }
 
     // Precio total almacenado para ese escalón (preferimos el guardado, NO escalamos a cantidadReal)
-    const precioEscalon = (chosen.price != null ? chosen.price : null);
-    const qtyChosen = chosen.cantidad;
-    const precioUnitario = chosen.precio_unitario ?? ((precioEscalon && qtyChosen) ? (precioEscalon / qtyChosen) : null);
+    const qtyChosen = chosen.cantidad ?? chosen.Cantidad ?? 1;
+    const precioUnitario = chosen.price_unit ?? chosen.precio_unitario ?? null;
+    const precioEscalon = (chosen.price != null ? chosen.price : (precioUnitario != null ? precioUnitario * qtyChosen : null));
+    
     if (precioEscalon == null) {
       return res.status(500).json({ message: 'Producto sin Precio total en el escalón', productoId: chosen.id, escalon });
     }
@@ -1601,10 +2463,143 @@ app.get('/api/admin/pedidos/:id', requireAdmin, async (req, res) => {
 
     const items = await db.query('SELECT * FROM dbo.pedido_items WHERE pedido_id = @id ORDER BY id', { id });
 
-    res.json({ pedido: rows[0], items: items || [] });
+    let documentos = [];
+    try {
+      const raw = rows[0].documentos;
+      documentos = raw ? JSON.parse(raw) : [];
+    } catch { documentos = []; }
+    documentos = documentos.map(d => {
+      const blobPathEscaped = String(d.blobName || '').split('/').map(encodeURIComponent).join('/');
+      const blobUrl = `https://${accountName}.blob.core.windows.net/${d.container}/${blobPathEscaped}`;
+      return { ...d, url: generateReadSasForBlob(blobUrl) };
+    });
+
+    res.json({ pedido: rows[0], items: items || [], documentos });
   } catch (e) {
     console.error('GET /api/admin/pedidos/:id error', e);
     res.status(500).json({ message: 'Error obteniendo pedido' });
+  }
+});
+
+app.patch('/api/admin/pedidos/:id/documentos/verificar', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
+    const verificado = !!(req.body && req.body.verificado);
+
+    const rows = await db.query('SELECT id FROM dbo.pedidos WHERE id = @id', { id });
+    if (!rows || !rows.length) return res.status(404).json({ message: 'Pedido no encontrado' });
+
+    await db.query(
+      `UPDATE dbo.pedidos SET documentos_verificados = @verificado, documentos_verificados_por = @por, documentos_verificados_at = SYSUTCDATETIME() WHERE id = @id`,
+      { id, verificado: verificado ? 1 : 0, por: req.adminUser?.user || null }
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PATCH /api/admin/pedidos/:id/documentos/verificar error', e);
+    res.status(500).json({ message: 'Error actualizando verificación' });
+  }
+});
+
+// Descarga de toda la información del pedido (datos + documentos si es persona jurídica)
+// en un único ZIP. Misma lógica para todos los pedidos: naturales solo traen el resumen,
+// jurídicos además incluyen el RUT y la Cámara de Comercio.
+app.get('/api/admin/pedidos/:id/descargar', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const rows = await db.query('SELECT * FROM dbo.pedidos WHERE id = @id', { id });
+    if (!rows || !rows.length) return res.status(404).json({ message: 'Pedido no encontrado' });
+    const p = rows[0];
+
+    const items = await db.query('SELECT * FROM dbo.pedido_items WHERE pedido_id = @id ORDER BY id', { id });
+
+    let documentos = [];
+    try { documentos = p.documentos ? JSON.parse(p.documentos) : []; } catch { documentos = []; }
+    const esJuridica = String(p.tipo_persona || 'N') === 'J';
+
+    const lines = [
+      `PEDIDO #${p.id}`,
+      '='.repeat(40),
+      '',
+      'INFORMACIÓN DEL PEDIDO',
+      `Estado: ${p.payment_status || 'PENDING'}`,
+      `Método de pago: ${p.payment_method || 'N/A'}`,
+      `ID Wompi: ${p.id_wompi || 'N/A'}`,
+      `Fecha: ${p.createdAt || ''}`,
+      '',
+      'DATOS DEL CLIENTE',
+      `Tipo de persona: ${esJuridica ? 'Jurídica' : 'Natural'}`,
+      `Tipo de documento: ${p.tipo_documento || ''}`,
+      `Número de documento: ${p.nit_id || ''}${p.digito_verificacion ? '-' + p.digito_verificacion : ''}`,
+      `${esJuridica ? 'Razón social' : 'Nombre completo'}: ${p.nombre_completo || p.name || ''}`,
+      ...(esJuridica ? [] : [`Nombres: ${p.nombres || ''}`, `Apellidos: ${p.apellidos || ''}`]),
+      ...(p.regimen ? [`Régimen: ${p.regimen}`] : []),
+      ...(p.fecha_nacimiento ? [`Fecha de nacimiento: ${p.fecha_nacimiento}`] : []),
+      '',
+      'CONTACTO',
+      `Email: ${p.email || ''}`,
+      `Teléfono: ${p.phone || ''}`,
+      ...(p.telefono_fijo ? [`Teléfono fijo: ${p.telefono_fijo}`] : []),
+      '',
+      'DIRECCIÓN DE ENVÍO',
+      `Dirección: ${p.address || ''}`,
+      `Ciudad: ${p.city || ''}`,
+      ...(p.departamento ? [`Departamento: ${p.departamento}`] : []),
+      `País: ${p.pais || 'CO'}`,
+      ...(p.notes ? [`Notas: ${p.notes}`] : []),
+      '',
+      'TOTALES',
+      `Subtotal: ${p.subtotal}`,
+      `IVA: ${p.iva}`,
+      `Flete: ${p.flete || 0}`,
+      `Total: ${p.total_value}`,
+      '',
+      'PRODUCTOS',
+      ...(items && items.length
+        ? items.map(i => `- ${i.product_name} (SKU ${i.product_sku}) x${i.quantity} = ${i.subtotal}`)
+        : ['(sin items registrados)']),
+      ...(esJuridica ? [
+        '',
+        'DOCUMENTOS LEGALES',
+        `Estado de verificación: ${p.documentos_verificados ? 'Verificado' : 'Pendiente'}`,
+        ...(p.documentos_verificados_por ? [`Verificado por: ${p.documentos_verificados_por} el ${p.documentos_verificados_at}`] : []),
+        ...documentos.map(d => `- ${d.tipo}: ${d.filename}`)
+      ] : [])
+    ];
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="pedido-${id}.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', err => {
+      console.error('archiver error', err);
+      if (!res.headersSent) res.status(500).json({ message: 'Error generando el archivo ZIP' });
+      else res.end();
+    });
+    archive.pipe(res);
+
+    archive.append(lines.join('\n'), { name: `Pedido-${id}-Informacion.txt` });
+
+    if (esJuridica && documentos.length && blobServiceClient) {
+      const containerClient = blobServiceClient.getContainerClient(docsContainerName);
+      for (const d of documentos) {
+        try {
+          const blockClient = containerClient.getBlockBlobClient(d.blobName);
+          const buffer = await blockClient.downloadToBuffer();
+          archive.append(buffer, { name: `Documentos/${d.tipo}-${d.filename}` });
+        } catch (docErr) {
+          console.warn(`No se pudo incluir documento ${d.blobName} en el ZIP:`, docErr.message);
+        }
+      }
+    }
+
+    await archive.finalize();
+  } catch (e) {
+    console.error('GET /api/admin/pedidos/:id/descargar error', e);
+    if (!res.headersSent) res.status(500).json({ message: 'Error generando descarga' });
   }
 });
 
@@ -1698,7 +2693,7 @@ app.post('/api/track', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ADMIN: Dashboard
 // ═══════════════════════════════════════════════════════════════════════════════
-app.get('/api/admin/dashboard', requireAdmin, async (req, res) => {
+app.get('/api/admin/dashboard', requireFullAdmin, async (req, res) => {
   try {
     // KPIs
     const [pedidosStats] = await db.query(`
@@ -1816,6 +2811,62 @@ app.get('/api/admin/dashboard', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Sitemap ──
+app.get('/sitemap.xml', async (_req, res) => {
+  const hostname = 'https://kosxpress.com';
+  const today = new Date().toISOString().split('T')[0];
+
+  const staticUrls = [
+    { url: '/',              changefreq: 'daily',   priority: '1.0' },
+    { url: '/products',      changefreq: 'daily',   priority: '0.9' },
+    { url: '/contact',       changefreq: 'monthly', priority: '0.5' },
+    { url: '/about',         changefreq: 'monthly', priority: '0.5' },
+    { url: '/personalizados',changefreq: 'weekly',  priority: '0.6' },
+    { url: '/canal-etico',   changefreq: 'monthly', priority: '0.5' },
+    { url: '/ptee',          changefreq: 'monthly', priority: '0.4' },
+  ];
+
+  const categories = [
+    'Bebidas calientes', 'Bebidas Frías', 'Contenedores', 'Empaques',
+    'Platos', 'Porta vasos', 'Tapas para Contenedores', 'Tapas para Vasos', 'Accesorios'
+  ];
+  const categoryUrls = categories.map(cat => ({
+    url: `/products?cat=${encodeURIComponent(cat)}`,
+    changefreq: 'weekly',
+    priority: '0.8'
+  }));
+
+  let productUrls = [];
+  try {
+    const rows = await db.query('SELECT id FROM dbo.products WHERE habilitado = 1 ORDER BY id');
+    productUrls = (rows || []).map(r => ({
+      url: `/product?id=${r.id}`,
+      changefreq: 'weekly',
+      priority: '0.7'
+    }));
+  } catch (e) {
+    console.warn('sitemap: error obteniendo productos', e && e.message);
+  }
+
+  const allUrls = [...staticUrls, ...categoryUrls, ...productUrls];
+
+  const urlEntries = allUrls.map(({ url, changefreq, priority }) => `
+  <url>
+    <loc>${hostname}${url}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority}</priority>
+  </url>`).join('');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urlEntries}
+</urlset>`;
+
+  res.setHeader('Content-Type', 'application/xml');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.send(xml);
+});
+
 app.listen(PORT, () => console.log(`API server listening on ${PORT}`));
 
 app.put('/api/products/:id', requireAdmin, async (req, res) => {
@@ -1851,6 +2902,27 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
     if (categoryResolved != null) { sets.push('category = @category'); params.category = categoryResolved; }
     if (row_empaque != null) { sets.push('row_empaque = @row_empaque'); params.row_empaque = row_empaque; }
     if (description !== '') { sets.push('description = @description'); params.description = description; }
+    if (b.es_personalizado !== undefined) {
+      const esp = b.es_personalizado === true || b.es_personalizado === 'true' || b.es_personalizado === 1 || b.es_personalizado === '1';
+      sets.push('es_personalizado = @es_personalizado');
+      params.es_personalizado = esp ? 1 : 0;
+    }
+    if (b.precio_personalizado_2000 !== undefined) {
+      sets.push('precio_personalizado_2000 = @precio_personalizado_2000');
+      params.precio_personalizado_2000 = (b.precio_personalizado_2000 != null && b.precio_personalizado_2000 !== '') ? Number(b.precio_personalizado_2000) : null;
+    }
+    if (b.precio_personalizado_4000 !== undefined) {
+      sets.push('precio_personalizado_4000 = @precio_personalizado_4000');
+      params.precio_personalizado_4000 = (b.precio_personalizado_4000 != null && b.precio_personalizado_4000 !== '') ? Number(b.precio_personalizado_4000) : null;
+    }
+    if (b.precio_personalizado_8000 !== undefined) {
+      sets.push('precio_personalizado_8000 = @precio_personalizado_8000');
+      params.precio_personalizado_8000 = (b.precio_personalizado_8000 != null && b.precio_personalizado_8000 !== '') ? Number(b.precio_personalizado_8000) : null;
+    }
+    if (b.precio_personalizado_20000 !== undefined) {
+      sets.push('precio_personalizado_20000 = @precio_personalizado_20000');
+      params.precio_personalizado_20000 = (b.precio_personalizado_20000 != null && b.precio_personalizado_20000 !== '') ? Number(b.precio_personalizado_20000) : null;
+    }
     if (images !== undefined) {
       sets.push('images = @images'); params.images = JSON.stringify(images);
       params.image2 = images[1] || '';
@@ -2106,7 +3178,9 @@ app.post('/api/pedidos/:pedidoId/confirmar-pago', async (req, res) => {
       payment_status: status,
       reference,
       email: clientEmail,
-      name: clientName
+      name: clientName,
+      amount_in_cents: tx?.amount_in_cents ?? null,
+      currency: tx?.currency ?? null
     });
   } catch (e) {
     console.error('confirmar-pago error', e);
@@ -2143,7 +3217,7 @@ const logoUpload = multer({
   }
 });
 
-app.post('/api/logos', requireAdmin, logoUpload.single('imagen'), async (req, res) => {
+app.post('/api/logos', requireFullAdmin, logoUpload.single('imagen'), async (req, res) => {
   try {
     const { nombre } = req.body || {};
     if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
@@ -2174,7 +3248,7 @@ app.post('/api/logos', requireAdmin, logoUpload.single('imagen'), async (req, re
   }
 });
 
-app.patch('/api/logos/:id', requireAdmin, async (req, res) => {
+app.patch('/api/logos/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
@@ -2200,7 +3274,7 @@ app.patch('/api/logos/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/logos/:id', requireAdmin, async (req, res) => {
+app.delete('/api/logos/:id', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });

@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/png"
     href="https://datalakekos.blob.core.windows.net/images/products/Logos/1769050336206-rm5z6p-1768930438351-fr3gz7-LOGO%20KOS%20XPRESS_Mesa%20de%20trabajo%201%20copia.png">
-  <link rel="stylesheet" href="/styles/main.css" />
+  <link rel="stylesheet" href="/styles/main.css?v=41.0" />
   <link rel="stylesheet" href="/styles/admin.css" />
   <!-- Include Google Fonts for modern typography -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -63,13 +63,15 @@
         </button>
         <button id="nav-pedidos" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
-            <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+            <path
+              d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
           </svg>
           <span>Pedidos</span>
         </button>
         <button id="nav-contacts" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
-            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+            <path
+              d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
           </svg>
           <span>Contactos</span>
         </button>
@@ -81,11 +83,24 @@
           </svg>
           <span>Productos</span>
         </button>
+        <button id="nav-products-en" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-.68.07-1.34.19-2h3.13c-.08.66-.13 1.32-.13 2s.05 1.34.13 2H4.19C4.07 13.34 4 12.68 4 12zm.86 4h2.68c.34 1.15.79 2.24 1.35 3.24A8.05 8.05 0 0 1 4.86 16zm2.68-8H4.86a8.05 8.05 0 0 1 4.03-3.24A14.7 14.7 0 0 0 7.54 8zM12 19.94c-.7-1-1.28-2.14-1.68-3.94h3.36c-.4 1.8-.98 2.94-1.68 3.94zM10.03 14c-.09-.65-.14-1.32-.14-2s.05-1.35.14-2h3.94c.09.65.14 1.32.14 2s-.05 1.35-.14 2h-3.94zM12 4.06c.7 1 1.28 2.14 1.68 3.94h-3.36c.4-1.8.98-2.94 1.68-3.94zM16.46 8c-.34-1.15-.79-2.24-1.35-3.24A8.05 8.05 0 0 1 19.14 8h-2.68zm.99 6c.08-.66.13-1.32.13-2s-.05-1.34-.13-2h3.13c.12.66.19 1.32.19 2s-.07 1.34-.19 2h-3.13zm-.99 2h2.68a8.05 8.05 0 0 1-4.03 3.24c.56-1 1.01-2.09 1.35-3.24z" />
+          </svg>
+          <span>Productos (Inglés)</span>
+        </button>
         <button id="nav-categories" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
             <path d="M12 2l-5.5 9h11z M17.5 13h-11l5.5 9z" />
           </svg>
-          <span>Categorias</span>
+          <span>Categorías</span>
+        </button>
+        <button id="nav-categories-en" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2l-5.5 9h11z M17.5 13h-11l5.5 9z" />
+          </svg>
+          <span>Categorías (Inglés)</span>
         </button>
         <button id="nav-banners" class="admin-nav-item">
           <svg viewBox="0 0 24 24">
@@ -108,6 +123,20 @@
           </svg>
           <span>Biblioteca</span>
         </button>
+        <button id="nav-bonos" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M20 12c0-1.1-.9-2-2-2V7c0-1.1-.9-2-2-2H4C2.9 5 2 5.9 2 7v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3c1.1 0 2-.9 2-2zM4 7h12v3.05c-1.14.2-2 1.19-2 2.4v.1c0 1.21.86 2.2 2 2.4V17H4V7zm9 5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5S13 12.83 13 12z" />
+          </svg>
+          <span>Bonos</span>
+        </button>
+        <button id="nav-users" class="admin-nav-item">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+          </svg>
+          <span>Usuarios</span>
+        </button>
         <a href="/index.html" class="admin-nav-item" style="margin-top:auto" target="_blank">
           <svg viewBox="0 0 24 24">
             <path
@@ -118,6 +147,15 @@
       </nav>
 
       <div class="admin-sidebar-footer">
+        <a href="https://chatroom.kosxpress.com" target="_blank" rel="noopener noreferrer" class="admin-btn-chatroom"
+          aria-label="Chatroom KOS Xpress — se abre en una pestaña nueva (chatroom.kosxpress.com)"
+          title="Se abre en una pestaña nueva: chatroom.kosxpress.com">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z" />
+          </svg>
+          <span>Chatroom</span>
+        </a>
         <button id="logout-btn" class="admin-btn-logout">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
             <path
@@ -131,7 +169,7 @@
     <!-- CONTENT -->
     <main class="admin-content">
 
-      <!-- ================= DASHBOARD VIEW ================= -->
+      <!-- === DASHBOARD VIEW === -->
       <section id="view-dashboard" class="admin-view active">
         <div class="admin-header-row">
           <h2>Dashboard</h2>
@@ -141,7 +179,10 @@
         <div class="dash-kpis" id="dash-kpis">
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:var(--admin-kos-blue);">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-total-pedidos">--</span>
@@ -150,7 +191,10 @@
           </div>
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:var(--admin-success);">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-aprobados">--</span>
@@ -159,7 +203,10 @@
           </div>
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:var(--admin-kos-orange);">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-ingresos">--</span>
@@ -168,7 +215,10 @@
           </div>
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:#8b5cf6;">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-visitas">--</span>
@@ -177,7 +227,10 @@
           </div>
           <div class="dash-kpi-card">
             <div class="dash-kpi-icon" style="background:#ec4899;">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path
+                  d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+              </svg>
             </div>
             <div class="dash-kpi-info">
               <span class="dash-kpi-value" id="kpi-contactos">--</span>
@@ -189,7 +242,7 @@
         <!-- Charts Row -->
         <div class="dash-charts-row">
           <div class="glass-card dash-chart-card">
-            <h3>Visitas (ultimos 30 dias)</h3>
+            <h3>Visitas (últimos 30 días)</h3>
             <canvas id="chart-visitas"></canvas>
           </div>
           <div class="glass-card dash-chart-card">
@@ -200,11 +253,11 @@
 
         <div class="dash-charts-row">
           <div class="glass-card dash-chart-card">
-            <h3>Productos Mas Vendidos</h3>
+            <h3>Productos Más Vendidos</h3>
             <canvas id="chart-top-vendidos"></canvas>
           </div>
           <div class="glass-card dash-chart-card">
-            <h3>Productos Mas Vistos</h3>
+            <h3>Productos Más Vistos</h3>
             <canvas id="chart-top-vistos"></canvas>
           </div>
         </div>
@@ -212,7 +265,7 @@
         <!-- Regions Table -->
         <div class="dash-charts-row">
           <div class="glass-card dash-chart-card">
-            <h3>Top Paises</h3>
+            <h3>Top Países</h3>
             <div id="table-paises"></div>
           </div>
           <div class="glass-card dash-chart-card">
@@ -228,7 +281,7 @@
         </div>
       </section>
 
-      <!-- ================= PEDIDOS VIEW ================= -->
+      <!-- === PEDIDOS VIEW === -->
       <section id="view-pedidos" class="admin-view">
         <div class="admin-header-row">
           <h2>Pedidos</h2>
@@ -276,6 +329,7 @@
                 <th>Email</th>
                 <th>Ciudad</th>
                 <th>Total</th>
+                <th>Bono</th>
                 <th>Estado</th>
                 <th>Fecha</th>
                 <th>Acciones</th>
@@ -292,14 +346,20 @@
           <div class="admin-modal-content glass-card">
             <div class="admin-modal-header">
               <h3>Detalle del Pedido</h3>
-              <button id="pedido-modal-close" class="admin-modal-close">&times;</button>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <a id="pedido-download-btn" href="#" class="admin-btn-primary admin-btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Descargar información
+                </a>
+                <button id="pedido-modal-close" class="admin-modal-close">&times;</button>
+              </div>
             </div>
             <div id="pedido-modal-body"></div>
           </div>
         </div>
       </section>
 
-      <!-- ================= CONTACTOS VIEW ================= -->
+      <!-- === CONTACTOS VIEW === -->
       <section id="view-contacts" class="admin-view">
         <div class="admin-header-row">
           <h2>Contactos Recibidos</h2>
@@ -324,7 +384,7 @@
                 <th>#</th>
                 <th>Nombre</th>
                 <th>Email</th>
-                <th>Telefono</th>
+                <th>Teléfono</th>
                 <th>Mensaje</th>
                 <th>Adjuntos</th>
                 <th>Fecha</th>
@@ -336,7 +396,7 @@
         </div>
       </section>
 
-      <!-- ================= PRODUCTOS VIEW ================= -->
+      <!-- === PRODUCTOS VIEW === -->
       <section id="view-products" class="admin-view">
         <div class="admin-header-row">
           <h2>Gestión de Productos</h2>
@@ -366,6 +426,34 @@
                 <div class="field-group">
                   <label for="p-empaque">Tipo de Empaque</label>
                   <select id="p-empaque" name="row_empaque"></select>
+                </div>
+                <div class="field-group">
+                  <label for="p-personalizado">Etiqueta Personalización</label>
+                  <select id="p-personalizado" name="es_personalizado">
+                    <option value="false">No Personalizable</option>
+                    <option value="true">Personalizado</option>
+                  </select>
+                </div>
+                <div id="p-precio-personalizado-group" style="display:none; width:100%; grid-column: 1 / -1; margin-top: 10px;">
+                  <label style="margin-bottom: 10px; display: block; font-weight: bold; color: var(--primary);">Escalas de Precios Personalizados</label>
+                  <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-2000">2.000 unds ($)</label>
+                      <input id="p-precio-personalizado-2000" type="number" name="precio_personalizado_2000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-4000">4.000 unds ($)</label>
+                      <input id="p-precio-personalizado-4000" type="number" name="precio_personalizado_4000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-8000">8.000 unds ($)</label>
+                      <input id="p-precio-personalizado-8000" type="number" name="precio_personalizado_8000" step="0.01" placeholder="0.00" />
+                    </div>
+                    <div class="field-group">
+                      <label for="p-precio-personalizado-20000">20.000 unds ($)</label>
+                      <input id="p-precio-personalizado-20000" type="number" name="precio_personalizado_20000" step="0.01" placeholder="0.00" />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="form-grid" style="margin-top:20px;">
@@ -424,7 +512,128 @@
         </div>
       </section>
 
-      <!-- ================= CATEGORÍAS VIEW ================= -->
+      <!-- === PRODUCTOS (INGLÉS) VIEW === -->
+      <section id="view-products-en" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Productos (Inglés)</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:20px;">Busca un producto abajo y presiona "Editar Inglés" para agregar su nombre, descripción y (si lo necesitas) fotos distintas para la versión en inglés. No modifica ni reemplaza la versión en español.</p>
+
+        <div id="product-en-form-container" class="glass-card" style="display:none;">
+          <form id="product-en-form" class="admin-form">
+            <input type="hidden" id="pt-product-id" />
+
+            <fieldset>
+              <legend>Referencia (Español)</legend>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label>SKU</label>
+                  <input id="pt-sku-ref" type="text" readonly />
+                </div>
+                <div class="field-group">
+                  <label>Nombre (Español)</label>
+                  <input id="pt-name-ref" type="text" readonly />
+                </div>
+              </div>
+              <div class="field-group" style="margin-top:16px;">
+                <label>Descripción (Español)</label>
+                <textarea id="pt-desc-ref" rows="3" readonly></textarea>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Traducción al Inglés</legend>
+              <div class="field-group">
+                <label for="pt-name-en">Nombre en Inglés</label>
+                <input id="pt-name-en" type="text" placeholder="Ej: 4 Oz Cup" />
+              </div>
+              <div class="field-group" style="margin-top:16px;">
+                <label for="pt-desc-en">Descripción en Inglés</label>
+                <textarea id="pt-desc-en" rows="4" placeholder="Product description in English..."></textarea>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Fotos para la Versión en Inglés (Opcional — máx. 4)</legend>
+              <p style="margin-top:0; color:var(--admin-text-muted); font-size:0.85rem;">Si no subes fotos aquí, la versión en inglés seguirá mostrando las mismas fotos que la versión en español.</p>
+              <div class="field-group">
+                <label for="pt-images">Subir desde PC</label>
+                <input id="pt-images" type="file" accept="image/*" multiple />
+              </div>
+              <div id="pt-new-previews" class="admin-img-preview-grid" aria-live="polite"></div>
+              <div style="margin-top:16px;">
+                <label style="font-weight:500; display:block; margin-bottom:10px;">Fotos en Inglés Actuales:</label>
+                <div id="pt-current-images" class="admin-img-preview-grid"></div>
+              </div>
+            </fieldset>
+
+            <div style="display:flex; gap:16px; align-items:center; margin-top:24px;">
+              <button type="submit" class="admin-btn-primary">Guardar Traducción</button>
+              <button type="button" id="pt-delete-btn" class="admin-btn-secondary" style="display:none;">Eliminar Traducción</button>
+              <button type="button" id="pt-cancel-btn" class="admin-btn-secondary">Cerrar</button>
+              <p id="product-en-status" style="margin:0; font-weight:500;"></p>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:16px; flex-wrap:wrap;">
+            <h3 style="margin:0;">Productos</h3>
+            <input id="pt-search" type="text" placeholder="Buscar por nombre o SKU..." style="max-width:280px;" />
+          </div>
+          <div id="products-en-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+      <!-- === CATEGORÍAS (INGLÉS) VIEW === -->
+      <section id="view-categories-en" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Categorías (Inglés)</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:20px;">Agrega el nombre en inglés y, si quieres reemplazar la imagen (por ejemplo si la actual tiene el nombre en español dibujado), sube una nueva desde tu equipo. Si no subes una, la versión en inglés sigue mostrando la imagen actual.</p>
+
+        <div id="category-en-form-container" class="glass-card" style="display:none;">
+          <form id="category-en-form" class="admin-form">
+            <input type="hidden" id="ct-category-id" />
+            <fieldset>
+              <legend>Referencia (Español)</legend>
+              <div class="field-group">
+                <label>Nombre (Español)</label>
+                <input id="ct-name-ref" type="text" readonly />
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Traducción al Inglés</legend>
+              <div class="field-group">
+                <label for="ct-name-en">Nombre en Inglés</label>
+                <input id="ct-name-en" type="text" placeholder="Ej: Food Tubs" />
+              </div>
+              <div class="field-group" style="margin-top:16px;">
+                <label for="ct-image">Imagen en Inglés (Opcional)</label>
+                <input id="ct-image" type="file" accept="image/*" />
+              </div>
+              <div id="ct-new-preview" class="admin-img-preview-grid" aria-live="polite"></div>
+              <div style="margin-top:16px;">
+                <label style="font-weight:500; display:block; margin-bottom:10px;">Imagen en Inglés Actual:</label>
+                <div id="ct-current-image" class="admin-img-preview-grid"></div>
+              </div>
+            </fieldset>
+            <div style="display:flex; gap:16px; align-items:center; margin-top:24px;">
+              <button type="submit" class="admin-btn-primary">Guardar Traducción</button>
+              <button type="button" id="ct-delete-btn" class="admin-btn-secondary" style="display:none;">Eliminar Traducción</button>
+              <button type="button" id="ct-cancel-btn" class="admin-btn-secondary">Cerrar</button>
+              <p id="category-en-status" style="margin:0; font-weight:500;"></p>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <h3 style="margin-top:0;">Categorías</h3>
+          <div id="categories-en-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+      <!-- === CATEGORÍAS VIEW === -->
       <section id="view-categories" class="admin-view">
         <div class="admin-header-row">
           <h2>Categorías</h2>
@@ -455,7 +664,7 @@
         </div>
       </section>
 
-      <!-- ================= BANNERS VIEW ================= -->
+      <!-- === BANNERS VIEW === -->
       <section id="view-banners" class="admin-view">
         <div class="admin-header-row">
           <h2>Gestión de Banners</h2>
@@ -488,7 +697,7 @@
         </div>
       </section>
 
-      <!-- ================= LOGOS VIEW ================= -->
+      <!-- === LOGOS VIEW === -->
       <section id="view-logos" class="admin-view">
         <div class="admin-header-row">
           <h2>Logos y Branding</h2>
@@ -522,24 +731,25 @@
         </div>
       </section>
 
-      <!-- ================= BIBLIOTECA VIEW ================= -->
+      <!-- === BIBLIOTECA VIEW === -->
       <section id="view-library" class="admin-view">
         <div class="admin-header-row">
-          <h2>Biblioteca de Imágenes</h2>
+          <h2>Biblioteca de Archivos</h2>
         </div>
-        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Almacena imágenes reutilizables. Podrás
-          seleccionarlas al momento de crear un producto.</p>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Almacena imágenes y otros archivos reutilizables
+          (PDF, Word, Excel, ZIP, texto). Las imágenes podrás seleccionarlas al momento de crear un producto.</p>
 
         <div class="glass-card">
           <form id="library-form" class="admin-form" enctype="multipart/form-data">
             <div class="form-grid">
               <div class="field-group">
-                <label for="lib-nombre">Nombre de la Imagen</label>
+                <label for="lib-nombre">Nombre del Archivo</label>
                 <input id="lib-nombre" name="nombre" type="text" placeholder="Ej: Empaque 500g" required />
               </div>
               <div class="field-group">
-                <label for="lib-imagen">Archivo de Imagen</label>
-                <input id="lib-imagen" name="imagen" type="file" accept="image/*" required />
+                <label for="lib-imagen">Archivo</label>
+                <input id="lib-imagen" name="imagen"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt,.csv" type="file" required />
               </div>
             </div>
             <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
@@ -550,8 +760,136 @@
         </div>
 
         <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
-          <h3 style="margin-top:0;">Todas las Imágenes</h3>
+          <h3 style="margin-top:0;">Todos los Archivos</h3>
           <div id="library-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+      <!-- === BONOS VIEW === -->
+      <section id="view-bonos" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Bonos / Promociones</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Administra el popup promocional que aparece
+          después de navegar unos segundos por la web. Puedes guardar varios bonos, pero solo <strong>uno puede
+          estar activo</strong> a la vez. El descuento se aplica <strong>automáticamente</strong> en el checkout,
+          sobre toda la compra, solo a clientes cuyo número de documento no tenga <strong>ningún pedido
+          registrado</strong> todavía (primera compra) — sin importar si un pedido anterior con ese documento llegó
+          a pagarse o no. Si defines fecha de inicio y/o fin, el bono deja de aplicarse fuera de ese rango aunque
+          sigas dejándolo "activo".</p>
+
+        <div class="glass-card">
+          <form id="bono-form" class="admin-form" enctype="multipart/form-data">
+            <input type="hidden" id="bono-id" />
+            <fieldset>
+              <legend>Crear / Editar Bono</legend>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label for="bono-nombre">Nombre interno (referencia)</label>
+                  <input id="bono-nombre" type="text" placeholder="Ej: Promo Diciembre" required />
+                </div>
+                <div class="field-group">
+                  <label for="bono-porcentaje">Porcentaje de Descuento (%)</label>
+                  <input id="bono-porcentaje" type="number" min="0" max="100" step="0.1" placeholder="Ej: 10" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-titulo">Título del Popup (Español)</label>
+                  <input id="bono-titulo" type="text" placeholder="Ej: Conoce nuestros envases" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-titulo-en">Título del Popup (Inglés, opcional)</label>
+                  <input id="bono-titulo-en" type="text" placeholder="Ej: Discover Our Packaging" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-texto-boton">Texto del Botón (Español)</label>
+                  <input id="bono-texto-boton" type="text" placeholder="Ver Categoría" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-texto-boton-en">Texto del Botón (Inglés, opcional)</label>
+                  <input id="bono-texto-boton-en" type="text" placeholder="View Category" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-categoria">Categoría a la que enlaza el botón</label>
+                  <select id="bono-categoria"></select>
+                </div>
+                <div class="field-group">
+                  <label for="bono-imagen">Imagen del Popup</label>
+                  <input id="bono-imagen" type="file" accept="image/*" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-fecha-inicio">Vigente desde (opcional)</label>
+                  <input id="bono-fecha-inicio" type="date" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-fecha-fin">Vigente hasta (opcional)</label>
+                  <input id="bono-fecha-fin" type="date" />
+                </div>
+              </div>
+            </fieldset>
+            <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
+              <button type="submit" class="admin-btn-primary">Guardar Bono</button>
+              <button type="button" id="bono-cancel" class="admin-btn-secondary">Cancelar</button>
+              <span id="bono-status" style="font-weight:500;"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+          <h3 style="margin-top:0;">Bonos Guardados</h3>
+          <div id="bonos-grid" class="admin-grid-products"></div>
+        </div>
+      </section>
+
+      <!-- === USUARIOS VIEW === -->
+      <section id="view-users" class="admin-view">
+        <div class="admin-header-row">
+          <h2>Usuarios del Panel</h2>
+        </div>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Crea accesos separados para tu equipo. El rol
+          <strong>Comercial</strong> solo puede ver Pedidos, Contactos y Productos (incluyendo precios). El rol
+          <strong>Administrador</strong> tiene acceso total.</p>
+
+        <div class="glass-card">
+          <form id="user-form" class="admin-form">
+            <fieldset>
+              <legend>Crear Usuario</legend>
+              <div class="form-grid">
+                <div class="field-group">
+                  <label for="user-username">Usuario</label>
+                  <input id="user-username" type="text" autocomplete="off" required />
+                </div>
+                <div class="field-group">
+                  <label for="user-password">Contraseña</label>
+                  <input id="user-password" type="password" autocomplete="new-password" required />
+                </div>
+                <div class="field-group">
+                  <label for="user-role">Rol</label>
+                  <select id="user-role">
+                    <option value="comercial">Comercial (Pedidos, Contactos, Productos)</option>
+                    <option value="admin">Administrador (acceso total)</option>
+                  </select>
+                </div>
+              </div>
+            </fieldset>
+            <div style="margin-top:24px; display:flex; gap:16px; align-items:center;">
+              <button type="submit" class="admin-btn-primary">Crear Usuario</button>
+              <span id="user-status" style="font-weight:500;"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-card" style="overflow-x:auto;">
+          <table class="admin-table" id="users-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Creado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
-import { renderHeader } from './components/header.js?v=2';
+import { renderHeader } from './components/header.js?v=999';
 import { renderCartDrawer } from './components/cart-drawer.js';
 import { cartService } from './services/cart-service.js';
-import { productItemTemplate, attachDynamicPriceBehavior } from './components/product-item.js';
+import { productItemTemplate, attachDynamicPriceBehavior, applyOutOfStockToCard } from './components/product-item.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,16 @@ async function init() {
   let activeFilter = 'all';
 
   // ── filter ──────────────────────────────────────────────────────────────────
+
+  // ── inventory sync ──────────────────────────────────────────────────────────
+  if (!window._inventoryCache) window._inventoryCache = new Map();
+  const inventoryCache = window._inventoryCache;
+
+  if (!window._inventoryReady) {
+    let _res;
+    window._inventoryReady = new Promise(r => { _res = r; });
+    window._resolveInventoryReady = _res;
+  }
 
   function filterProducts(q) {
     const qL = q.trim().toLowerCase();
@@ -188,9 +198,9 @@ async function init() {
 
     resultsEl.innerHTML = dedup.map(productItemTemplate).join('');
 
-    // Mismo desajuste que en product-list.js: la plantilla genera .product-card-premium,
-    // así que con '.product' los resultados de búsqueda nunca se verificaban.
-    const cards = Array.from(resultsEl.querySelectorAll('.product-card-premium'));
+    // Debe coincidir con la clase raíz de productItemTemplate (.v2-card); si no,
+    // los resultados de búsqueda nunca se verifican contra inventario.
+    const cards = Array.from(resultsEl.querySelectorAll('.v2-card'));
     cards.forEach((card, i) => {
       card.style.transitionDelay = `${i * 50}ms`;
       card.classList.add('search-card-anim');
@@ -286,18 +296,18 @@ async function init() {
 
   resultsEl.addEventListener('click', async (e) => {
     const btn = e.target.closest('.add-to-cart');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     const id = Number(btn.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;
-    const card = btn.closest('.product');
+    const card = btn.closest('.v2-card');
     const qty = Math.max(1, Number(card?.querySelector('.qty-input')?.value) || 1);
     const sku = (product.codigo_siesa || product.sku || product.SKU || product.item_ext || '').toString().trim();
 
     if (!sku) {
       cartService.add(product, qty);
       btn.classList.add('added');
-      showToast('Agregado Exitosamente');
+      showToast('Agregado exitosamente');
       setTimeout(() => btn.classList.remove('added'), 350);
       return;
     }
@@ -307,20 +317,21 @@ async function init() {
       const r = await fetch(`/api/inventario/${encodeURIComponent(sku)}`);
       if (!r.ok) throw new Error('err');
       const data = await r.json();
-      if ((data.estado || data.status || '') !== 'En Existencia') {
-        showToast('Producto Agotado', 'error'); return;
+      const estado = (data && (data.estado || data.status || '')).toString();
+      if (estado !== 'En Existencia') {
+        showToast('Producto agotado', 'error'); return;
       }
       // Sin unidades por caja conocidas no se inventa 1000: se respeta el estado del servidor.
       const rawUnits = data?.unidades_por_caja ?? product.cantidad ?? product.Cantidad ?? null;
       const upb = Number(rawUnits) > 0 ? Number(rawUnits) : null;
       if (upb && Number.isFinite(Number(data?.inventario)) && qty * upb > Number(data.inventario)) {
-        showToast('Producto Agotado', 'error'); return;
+        showToast('Producto agotado', 'error'); return;
       }
       cartService.add(product, qty);
       btn.classList.add('added');
-      showToast('Agregado Exitosamente');
+      showToast('Agregado exitosamente');
       setTimeout(() => btn.classList.remove('added'), 350);
-    } catch { showToast('Producto Agotado', 'error'); }
+    } catch { showToast('Producto agotado', 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Agregar'; }
   });
 
@@ -331,7 +342,7 @@ async function init() {
     const nav = prev || next;
     if (!nav) return;
     e.preventDefault(); e.stopPropagation();
-    const card = nav.closest('.product');
+    const card = nav.closest('.v2-card');
     const id = Number(card?.dataset.id);
     const product = products.find(p => p.id === id);
     if (!product) return;

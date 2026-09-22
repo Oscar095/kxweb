@@ -26,7 +26,7 @@
     overflow: hidden;
     z-index: 1;
     pointer-events: none;
-    background: linear-gradient(135deg, #ffffff 0%, #f4f7f9 100%);
+    background: linear-gradient(135deg, #eef8ffa9 0%, #f4f7f9 100%);
 }
 
 .blob-blue {
@@ -35,7 +35,7 @@
     left: -10%;
     width: 60vw;
     height: 60vw;
-    background: radial-gradient(circle, rgba(0, 159, 227, 0.15) 0%, rgba(0, 159, 227, 0) 70%);
+    background: radial-gradient(circle, rgba(117, 214, 255, 0.692) 0%, rgba(0, 159, 227, 0) 70%);
     filter: blur(80px);
 }
 
@@ -45,7 +45,7 @@
     right: -10%;
     width: 70vw;
     height: 70vw;
-    background: radial-gradient(circle, rgba(242, 140, 48, 0.15) 0%, rgba(242, 140, 48, 0) 70%);
+    background: radial-gradient(circle, rgba(242, 138, 48, 0.705) 0%, rgba(242, 140, 48, 0) 70%);
     filter: blur(80px);
 }
 
@@ -81,7 +81,7 @@
     transform: translate(-50%, -50%);
     font-size: clamp(8rem, 15vw, 18rem);
     font-weight: 900;
-    color: #f6f8fb;
+    color: #f6f8fba2;
     white-space: nowrap;
     z-index: 1;
     pointer-events: none;
@@ -185,7 +185,7 @@
 
 .personalizados-page .hero-subtext {
     font-size: 1.25rem;
-    color: var(--kos-blue);
+    color: #000000;
     margin-bottom: 40px;
     line-height: 1.6;
     font-weight: 500;
@@ -436,9 +436,9 @@
     transform: translateY(0);
 }
 
-/* ========================================
+/* =====
    V12: Valor y Educación — Grid 50/50
-   ======================================== */
+   ===== */
 
 .personalizados-page .ve-section {
     position: relative;
@@ -662,13 +662,13 @@
 }
 
 .personalizados-page .cotizador-glass {
-    background: #ffffff;
-    border: 1px solid rgba(0, 159, 227, 0.1);
+    background: #f0f9ff;
+    border: 1px solid rgba(0, 159, 227, 0.15);
     border-radius: 24px;
     padding: 60px;
     max-width: 1000px;
     margin: 0 auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 60px rgba(118, 143, 167, 0.08);
 }
 
 .personalizados-page .cotizador-title {
@@ -867,9 +867,9 @@
     width: 100%;
 }
 
-/* ================================================
+/* ======
    CTA FINAL SECTION — Full-Screen Premium Banner
-   ================================================ */
+   ====== */
 
 .personalizados-page .cta-final-section {
     position: relative;
@@ -883,7 +883,7 @@
     padding: 80px 24px;
     /* More padding top/bottom */
     overflow: hidden;
-    background: #ffffff;
+    background: radial-gradient(circle, #eff6ff 0%, #cfe8f8 100%);
 }
 
 /* --- Radial gradient blobs — clearly visible --- */
@@ -896,12 +896,12 @@
 }
 
 .personalizados-page .cta-blob-orange {
-    background: radial-gradient(circle, rgba(242, 140, 48, 0.28) 0%, rgba(242, 140, 48, 0.10) 50%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 170, 95, 0.76) 0%, rgba(242, 140, 48, 0.10) 50%, transparent 70%);
     filter: blur(30px);
 }
 
 .personalizados-page .cta-blob-blue {
-    background: radial-gradient(circle, rgba(0, 159, 227, 0.22) 0%, rgba(0, 159, 227, 0.08) 50%, transparent 70%);
+    background: radial-gradient(circle, rgba(5, 167, 236, 0.603) 0%, rgba(0, 159, 227, 0.08) 50%, transparent 70%);
     filter: blur(30px);
 }
 
@@ -1038,9 +1038,9 @@
     }
 }
 
-/* ==============================================
+/* ====
    LAYOUT — overlapping layers
-   ============================================== */
+   ==== */
 .personalizados-page .cta-final-layout {
     position: relative;
     z-index: 3;
@@ -1141,9 +1141,9 @@
     }
 }
 
-/* ==============================================
+/* ====
    TYPOGRAPHY — matching reference hierarchy
-   ============================================== */
+   ==== */
 
 /* Opening ¿ — very large, orange, inline with the text */
 .personalizados-page .cta-qm-open {
@@ -1285,9 +1285,9 @@
     }
 }
 
-/* ==============================================
+/* ====
    RESPONSIVE
-   ============================================== */
+   ==== */
 @media (max-width: 1100px) {
     .personalizados-page .cta-text-layer {
         padding-left: 220px;
@@ -1416,9 +1416,6 @@
     display: none !important;
 }
 
-/* Explicitly hide the chatbot to be absolutely sure */
-#chatbot-launcher,
-.chatbot-container,
 .whatsapp-float-btn {
     display: none !important;
 }

@@ -29,9 +29,10 @@ export function renderProducts(products, mount) {
   const remaining = toRender.slice(INITIAL_BATCH);
 
   mount.innerHTML = initial.map(productItemTemplate).join('');
-  // La plantilla genera .product-card-premium; con el selector '.product' esta lista
-  // salía vacía y el primer lote nunca recibía verificación de inventario ni precio dinámico.
-  const initialCards = Array.from(mount.querySelectorAll('.product-card-premium'));
+  // El selector debe coincidir con la clase raíz de productItemTemplate (.v2-card).
+  // Cuando no coincide, esta lista sale vacía y el primer lote nunca recibe
+  // verificación de inventario ni precio dinámico.
+  const initialCards = Array.from(mount.querySelectorAll('.v2-card'));
   initialCards.forEach(card => attachDynamicPriceBehavior(card));
 
   // Progressive loading for remaining products
