@@ -216,6 +216,7 @@ function renderProduct(p) {
 
   let upstreamEstado = null; // 'En Existencia' | 'Agotado' | null
   let inventarioExistencia = null; // number (unidades)
+  let unidadesPorCajaSrv = null; // unidades por caja resueltas por el servidor
 
   const setCartEnabled = (enabled, reason) => {
     if (addBtn) {
@@ -224,10 +225,12 @@ function renderProduct(p) {
     }
   };
 
+  // Devuelve null cuando no se conocen. Antes caía a 1000, lo que hacía que un producto
+  // sin 'cantidad' se declarara agotado solo por pedir una caja.
   const getUnitsPerBox = () => {
-    const raw = p.cantidad ?? p.Cantidad ?? 1000;
+    const raw = unidadesPorCajaSrv ?? p.cantidad ?? p.Cantidad ?? null;
     const n = Number(raw);
-    return Number.isFinite(n) && n > 0 ? n : 1000;
+    return Number.isFinite(n) && n > 0 ? n : null;
   };
 
   const getRequestedBoxes = () => {
@@ -238,10 +241,9 @@ function renderProduct(p) {
 
   const exceedsInventory = () => {
     if (!Number.isFinite(inventarioExistencia)) return false;
-    const boxes = getRequestedBoxes();
     const unitsPerBox = getUnitsPerBox();
-    const requestedUnits = boxes * unitsPerBox;
-    return requestedUnits > inventarioExistencia;
+    if (!unitsPerBox) return false; // sin unidades por caja no se puede afirmar exceso
+    return getRequestedBoxes() * unitsPerBox > inventarioExistencia;
   };
 
   const renderStockAndCartState = () => {
@@ -338,15 +340,11 @@ function renderProduct(p) {
         })
         .then((data) => {
           const estado = (data && (data.estado || data.status || '')).toString();
-          if (estado === 'En Existencia') {
-            upstreamEstado = 'En Existencia';
-            inventarioExistencia = Number(data?.inventario);
-            renderStockAndCartState();
-          } else {
-            upstreamEstado = 'Agotado';
-            inventarioExistencia = Number(data?.inventario);
-            renderStockAndCartState();
-          }
+          const upb = Number(data?.unidades_por_caja);
+          unidadesPorCajaSrv = Number.isFinite(upb) && upb > 0 ? upb : null;
+          upstreamEstado = estado === 'En Existencia' ? 'En Existencia' : 'Agotado';
+          inventarioExistencia = Number(data?.inventario);
+          renderStockAndCartState();
         })
         .catch(() => {
           stock.textContent = 'Agotado';

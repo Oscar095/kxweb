@@ -29,7 +29,9 @@ export function renderProducts(products, mount) {
   const remaining = toRender.slice(INITIAL_BATCH);
 
   mount.innerHTML = initial.map(productItemTemplate).join('');
-  const initialCards = Array.from(mount.querySelectorAll('.product'));
+  // La plantilla genera .product-card-premium; con el selector '.product' esta lista
+  // salía vacía y el primer lote nunca recibía verificación de inventario ni precio dinámico.
+  const initialCards = Array.from(mount.querySelectorAll('.product-card-premium'));
   initialCards.forEach(card => attachDynamicPriceBehavior(card));
 
   // Progressive loading for remaining products

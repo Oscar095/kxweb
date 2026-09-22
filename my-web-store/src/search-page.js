@@ -188,7 +188,9 @@ async function init() {
 
     resultsEl.innerHTML = dedup.map(productItemTemplate).join('');
 
-    const cards = Array.from(resultsEl.querySelectorAll('.product'));
+    // Mismo desajuste que en product-list.js: la plantilla genera .product-card-premium,
+    // así que con '.product' los resultados de búsqueda nunca se verificaban.
+    const cards = Array.from(resultsEl.querySelectorAll('.product-card-premium'));
     cards.forEach((card, i) => {
       card.style.transitionDelay = `${i * 50}ms`;
       card.classList.add('search-card-anim');
@@ -308,9 +310,10 @@ async function init() {
       if ((data.estado || data.status || '') !== 'En Existencia') {
         showToast('Producto Agotado', 'error'); return;
       }
-      const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
-      const upb = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
-      if (Number.isFinite(Number(data?.inventario)) && qty * upb > Number(data.inventario)) {
+      // Sin unidades por caja conocidas no se inventa 1000: se respeta el estado del servidor.
+      const rawUnits = data?.unidades_por_caja ?? product.cantidad ?? product.Cantidad ?? null;
+      const upb = Number(rawUnits) > 0 ? Number(rawUnits) : null;
+      if (upb && Number.isFinite(Number(data?.inventario)) && qty * upb > Number(data.inventario)) {
         showToast('Producto Agotado', 'error'); return;
       }
       cartService.add(product, qty);

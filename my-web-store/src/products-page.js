@@ -50,13 +50,24 @@ async function init() {
 
     try {
       const uniqueSkus = [...new Set(skuMap.map(s => s.sku))];
-      const r = await fetch('/api/inventario-bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skus: uniqueSkus })
-      });
-      if (r.ok) {
-        const data = await r.json();
+
+      // El endpoint atiende 50 SKUs como máximo por llamada. Enviando el catálogo
+      // completo de una sola vez, los sobrantes volvían sin respuesta y se marcaban
+      // agotados sin haberse consultado nunca; por eso se trocea.
+      const LOTE = 50;
+      const lotes = [];
+      for (let i = 0; i < uniqueSkus.length; i += LOTE) lotes.push(uniqueSkus.slice(i, i + LOTE));
+
+      const respuestas = await Promise.all(lotes.map(lote =>
+        fetch('/api/inventario-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skus: lote })
+        }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+      ));
+
+      if (respuestas.every(x => x && typeof x === 'object')) {
+        const data = Object.assign({}, ...respuestas);
         for (const { id, sku } of skuMap) {
           const inv = data[sku];
           if (inv && inv.estado === 'En Existencia') {
@@ -110,6 +121,10 @@ async function init() {
 
     return result;
   }
+
+  // La consulta masiva arranca ANTES de pintar: cada tarjeta espera esta única promesa
+  // en lugar de pedir su propio inventario, y así el estado se resuelve de una sola vez.
+  window._inventoryReady = checkAllInventory();
 
   renderProducts(products, mount);
 
@@ -254,11 +269,13 @@ async function init() {
         return;
       }
 
-      const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
-      const unitsPerBox = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
-      const requestedUnits = qty * unitsPerBox;
+      // Las unidades por caja las resuelve el servidor contra la BD; el dato local es
+      // respaldo. Si no se conocen no se inventa 1000 (eso agotaba productos sin motivo):
+      // basta con el estado que el servidor ya calculó.
+      const rawUnits = data?.unidades_por_caja ?? product.cantidad ?? product.Cantidad ?? null;
+      const unitsPerBox = Number(rawUnits) > 0 ? Number(rawUnits) : null;
 
-      if (Number.isFinite(inventarioExistencia) && requestedUnits > inventarioExistencia) {
+      if (unitsPerBox && Number.isFinite(inventarioExistencia) && qty * unitsPerBox > inventarioExistencia) {
         showToast('Producto Agotado', 'error');
         return;
       }
@@ -457,8 +474,9 @@ async function init() {
   sortSelect?.addEventListener('change', reapply);
   filterSelect?.addEventListener('change', reapply);
 
-  // Fetch inventory
-  checkAllInventory().then(() => {
+  // Se reutiliza la consulta ya lanzada arriba; al resolverse se reaplica el filtro
+  // si el usuario lo tenía en "Disponibles" o "Agotados".
+  window._inventoryReady.then(() => {
     if (filterSelect?.value !== 'all') reapply();
   });
 

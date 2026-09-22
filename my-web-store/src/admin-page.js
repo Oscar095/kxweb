@@ -57,7 +57,7 @@ async function loadProducts() {
             <span class="gpc-tag">${categoryLabel || 'Sin Categoría'}</span>
             <span style="font-weight: 600; color: var(--admin-text-main);">${p.price_unit != null ? ('$' + Number(p.price_unit).toLocaleString()) : ''}</span>
         </div>
-        <div style="font-size: 0.85rem; color: #555; margin-top: 4px;"><strong>Stock:</strong> ${safe(p.cantidad ?? p.Cantidad)} | <strong>SKU:</strong> ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
+        <div style="font-size: 0.85rem; color: #555; margin-top: 4px;"><strong>Unid./caja:</strong> ${safe(p.cantidad ?? p.Cantidad)} | <strong>SKU:</strong> ${safe(p.codigo_siesa || p.codigo_siesa)}</div>
         ${descHtml}
         <div class="gpc-actions">
           <button data-id="${p.id}" class="toggle-habilitado ${toggleClass}">

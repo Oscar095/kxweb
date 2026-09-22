@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node \"C:/Users/oscaro/AppData/Local/Temp/claude/c--Users-oscaro-OneDrive---kos-colombia-kxweb-kxweb/49cebcd2-2d94-4495-b5ca-c12b1d33be9f/scratchpad/censo.js\")",
+      "Bash(curl -s -o /tmp/kx.txt -w \"HTTP %{http_code} | bytes=%{size_download} | tiempo=%{time_total}s\\\\n\" --max-time 45 \"https://kx-endpoints.azurewebsites.net/inventario/12270\")",
+      "Bash(node \"C:/Users/oscaro/AppData/Local/Temp/claude/c--Users-oscaro-OneDrive---kos-colombia-kxweb-kxweb/49cebcd2-2d94-4495-b5ca-c12b1d33be9f/scratchpad/test-inventario.js\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('scripts:', JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('main:', p.main\\);\")",
+      "Bash(node -e ' *)",
+      "mcp__claude_ai_n8n__search_workflows",
+      "Bash(npm install *)",
+      "mcp__claude_ai_n8n__list_credentials",
+      "mcp__claude_ai_n8n__get_workflow_details",
+      "mcp__claude_ai_n8n__search_projects",
+      "mcp__claude_ai_n8n__get_workflow_sdk_reference",
+      "mcp__claude_ai_n8n__get_workflow_best_practices",
+      "mcp__claude_ai_n8n__search_nodes",
+      "mcp__claude_ai_n8n__get_node_types",
+      "Bash(cp components/product-item.js /tmp/pi.mjs)",
+      "Bash(cp utils/format.js /tmp/format.js)",
+      "Bash(node --input-type=module -e ' *)",
+      "Bash(curl -s -o /dev/null -w \"  openapi.json      -> HTTP %{http_code} en %{time_total}s\\\\n\" --max-time 30 \"https://kx-endpoints.azurewebsites.net/openapi.json\")",
+      "Bash(curl -s -o /dev/null -w \"  /inventario/12270 -> HTTP %{http_code} en %{time_total}s\\\\n\" --max-time 30 \"https://kx-endpoints.azurewebsites.net/inventario/12270\")",
+      "mcp__claude_ai_n8n__validate_workflow",
+      "mcp__claude_ai_n8n__create_workflow_from_code",
+      "Bash(node --check server/index.js)",
+      "mcp__claude_ai_n8n__publish_workflow"
+    ]
+  }
+}

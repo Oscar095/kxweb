@@ -9,6 +9,7 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 // switching to SQL Server + Azure Blob storage
 const db = require('./db');
+const inventarioApi = require('./inventario');
 const { StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions, BlobServiceClient } = require('@azure/storage-blob');
 
 const multer = require('multer');
@@ -32,8 +33,9 @@ app.use(express.json());
 const productsCache = { data: null, ts: 0 };
 const PRODUCTS_CACHE_TTL = 2 * 60 * 1000; // 2 minutos
 
-const inventoryCache = new Map(); // sku -> { data, ts }
-const INVENTORY_CACHE_TTL = 3 * 60 * 1000; // 3 minutos
+const inventoryCache = new Map(); // sku -> { data, ts, ttl }
+const INVENTORY_CACHE_TTL = 3 * 60 * 1000; // 3 minutos para respuestas buenas
+const INVENTORY_ERROR_TTL = 20 * 1000; // los fallos se reintentan pronto, no se arrastran 3 minutos
 
 // helper: detectar MIME por firma
 function detectImageMime(buf) {
@@ -1430,94 +1432,73 @@ app.get('/api/precio', async (req, res) => {
   }
 });
 
-// --- Helper: consulta inventario upstream con caché ---
-const tryExtractNumber = (val) => {
-  if (val == null) return null;
-  if (typeof val === 'number') return Number.isFinite(val) ? val : null;
-  if (typeof val === 'string') {
-    const n = Number(val.replace(/[^\d.-]/g, ''));
-    return Number.isFinite(n) ? n : null;
-  }
-  if (Array.isArray(val)) {
-    for (const item of val) {
-      const n = tryExtractNumber(item);
-      if (Number.isFinite(n)) return n;
+// --- Helper: consulta inventario en Connekta (SIESA) con caché ---
+
+// Unidades por caja del producto (dbo.products.cantidad). La tienda vende por caja
+// completa, así que la disponibilidad se mide contra este valor y no contra un umbral fijo.
+async function getUnidadesPorCaja(skuRaw) {
+  const clave = String(skuRaw).trim();
+
+  if (productsCache.data && (Date.now() - productsCache.ts) < PRODUCTS_CACHE_TTL) {
+    const p = productsCache.data.find((x) => String(x.codigo_siesa || '').trim() === clave);
+    if (p) {
+      const n = Number(p.cantidad);
+      return Number.isFinite(n) && n > 0 ? n : null;
     }
+  }
+
+  try {
+    const rows = await db.query(
+      'SELECT TOP 1 cantidad FROM dbo.products WHERE codigo_siesa = @sku',
+      { sku: clave }
+    );
+    const n = rows && rows[0] ? Number(rows[0].cantidad) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch (e) {
+    console.error(`[inventario] ${clave}: no se pudieron leer las unidades por caja —`, e.message);
     return null;
   }
-  if (typeof val === 'object') {
-    for (const k of ['inventario', 'inventory', 'stock', 'cantidad', 'qty', 'existencia', 'available']) {
-      if (k in val) {
-        const n = tryExtractNumber(val[k]);
-        if (Number.isFinite(n)) return n;
-      }
-    }
-    for (const k of Object.keys(val)) {
-      const n = tryExtractNumber(val[k]);
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  return null;
-};
+}
+
+function guardarEnCache(sku, data, ttl) {
+  inventoryCache.set(sku, { data, ts: Date.now(), ttl });
+  return data;
+}
 
 async function fetchInventarioForSku(skuRaw) {
-  // Check cache first
   const cached = inventoryCache.get(skuRaw);
-  if (cached && (Date.now() - cached.ts) < INVENTORY_CACHE_TTL) {
+  if (cached && (Date.now() - cached.ts) < (cached.ttl || INVENTORY_CACHE_TTL)) {
     return cached.data;
   }
 
-  const baseUrl = 'https://kx-endpoints.azurewebsites.net';
-  const url = `${baseUrl}/inventario/${encodeURIComponent(skuRaw)}`;
+  const [res, unidadesPorCaja] = await Promise.all([
+    inventarioApi.consultarExistencia(skuRaw),
+    getUnidadesPorCaja(skuRaw)
+  ]);
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const r = await fetch(url, {
-      method: 'GET',
-      headers: { 'accept': 'application/json,text/plain;q=0.9,*/*;q=0.8' },
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-
-    if (!r.ok) {
-      const result = { sku: skuRaw, inventario: 0, estado: 'Agotado', error: 'upstream_error' };
-      inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
-      return result;
-    }
-
-    const contentType = (r.headers.get('content-type') || '').toLowerCase();
-    const bodyText = await r.text();
-
-    let inventario = null;
-    if (contentType.includes('application/json')) {
-      try {
-        const parsed = JSON.parse(bodyText);
-        inventario = tryExtractNumber(parsed);
-      } catch {
-        inventario = tryExtractNumber(bodyText);
-      }
-    } else {
-      inventario = tryExtractNumber(bodyText);
-    }
-
-    if (!Number.isFinite(inventario)) {
-      const result = { sku: skuRaw, inventario: 0, estado: 'Agotado', error: 'parse_error' };
-      inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
-      return result;
-    }
-
-    const statusText = inventario > 1000 ? 'En Existencia' : 'Agotado';
-    const result = { sku: skuRaw, inventario, estado: statusText };
-    inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
-    return result;
-  } catch (e) {
-    clearTimeout(timeout);
-    const result = { sku: skuRaw, inventario: 0, estado: 'Agotado', error: e.name === 'AbortError' ? 'timeout' : 'network_error' };
-    inventoryCache.set(skuRaw, { data: result, ts: Date.now() });
-    return result;
+  if (!res.ok) {
+    console.error(`[inventario] ${skuRaw}: ${res.motivo}${res.detalle ? ' — ' + res.detalle : ''}`);
+    // Ante un fallo se muestra "Agotado", pero el motivo queda explícito en la respuesta
+    // y en el log, en vez de disfrazarse de una existencia cero perfectamente creíble.
+    return guardarEnCache(
+      skuRaw,
+      { sku: skuRaw, inventario: null, estado: 'Agotado', error: res.motivo },
+      INVENTORY_ERROR_TTL
+    );
   }
+
+  const unidades = res.unidades;
+
+  // Sin unidades por caja conocidas sólo se puede afirmar si hay existencia o no.
+  const estado = unidadesPorCaja == null
+    ? (unidades > 0 ? 'En Existencia' : 'Agotado')
+    : (unidades >= unidadesPorCaja ? 'En Existencia' : 'Agotado');
+
+  return guardarEnCache(
+    skuRaw,
+    { sku: skuRaw, inventario: unidades, unidades_por_caja: unidadesPorCaja, estado },
+    INVENTORY_CACHE_TTL
+  );
 }
 
 // GET /api/inventario/:sku — individual con caché
@@ -1526,9 +1507,11 @@ app.get('/api/inventario/:sku', async (req, res) => {
     const skuRaw = (req.params.sku || '').toString().trim();
     if (!skuRaw) return res.status(400).json({ message: 'sku requerido' });
     const result = await fetchInventarioForSku(skuRaw);
-    if (result.error === 'upstream_error') return res.status(502).json(result);
-    if (result.error === 'parse_error') return res.status(502).json(result);
-    if (result.error === 'timeout') return res.status(504).json({ message: 'inventario_timeout' });
+    // El cuerpo siempre viaja completo (estado 'Agotado' + motivo), pero un fallo real
+    // del upstream se reporta como tal para que quede visible en métricas y logs.
+    if (result.error) {
+      return res.status(result.error === 'timeout' ? 504 : 502).json(result);
+    }
     res.json(result);
   } catch (e) {
     console.error(e);
@@ -1999,59 +1982,121 @@ app.post('/api/pedidos/:pedidoId/confirmar-pago', async (req, res) => {
       }
     }
 
-    // Obtener el email del cliente para devolverlo en la respuesta
-    const emailCol = pick(['email', 'correo', 'Email', 'Correo']);
-    const nameCol = pick(['name', 'nombre', 'Name', 'Nombre']);
-    let clientEmail = null;
-    let clientName = null;
-    if (emailCol || nameCol) {
-      const selectCols = [emailCol, nameCol].filter(Boolean).map(c => `[${c}]`).join(', ');
+    // Obtener los datos de contacto del cliente (para la respuesta y para notificar a n8n)
+    const contactoCols = {
+      email: pick(['email', 'correo', 'Email', 'Correo']),
+      name: pick(['name', 'nombre', 'Name', 'Nombre']),
+      tipoDocumento: pick(['tipo_documento']),
+      numeroDocumento: pick(['nit_id', 'nitid', 'nit', 'documento', 'document']),
+      digitoVerificacion: pick(['digito_verificacion']),
+      nombres: pick(['nombres']),
+      apellidos: pick(['apellidos']),
+      nombreCompleto: pick(['nombre_completo']),
+      phone: pick(['phone', 'telefono', 'celular']),
+      telefonoFijo: pick(['telefono_fijo']),
+      address: pick(['address', 'direccion']),
+      city: pick(['city', 'ciudad']),
+      departamento: pick(['departamento']),
+      pais: pick(['pais']),
+      tipoPersona: pick(['tipo_persona']),
+      regimen: pick(['regimen']),
+      fechaNacimiento: pick(['fecha_nacimiento']),
+      notes: pick(['notes', 'nota', 'notas', 'observaciones', 'observacion']),
+      paymentMethod: pick(['payment_method', 'paymentmethod', 'metodo_pago', 'metodopago']),
+      totalValue: pick(['total_value', 'totalvalue', 'total_valor', 'totalvalor'])
+    };
+
+    // Se consulta con alias para no depender del casing real de cada columna
+    let pedidoRow = {};
+    const contactoEntries = Object.entries(contactoCols).filter(([, col]) => !!col);
+    if (contactoEntries.length) {
+      const selectCols = contactoEntries.map(([key, col]) => `[${col}] AS [${key}]`).join(', ');
       const pedidoData = await db.query(
         `SELECT ${selectCols} FROM [${tableSchema}].[${tableName}] WHERE [${idCol}] = @pedidoId;`,
         { pedidoId }
       );
-      if (pedidoData && pedidoData[0]) {
-        clientEmail = pedidoData[0][emailCol] || null;
-        clientName = pedidoData[0][nameCol] || null;
-      }
+      pedidoRow = (pedidoData && pedidoData[0]) || {};
     }
 
-    // Enviar webhook a n8n si el pago fue aprobado
+    const campoContacto = (key) => {
+      const v = pedidoRow[key];
+      if (v == null || String(v).trim() === '') return null;
+      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      return v;
+    };
+
+    const clientEmail = campoContacto('email');
+    const clientName = campoContacto('name') || campoContacto('nombreCompleto');
+
+    // Enviar webhooks a n8n si el pago fue aprobado
     const isApproved = status === 'APPROVED' || status === 'APPROVED_PARTIAL';
-    console.log(`[webhook-n8n] pedido=${pedidoId} status="${status}" isApproved=${isApproved} N8N_WEBHOOK_URL=${process.env.N8N_WEBHOOK_URL ? 'SET' : 'NOT SET'}`);
-    if (isApproved && process.env.N8N_WEBHOOK_URL) {
-      try {
-        const webhookPayload = {
-          pedidoId,
-          transactionId: txId,
-          estado: status,
-          email: clientEmail,
-          name: clientName,
-          timestamp: new Date().toISOString()
-        };
-        console.log('[webhook-n8n] Enviando payload:', JSON.stringify(webhookPayload));
-        const webhookResp = await fetch(process.env.N8N_WEBHOOK_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'token1': process.env.N8N_WEBHOOK_TOKEN || ''
-          },
-          body: JSON.stringify(webhookPayload)
-        });
-        const webhookStatus = webhookResp.status;
-        const webhookBody = await webhookResp.text().catch(() => '');
-        if (!webhookResp.ok) {
-          console.error(`[webhook-n8n] Error: HTTP ${webhookStatus} - ${webhookBody}`);
-        } else {
-          console.log(`[webhook-n8n] OK (${webhookStatus}) para pedido ${pedidoId}`);
+    console.log(`[webhook-n8n] pedido=${pedidoId} status="${status}" isApproved=${isApproved} N8N_WEBHOOK_URL=${process.env.N8N_WEBHOOK_URL ? 'SET' : 'NOT SET'} N8N_WEBHOOK_URL_VENTAS=${process.env.N8N_WEBHOOK_URL_VENTAS ? 'SET' : 'NOT SET'}`);
+    if (isApproved) {
+      const webhookPayload = {
+        pedidoId,
+        transactionId: txId,
+        estado: status,
+        email: clientEmail,
+        name: clientName,
+        timestamp: new Date().toISOString()
+      };
+
+      // Payload ampliado con todos los datos de contacto (workflow "KX - Datos de contacto del comprador a Ventas")
+      const contactoPayload = {
+        ...webhookPayload,
+        tipo_documento: campoContacto('tipoDocumento'),
+        numero_documento: campoContacto('numeroDocumento'),
+        digito_verificacion: campoContacto('digitoVerificacion'),
+        tipo_persona: campoContacto('tipoPersona'),
+        regimen: campoContacto('regimen'),
+        nombres: campoContacto('nombres'),
+        apellidos: campoContacto('apellidos'),
+        nombre_completo: campoContacto('nombreCompleto') || clientName,
+        phone: campoContacto('phone'),
+        telefono_fijo: campoContacto('telefonoFijo'),
+        address: campoContacto('address'),
+        city: campoContacto('city'),
+        departamento: campoContacto('departamento'),
+        pais: campoContacto('pais'),
+        fecha_nacimiento: campoContacto('fechaNacimiento'),
+        notes: campoContacto('notes'),
+        paymentMethod: campoContacto('paymentMethod'),
+        total_value: campoContacto('totalValue')
+      };
+
+      const destinos = [
+        { nombre: 'pedidos', url: process.env.N8N_WEBHOOK_URL, payload: webhookPayload },
+        { nombre: 'ventas', url: process.env.N8N_WEBHOOK_URL_VENTAS, payload: contactoPayload }
+      ];
+
+      for (const destino of destinos) {
+        if (!destino.url) {
+          console.log(`[webhook-n8n:${destino.nombre}] NO enviado: URL no configurada`);
+          continue;
         }
-      } catch (webhookErr) {
-        console.error('[webhook-n8n] Error de conexión:', webhookErr.message || webhookErr);
+        try {
+          console.log(`[webhook-n8n:${destino.nombre}] Enviando payload:`, JSON.stringify(destino.payload));
+          const webhookResp = await fetch(destino.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'token1': process.env.N8N_WEBHOOK_TOKEN || ''
+            },
+            body: JSON.stringify(destino.payload)
+          });
+          const webhookStatus = webhookResp.status;
+          const webhookBody = await webhookResp.text().catch(() => '');
+          if (!webhookResp.ok) {
+            console.error(`[webhook-n8n:${destino.nombre}] Error: HTTP ${webhookStatus} - ${webhookBody}`);
+          } else {
+            console.log(`[webhook-n8n:${destino.nombre}] OK (${webhookStatus}) para pedido ${pedidoId}`);
+          }
+        } catch (webhookErr) {
+          console.error(`[webhook-n8n:${destino.nombre}] Error de conexión:`, webhookErr.message || webhookErr);
+        }
       }
-    } else if (!isApproved) {
-      console.log(`[webhook-n8n] Webhook NO enviado: status="${status}" no es APPROVED/APPROVED_PARTIAL`);
     } else {
-      console.log('[webhook-n8n] Webhook NO enviado: N8N_WEBHOOK_URL no está configurada');
+      console.log(`[webhook-n8n] Webhooks NO enviados: status="${status}" no es APPROVED/APPROVED_PARTIAL`);
     }
 
     return res.json({

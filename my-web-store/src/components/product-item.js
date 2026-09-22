@@ -1,5 +1,7 @@
 import { formatMoney } from '../utils/format.js';
 
+const ICONO_CARRITO = /* html */`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`;
+
 export function productItemTemplate(p) {
   const priceNum = (() => {
     const raw = p.price ?? p.precio ?? 0;
@@ -46,9 +48,9 @@ export function productItemTemplate(p) {
             <input id="${qtyInputId}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
             <button class="qty-btn plus" onclick="event.stopPropagation(); const i = document.getElementById('${qtyInputId}'); i.value = Number(i.value) + 1; i.dispatchEvent(new Event('input'));" aria-label="Aumentar">+</button>
           </div>
-          <button class="add-to-cart btn-primary btn-add-premium" data-id="${p.id}">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-            Agregar
+          <button class="add-to-cart btn-primary btn-add-premium" data-id="${p.id}"${skuAttr ? ' disabled data-verificando="1" title="Consultando inventario..."' : ''}>
+            ${ICONO_CARRITO}
+            ${skuAttr ? 'Consultando...' : 'Agregar'}
           </button>
         </div>
       </div>
@@ -95,9 +97,26 @@ export function attachDynamicPriceBehavior(rootEl) {
       }
     };
 
+    // El botón nace deshabilitado con "Consultando...". Sólo se habilita cuando el
+    // inventario confirma existencia: antes se renderizaba disponible y se apagaba
+    // después, lo que hacía parpadear "Agregar" en cada tarjeta durante la consulta.
+    const marcarDisponible = () => {
+      const btn = rootEl.querySelector('.add-to-cart');
+      if (!btn) return;
+      btn.disabled = false;
+      btn.removeAttribute('data-verificando');
+      btn.innerHTML = `${ICONO_CARRITO} Agregar`;
+      btn.title = '';
+    };
+
     // Non-blocking stock check
     const checkStock = async () => {
       try {
+        // Si la página ya lanzó una consulta masiva, se espera ese único resultado en
+        // vez de disparar una petición por tarjeta (eran decenas en paralelo).
+        if (window._inventoryReady) {
+          try { await window._inventoryReady; } catch { /* se cae a la consulta individual */ }
+        }
         const cache = window._inventoryCache;
         let estado;
         if (cache && cache.has(productId)) {
@@ -111,6 +130,7 @@ export function attachDynamicPriceBehavior(rootEl) {
           }
         }
         if (estado !== 'En Existencia') applyOutOfStock();
+        else marcarDisponible();
       } catch (e) {
         applyOutOfStock();
       }

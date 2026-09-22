@@ -1,3 +1,5 @@
 my-web-store/node_modules/
+my-web-store/client/
+my-web-store/node_portable/
 .env
 QuerysMongo.js

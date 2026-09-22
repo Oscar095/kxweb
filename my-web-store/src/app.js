@@ -48,7 +48,7 @@ function renderBestSellers(products, mount) {
           </p>
           <div class="bs-card-actions">
             <input id="bs-qty-${p.id}" type="number" class="qty-input" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" aria-label="Cantidad" data-dynamic-price="1">
-            <button class="add-to-cart bs-add-btn btn-primary" data-id="${p.id}">Agregar</button>
+            <button class="add-to-cart bs-add-btn btn-primary" data-id="${p.id}"${skuAttr ? ' disabled title="Consultando inventario..."' : ''}>${skuAttr ? 'Consultando...' : 'Agregar'}</button>
           </div>
         </div>
       </article>
@@ -65,14 +65,16 @@ function renderBestSellers(products, mount) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ skus: [...new Set(bsSkus)] })
     }).then(r => r.ok ? r.json() : {}).then(data => {
+      // Las tarjetas nacen con el botón en "Consultando...": aquí se resuelve a
+      // disponible o agotado. Nunca se muestran como disponibles antes de saberlo.
       items.forEach(it => {
         const sku = it.getAttribute('data-sku');
         if (!sku) return;
         const inv = data[sku];
+        const btn = it.querySelector('.add-to-cart');
         if (!inv || inv.estado !== 'En Existencia') {
           const badge = it.querySelector('.out-of-stock-badge');
           const img = it.querySelector('.bs-card-img');
-          const btn = it.querySelector('.add-to-cart');
           if (badge) badge.style.setProperty('display', 'block', 'important');
           if (img) {
             img.style.setProperty('filter', 'grayscale(1)', 'important');
@@ -87,9 +89,20 @@ function renderBestSellers(products, mount) {
             btn.style.color = '#777';
             btn.style.cursor = 'not-allowed';
           }
+        } else if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Agregar';
+          btn.title = '';
         }
       });
-    }).catch(() => {});
+    }).catch(() => {
+      // Si la consulta falla no se deja el botón colgado en "Consultando...":
+      // se cae a agotado, que es la política acordada ante inventario desconocido.
+      items.forEach(it => {
+        const btn = it.querySelector('.add-to-cart');
+        if (btn && btn.disabled) { btn.textContent = 'No disponible'; btn.title = 'No disponible'; }
+      });
+    });
   }
 
   items.forEach(it => {
@@ -362,12 +375,13 @@ async function init() {
           return;
         }
 
-        // Validate units
-        const rawUnits = product.cantidad ?? product.Cantidad ?? 1000;
-        const unitsPerBox = (Number.isFinite(Number(rawUnits)) && Number(rawUnits) > 0) ? Number(rawUnits) : 1000;
-        const requestedUnits = qty * unitsPerBox;
+        // Validate units. Las unidades por caja vienen del servidor (resueltas contra la
+        // BD); el dato local es respaldo. Si no se conocen no se inventa 1000, porque eso
+        // marcaba como agotados productos que sí tenían existencia.
+        const rawUnits = data?.unidades_por_caja ?? product.cantidad ?? product.Cantidad ?? null;
+        const unitsPerBox = Number(rawUnits) > 0 ? Number(rawUnits) : null;
 
-        if (Number.isFinite(inventarioExistencia) && requestedUnits > inventarioExistencia) {
+        if (unitsPerBox && Number.isFinite(inventarioExistencia) && qty * unitsPerBox > inventarioExistencia) {
           showToast('Producto Agotado', 'error');
           return;
         }
