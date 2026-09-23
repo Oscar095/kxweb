@@ -2342,11 +2342,12 @@ async function fetchInventarioForSku(skuRaw) {
     console.error(`[inventario] ${skuRaw}: ${res.motivo}${res.detalle ? ' — ' + res.detalle : ''}`);
     // Ante un fallo se muestra "Agotado", pero el motivo queda explícito en la respuesta
     // y en el log, en vez de disfrazarse de una existencia cero perfectamente creíble.
-    return guardarEnCache(
-      skuRaw,
-      { sku: skuRaw, inventario: null, estado: 'Agotado', error: res.motivo },
-      INVENTORY_ERROR_TTL
-    );
+    // El detalle sólo se expone para config_incompleta (nombres de variables que
+    // faltan). Los demás motivos pueden traer texto de errores de SQL, que se queda
+    // en el log y no viaja al navegador.
+    const cuerpo = { sku: skuRaw, inventario: null, estado: 'Agotado', error: res.motivo };
+    if (res.motivo === 'config_incompleta' && res.detalle) cuerpo.detalle = res.detalle;
+    return guardarEnCache(skuRaw, cuerpo, INVENTORY_ERROR_TTL);
   }
 
   const unidades = res.unidades;

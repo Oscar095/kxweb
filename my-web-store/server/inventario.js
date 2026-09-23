@@ -28,11 +28,28 @@ const LLAVES_FILAS = ['Datos', 'datos', 'data', 'Table', 'table', 'registros', '
 // 'costo_unitario' y reportándolos como inventario.
 const LLAVES_EXISTENCIA = ['existencia', 'inventario', 'stock', 'disponible', 'saldo', 'cantidad'];
 
+// Lee la primera variable de entorno con valor, probando varias grafías y, como
+// último recurso, sin distinguir mayúsculas. En Azure estas vienen de las App
+// Settings, y los nombres originales mezclan mayúsculas (ConniKey, ConniToken).
+function envAny(...nombres) {
+  for (const n of nombres) {
+    const v = process.env[n];
+    if (v && String(v).trim()) return String(v).trim();
+  }
+  const buscados = nombres.map((n) => n.toLowerCase());
+  for (const clave of Object.keys(process.env)) {
+    if (!buscados.includes(clave.toLowerCase())) continue;
+    const v = process.env[clave];
+    if (v && String(v).trim()) return String(v).trim();
+  }
+  return '';
+}
+
 function getConfig() {
   return {
-    plantilla: (process.env.API_EXISTENCIAS || '').trim(),
-    conniKey: (process.env.ConniKey || process.env.CONNI_KEY || '').trim(),
-    conniToken: (process.env.ConniToken || process.env.CONNI_TOKEN || '').trim()
+    plantilla: envAny('API_EXISTENCIAS'),
+    conniKey: envAny('ConniKey', 'CONNI_KEY', 'CONNIKEY'),
+    conniToken: envAny('ConniToken', 'CONNI_TOKEN', 'CONNITOKEN')
   };
 }
 
@@ -163,7 +180,14 @@ let formaRegistrada = false;
 async function consultarExistencia(itemExt) {
   const { plantilla, conniKey, conniToken } = getConfig();
   if (!plantilla || !conniKey || !conniToken) {
-    return { ok: false, motivo: 'config_incompleta' };
+    // Se nombra la variable ausente: en Azure estas se configuran aparte del repo
+    // (el .env no se versiona), y sin el detalle el diagnóstico es a ciegas.
+    const faltan = [
+      !plantilla && 'API_EXISTENCIAS',
+      !conniKey && 'ConniKey',
+      !conniToken && 'ConniToken'
+    ].filter(Boolean);
+    return { ok: false, motivo: 'config_incompleta', detalle: `faltan: ${faltan.join(', ')}` };
   }
 
   // La consulta compara item_ext contra una columna int: un código no numérico hace
