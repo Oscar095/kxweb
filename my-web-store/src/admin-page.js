@@ -360,12 +360,15 @@ function applyRolePermissions() {
     document.getElementById('nav-dashboard')?.classList.remove('active');
     document.getElementById('view-pedidos')?.classList.add('active');
     document.getElementById('nav-pedidos')?.classList.add('active');
+    const mobileTitle = document.getElementById('admin-mobilebar-title');
+    if (mobileTitle) mobileTitle.textContent = 'Pedidos';
     loadPedidos();
   }
 }
 
 async function initAdmin() {
   // Load dashboard first (default view)
+  initDashboardControls();
   try { await loadDashboard(); } catch (e) { console.error('Dashboard init error', e); }
 
   // Setup pedidos filters
@@ -1502,127 +1505,427 @@ function fmtNum(n) {
   return Number(n || 0).toLocaleString('es-CO');
 }
 
+function fmtPct(n, digits = 1) {
+  return Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: digits, minimumFractionDigits: digits }) + ' %';
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Solo permite enlaces http(s) o relativos (evita javascript: en URLs guardadas)
+function safeUrl(u) {
+  const s = String(u ?? '').trim();
+  return /^(https?:\/\/|\/)/i.test(s) ? s : '#';
+}
+
+// Paleta validada (CVD-safe) — el color sigue a la entidad, nunca al ranking
+const DASH_COLORS = { primary: '#0077B6', secondary: '#F28C30', tertiary: '#7C3AED' };
+const DEVICE_META = {
+  desktop: { label: 'Computador', color: DASH_COLORS.primary },
+  mobile: { label: 'Celular', color: DASH_COLORS.secondary },
+  tablet: { label: 'Tablet', color: DASH_COLORS.tertiary }
+};
+const MEDIUM_LABELS = {
+  'directo': 'Directo', 'orgánico': 'Búsqueda orgánica', 'social': 'Redes sociales', 'referido': 'Otros sitios',
+  'pagado': 'Publicidad pagada', 'email': 'Email', 'interno': 'Navegación interna', '(no definido)': 'Campaña (sin medio)'
+};
+const DASH_TZ_OFFSET_MS = -5 * 3600 * 1000; // Colombia
+
+function localToday() {
+  return new Date(Date.now() + DASH_TZ_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function addDays(ymd, n) {
+  const d = new Date(ymd + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function presetRange(preset) {
+  const today = localToday();
+  const [y, m] = today.split('-').map(Number);
+  const pad = (n) => String(n).padStart(2, '0');
+  switch (preset) {
+    case 'today': return { from: today, to: today };
+    case 'yesterday': { const d = addDays(today, -1); return { from: d, to: d }; }
+    case '7': return { from: addDays(today, -6), to: today };
+    case '90': return { from: addDays(today, -89), to: today };
+    case 'month': return { from: `${y}-${pad(m)}-01`, to: today };
+    case 'lastmonth': {
+      const firstThis = `${y}-${pad(m)}-01`;
+      const lastPrev = addDays(firstThis, -1);
+      return { from: lastPrev.slice(0, 8) + '01', to: lastPrev };
+    }
+    case 'year': return { from: `${y}-01-01`, to: today };
+    default: return { from: addDays(today, -29), to: today };
+  }
+}
+
+function fmtDayLabel(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+// Variación vs periodo anterior. higherIsBetter=false para métricas como la tasa de rebote.
+function deltaHtml(cur, prev, { higherIsBetter = true, points = false } = {}) {
+  cur = Number(cur || 0); prev = Number(prev || 0);
+  if (!prev && !cur) return '<span class="dash-delta is-flat">—</span>';
+  if (!prev) return '<span class="dash-delta is-good">▲ nuevo</span>';
+  const diff = points ? cur - prev : ((cur - prev) / prev) * 100;
+  if (Math.abs(diff) < 0.05) return '<span class="dash-delta is-flat">= igual</span>';
+  const up = diff > 0;
+  const good = up === higherIsBetter;
+  const txt = points
+    ? `${Math.abs(diff).toLocaleString('es-CO', { maximumFractionDigits: 1 })} pts`
+    : `${Math.abs(diff).toLocaleString('es-CO', { maximumFractionDigits: 1 })} %`;
+  return `<span class="dash-delta ${good ? 'is-good' : 'is-bad'}">${up ? '▲' : '▼'} ${txt}</span>`;
+}
+
+function emptyMsg(text = 'Sin datos en este periodo') {
+  return `<p class="dash-empty">${text}</p>`;
+}
+
+// rows === null: no muestra nada (evita repetir el mensaje de vacío en una misma tarjeta)
+function renderTable(elId, rows, columns, emptyText, { cards = false } = {}) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (rows === null) { el.innerHTML = ''; return; }
+  if (!rows || !rows.length) { el.innerHTML = emptyMsg(emptyText); return; }
+  const head = columns.map(c => `<th class="${c.num ? 'num' : ''}">${c.label}</th>`).join('');
+  const body = rows.map(r => `<tr>${columns.map(c => {
+    const v = c.render ? c.render(r) : escHtml(r[c.key]);
+    return `<td class="${c.num ? 'num' : ''} ${c.cls || ''}">${v}</td>`;
+  }).join('')}</tr>`).join('');
+  el.innerHTML = `<table class="admin-table${cards ? '' : ' admin-table--compact'}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+// Rellena días sin datos con 0; si el rango es largo, agrupa por mes
+function buildSeries(range, rows, fields) {
+  const byDay = new Map(rows.map(r => [r.dia, r]));
+  const points = [];
+  for (let d = range.from; d <= range.to; d = addDays(d, 1)) {
+    const r = byDay.get(d) || {};
+    points.push({ key: d, ...Object.fromEntries(fields.map(f => [f, Number(r[f] || 0)])) });
+  }
+  if (range.days <= 92) {
+    return {
+      labels: points.map(p => new Date(p.key + 'T00:00:00Z').toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' })),
+      points
+    };
+  }
+  const byMonth = new Map();
+  for (const p of points) {
+    const k = p.key.slice(0, 7);
+    const acc = byMonth.get(k) || { key: k, ...Object.fromEntries(fields.map(f => [f, 0])) };
+    fields.forEach(f => { acc[f] += p[f]; });
+    byMonth.set(k, acc);
+  }
+  const months = [...byMonth.values()];
+  return {
+    labels: months.map(m => new Date(m.key + '-01T00:00:00Z').toLocaleDateString('es-CO', { month: 'short', year: 'numeric', timeZone: 'UTC' })),
+    points: months
+  };
+}
+
+// Tipografía y leyendas de Chart.js alineadas con el panel
+const CHART_FONT = "'Inter', 'Roboto', 'Outfit', sans-serif";
+const chartLegend = (position = 'top') => ({
+  display: true, position, align: position === 'top' ? 'end' : 'center',
+  labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14, color: '#1e293b', font: { family: CHART_FONT, size: 12 } }
+});
+const chartTooltip = {
+  backgroundColor: '#1e293b', padding: 10, cornerRadius: 8, boxPadding: 4, usePointStyle: true,
+  titleFont: { family: CHART_FONT, size: 12, weight: '600' }, bodyFont: { family: CHART_FONT, size: 12 }
+};
+function fmtCOPCompact(n) {
+  return '$ ' + Number(n || 0).toLocaleString('es-CO', { notation: 'compact', maximumFractionDigits: 1 });
+}
+if (window.Chart) {
+  Chart.defaults.font.family = CHART_FONT;
+  Chart.defaults.color = '#64748b';
+}
+
+const chartBaseOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index', intersect: false },
+  plugins: { legend: { display: false }, tooltip: chartTooltip },
+  scales: {
+    x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 0, autoSkipPadding: 12 } },
+    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.06)' }, border: { display: false }, ticks: { color: '#64748b', precision: 0 } }
+  }
+};
+
+let dashState = { preset: '30', from: null, to: null };
+
+function currentDashRange() {
+  if (dashState.preset === 'custom' && dashState.from && dashState.to) return { from: dashState.from, to: dashState.to };
+  return presetRange(dashState.preset);
+}
+
 async function loadDashboard() {
   try {
-    const r = await fetch('/api/admin/dashboard', { credentials: 'same-origin', cache: 'no-store' });
+    const { from, to } = currentDashRange();
+    // Espera la fuente del panel para que Chart.js mida bien las etiquetas
+    try { await document.fonts?.ready; } catch { /* ignore */ }
+    const r = await fetch(`/api/admin/dashboard?from=${from}&to=${to}`, { credentials: 'same-origin', cache: 'no-store' });
     if (!r.ok) throw new Error('Error cargando dashboard');
     const data = await r.json();
-    const k = data.kpis || {};
-
-    // KPIs
     const el = (id) => document.getElementById(id);
-    el('kpi-total-pedidos').textContent = fmtNum(k.total_pedidos);
-    el('kpi-aprobados').textContent = fmtNum(k.pedidos_aprobados);
-    el('kpi-ingresos').textContent = fmtCOP(k.ingresos_totales);
-    el('kpi-visitas').textContent = fmtNum(k.total_views);
-    el('kpi-contactos').textContent = fmtNum(k.total_contacts);
+    const setKpi = (id, value, sub) => { el(id).textContent = value; el(id + '-sub').innerHTML = sub; };
 
-    const COLORS = ['#009FE3', '#F28C30', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#84cc16', '#f43f5e', '#6366f1'];
+    el('dash-compare').textContent =
+      `${fmtDayLabel(data.range.from)} – ${fmtDayLabel(data.range.to)} · comparado con ${fmtDayLabel(data.prevRange.from)} – ${fmtDayLabel(data.prevRange.to)}`;
 
-    // Chart: Visitas por dia
+    // KPIs de tráfico
+    const t = data.traffic, tp = data.trafficPrev;
+    const bounce = t.sessions ? (t.bounces / t.sessions) * 100 : 0;
+    const bouncePrev = tp.sessions ? (tp.bounces / tp.sessions) * 100 : 0;
+    const pps = t.sessions ? t.pageviews / t.sessions : 0;
+    const ppsPrev = tp.sessions ? tp.pageviews / tp.sessions : 0;
+    setKpi('kpi-visitantes', fmtNum(t.visitors), `${deltaHtml(t.visitors, tp.visitors)} · ${fmtNum(t.new_visitors)} nuevos`);
+    setKpi('kpi-sesiones', fmtNum(t.sessions), deltaHtml(t.sessions, tp.sessions));
+    setKpi('kpi-paginas', fmtNum(t.pageviews), deltaHtml(t.pageviews, tp.pageviews));
+    setKpi('kpi-pps', pps.toLocaleString('es-CO', { maximumFractionDigits: 2 }), deltaHtml(pps, ppsPrev));
+    setKpi('kpi-rebote', fmtPct(bounce), deltaHtml(bounce, bouncePrev, { higherIsBetter: false, points: true }));
+
+    // KPIs de ventas (solo pagos aprobados cuentan como ingreso)
+    const s = data.sales, sp = data.salesPrev;
+    const conv = t.sessions ? (s.aprobados / t.sessions) * 100 : 0;
+    const convPrev = tp.sessions ? (sp.aprobados / tp.sessions) * 100 : 0;
+    const ticket = s.aprobados ? s.ingresos / s.aprobados : 0;
+    const ticketPrev = sp.aprobados ? sp.ingresos / sp.aprobados : 0;
+    setKpi('kpi-ingresos', fmtCOP(s.ingresos), deltaHtml(s.ingresos, sp.ingresos));
+    setKpi('kpi-aprobados', fmtNum(s.aprobados), `${deltaHtml(s.aprobados, sp.aprobados)} · de ${fmtNum(s.pedidos)} creados`);
+    setKpi('kpi-conversion', fmtPct(conv, 2), deltaHtml(conv, convPrev, { points: true }));
+    setKpi('kpi-ticket', fmtCOP(ticket), deltaHtml(ticket, ticketPrev));
+    setKpi('kpi-contactos', fmtNum(s.contactos), deltaHtml(s.contactos, sp.contactos));
+
+    // Gráfica: visitantes y sesiones
     destroyChart('chart-visitas');
-    const ctxV = el('chart-visitas');
-    if (ctxV && data.visitasPorDia) {
-      chartInstances['chart-visitas'] = new Chart(ctxV, {
-        type: 'line',
+    const traffic = buildSeries(data.range, data.porDia || [], ['visitors', 'sessions', 'pageviews']);
+    el('chart-visitas').parentElement.querySelector('.dash-empty')?.remove();
+    if (!traffic.points.some(p => p.sessions > 0)) showCanvasEmpty('chart-visitas');
+    else chartInstances['chart-visitas'] = new Chart(el('chart-visitas'), {
+      type: 'line',
+      data: {
+        labels: traffic.labels,
+        datasets: [
+          { label: 'Visitantes', data: traffic.points.map(p => p.visitors), borderColor: DASH_COLORS.primary, backgroundColor: DASH_COLORS.primary, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.3 },
+          { label: 'Sesiones', data: traffic.points.map(p => p.sessions), borderColor: DASH_COLORS.secondary, backgroundColor: DASH_COLORS.secondary, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.3 }
+        ]
+      },
+      options: { ...chartBaseOptions, plugins: { legend: chartLegend('top'), tooltip: chartTooltip } }
+    });
+
+    // Gráfica: canales (sin navegación interna)
+    destroyChart('chart-canales');
+    const canales = (data.canales || []).filter(c => c.medium !== 'interno');
+    if (canales.length) {
+      el('chart-canales').parentElement.querySelector('.dash-empty')?.remove();
+      chartInstances['chart-canales'] = new Chart(el('chart-canales'), {
+        type: 'bar',
         data: {
-          labels: data.visitasPorDia.map(d => d.dia?.slice(5) || ''),
-          datasets: [{
-            label: 'Visitas',
-            data: data.visitasPorDia.map(d => d.views),
-            borderColor: '#009FE3',
-            backgroundColor: 'rgba(0,159,227,0.1)',
-            fill: true,
-            tension: 0.3
-          }]
+          labels: canales.map(c => MEDIUM_LABELS[c.medium] || c.medium),
+          datasets: [{ label: 'Sesiones', data: canales.map(c => c.sessions), backgroundColor: DASH_COLORS.primary, borderRadius: 4, barThickness: 18 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: { ...chartBaseOptions, indexAxis: 'y', interaction: { mode: 'nearest', axis: 'y', intersect: false },
+          scales: { x: { ...chartBaseOptions.scales.y }, y: { grid: { display: false }, ticks: { color: '#1e293b' } } } }
       });
+    } else {
+      showCanvasEmpty('chart-canales');
     }
 
-    // Chart: Ventas por mes
+    // Gráfica: ingresos
     destroyChart('chart-ventas');
-    const ctxS = el('chart-ventas');
-    if (ctxS && data.ventasPorMes) {
-      chartInstances['chart-ventas'] = new Chart(ctxS, {
+    const ventas = buildSeries(data.range, data.ventasPorDia || [], ['ingresos', 'pedidos']);
+    if (ventas.points.some(p => p.ingresos > 0)) {
+      el('chart-ventas').parentElement.querySelector('.dash-empty')?.remove();
+      chartInstances['chart-ventas'] = new Chart(el('chart-ventas'), {
         type: 'bar',
         data: {
-          labels: data.ventasPorMes.map(d => d.mes || ''),
-          datasets: [{
-            label: 'Ingresos',
-            data: data.ventasPorMes.map(d => d.ingresos),
-            backgroundColor: COLORS.slice(0, data.ventasPorMes.length)
-          }]
+          labels: ventas.labels,
+          datasets: [{ label: 'Ingresos', data: ventas.points.map(p => p.ingresos), backgroundColor: DASH_COLORS.primary, borderRadius: 4, maxBarThickness: 28 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: {
+          ...chartBaseOptions,
+          plugins: { legend: { display: false }, tooltip: { ...chartTooltip, callbacks: {
+            label: (ctx) => `${fmtCOP(ctx.parsed.y)} · ${fmtNum(ventas.points[ctx.dataIndex].pedidos)} pedidos`
+          } } },
+          scales: { ...chartBaseOptions.scales, y: { ...chartBaseOptions.scales.y, ticks: { color: '#64748b', callback: (v) => fmtCOPCompact(v) } } }
+        }
       });
+    } else {
+      showCanvasEmpty('chart-ventas', 'Sin ventas aprobadas en este periodo');
     }
 
-    // Chart: Top vendidos
-    destroyChart('chart-top-vendidos');
-    const ctxTV = el('chart-top-vendidos');
-    if (ctxTV && data.topVendidos && data.topVendidos.length) {
-      chartInstances['chart-top-vendidos'] = new Chart(ctxTV, {
-        type: 'bar',
+    // Embudo
+    renderFunnel(data.embudo || {});
+
+    // Fuentes
+    renderTable('table-fuentes', (data.fuentes || []).filter(f => f.medium !== 'interno'), [
+      { label: 'Fuente', render: r => `<strong>${escHtml(r.source)}</strong><span class="dash-sub">${escHtml(MEDIUM_LABELS[r.medium] || r.medium)}</span>` },
+      { label: 'Sesiones', num: true, render: r => fmtNum(r.sessions) },
+      { label: 'Rebote', num: true, render: r => fmtPct(r.sessions ? (r.bounces / r.sessions) * 100 : 0, 0) }
+    ]);
+
+    // Dispositivos
+    destroyChart('chart-dispositivos');
+    const disp = data.dispositivos || [];
+    if (disp.length) {
+      el('chart-dispositivos').parentElement.querySelector('.dash-empty')?.remove();
+      const totalDisp = disp.reduce((a, d) => a + d.sessions, 0);
+      chartInstances['chart-dispositivos'] = new Chart(el('chart-dispositivos'), {
+        type: 'doughnut',
         data: {
-          labels: data.topVendidos.map(d => (d.product_name || '').slice(0, 25)),
-          datasets: [{
-            label: 'Unidades vendidas',
-            data: data.topVendidos.map(d => d.total_qty),
-            backgroundColor: COLORS.slice(0, data.topVendidos.length)
-          }]
+          labels: disp.map(d => `${(DEVICE_META[d.device]?.label || d.device)} · ${fmtPct((d.sessions / totalDisp) * 100, 0)}`),
+          datasets: [{ data: disp.map(d => d.sessions), backgroundColor: disp.map(d => DEVICE_META[d.device]?.color || '#94a3b8'), borderColor: '#fff', borderWidth: 2 }]
         },
-        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+        options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
+          plugins: { legend: chartLegend('right'), tooltip: chartTooltip } }
       });
-    } else if (ctxTV) {
-      ctxTV.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
+    } else {
+      showCanvasEmpty('chart-dispositivos');
     }
+    renderTable('table-navegadores', data.navegadores?.length ? data.navegadores : null, [
+      { label: 'Navegador', key: 'browser' },
+      { label: 'Sesiones', num: true, render: r => fmtNum(r.sessions) }
+    ]);
 
-    // Chart: Top vistos
-    destroyChart('chart-top-vistos');
-    const ctxTVi = el('chart-top-vistos');
-    if (ctxTVi && data.topVistos && data.topVistos.length) {
-      chartInstances['chart-top-vistos'] = new Chart(ctxTVi, {
-        type: 'bar',
-        data: {
-          labels: data.topVistos.map(d => (d.product_name || 'ID:' + d.product_id).slice(0, 25)),
-          datasets: [{
-            label: 'Visitas',
-            data: data.topVistos.map(d => d.views),
-            backgroundColor: COLORS.slice(0, data.topVistos.length)
-          }]
-        },
-        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
-      });
-    } else if (ctxTVi) {
-      ctxTVi.parentElement.innerHTML += '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
-    }
+    // Páginas y productos
+    renderTable('table-paginas', data.topPaginas, [
+      { label: 'Página', cls: 'path', render: r => `<span title="${escHtml(r.path)}">${escHtml(r.path || '/')}</span>` },
+      { label: 'Vistas', num: true, render: r => fmtNum(r.pageviews) },
+      { label: 'Visitantes', num: true, render: r => fmtNum(r.visitors) }
+    ]);
+    renderTable('table-top-vistos', data.topVistos, [
+      { label: 'Producto', cls: 'path', render: r => escHtml(r.product_name || 'ID ' + r.product_id) },
+      { label: 'Vistas', num: true, render: r => fmtNum(r.views) },
+      { label: 'Visitantes', num: true, render: r => fmtNum(r.visitors) }
+    ]);
+    renderTable('table-top-vendidos', data.topVendidos, [
+      { label: 'Producto', cls: 'path', render: r => escHtml(r.product_name || r.product_sku || '') },
+      { label: 'Unidades', num: true, render: r => fmtNum(r.total_qty) },
+      { label: 'Ingresos', num: true, render: r => fmtCOP(r.total_revenue) }
+    ], 'Sin ventas aprobadas en este periodo');
 
-    // Table: Top paises
-    const paisesEl = el('table-paises');
-    if (paisesEl && data.topPaises) {
-      paisesEl.innerHTML = data.topPaises.length ? `<table class="admin-table"><thead><tr><th>País</th><th>Visitas</th></tr></thead><tbody>${data.topPaises.map(p => `<tr><td>${p.country}</td><td>${fmtNum(p.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
-    }
+    // Geografía
+    renderTable('table-paises', data.topPaises, [
+      { label: 'País', key: 'country' },
+      { label: 'Visitantes', num: true, render: r => fmtNum(r.visitors) },
+      { label: 'Vistas', num: true, render: r => fmtNum(r.views) }
+    ]);
+    renderTable('table-ciudades', data.topCiudades, [
+      { label: 'Ciudad', key: 'city' },
+      { label: 'País', key: 'country' },
+      { label: 'Visitantes', num: true, render: r => fmtNum(r.visitors) }
+    ]);
 
-    // Table: Top ciudades
-    const ciudadesEl = el('table-ciudades');
-    if (ciudadesEl && data.topCiudades) {
-      ciudadesEl.innerHTML = data.topCiudades.length ? `<table class="admin-table"><thead><tr><th>Ciudad</th><th>País</th><th>Visitas</th></tr></thead><tbody>${data.topCiudades.map(c => `<tr><td>${c.city}</td><td>${c.country}</td><td>${fmtNum(c.views)}</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--admin-text-muted);text-align:center;">Sin datos aún</p>';
-    }
+    // Pedidos recientes (no dependen del periodo)
+    renderTable('dash-pedidos-recientes', data.pedidosRecientes, [
+      { label: '#', render: p => '#' + escHtml(p.id) },
+      { label: 'Cliente', key: 'name' },
+      { label: 'Total', num: true, render: p => fmtCOP(p.total_value) },
+      { label: 'Estado', render: p => renderStatusBadge(p.payment_status) },
+      { label: 'Fecha', render: p => formatDate(p.createdAt) }
+    ], 'No hay pedidos aún.', { cards: true });
 
-    // Recent orders
-    const recentEl = el('dash-pedidos-recientes');
-    if (recentEl && data.pedidosRecientes) {
-      if (!data.pedidosRecientes.length) {
-        recentEl.innerHTML = '<p style="color:var(--admin-text-muted);">No hay pedidos aún.</p>';
-      } else {
-        recentEl.innerHTML = `<table class="admin-table"><thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>${data.pedidosRecientes.map(p => `<tr><td>${p.id}</td><td>${p.name || ''}</td><td>${fmtCOP(p.total_value)}</td><td>${renderStatusBadge(p.payment_status)}</td><td>${formatDate(p.createdAt)}</td></tr>`).join('')}</tbody></table>`;
-      }
-    }
-
+    loadRealtime();
+    startRealtimePolling();
   } catch (e) {
     console.error('loadDashboard error', e);
   }
+}
+
+function showCanvasEmpty(canvasId, text) {
+  const wrap = document.getElementById(canvasId)?.parentElement;
+  if (wrap && !wrap.querySelector('.dash-empty')) wrap.insertAdjacentHTML('beforeend', emptyMsg(text));
+}
+
+function renderFunnel(f) {
+  const el = document.getElementById('dash-embudo');
+  if (!el) return;
+  const steps = [
+    { label: 'Sesiones', value: f.sesiones },
+    { label: 'Vieron un producto', value: f.producto },
+    { label: 'Fueron al carrito', value: f.carrito },
+    { label: 'Iniciaron checkout', value: f.checkout },
+    { label: 'Crearon pedido', value: f.pedidos },
+    { label: 'Pago aprobado', value: f.aprobados }
+  ].map(s => ({ ...s, value: Number(s.value || 0) }));
+  const top = steps[0].value;
+  if (!top) { el.innerHTML = emptyMsg(); return; }
+  el.innerHTML = `<div class="dash-funnel">${steps.map((s, i) => {
+    const pctTop = (s.value / top) * 100;
+    const prev = i ? steps[i - 1].value : 0;
+    const stepPct = i ? (prev ? fmtPct((s.value / prev) * 100, 0) : '—') : '100 %';
+    return `<div class="dash-funnel-step">
+      <span>${s.label}</span>
+      <div class="dash-funnel-bar" role="img" aria-label="${s.label}: ${fmtPct(pctTop)} de las sesiones"><div class="dash-funnel-fill" style="width:${Math.min(100, pctTop)}%"></div></div>
+      <span class="dash-funnel-val"><strong>${fmtNum(s.value)}</strong><small>${stepPct}</small></span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// Tiempo real: se actualiza cada 30 s mientras el dashboard está visible
+let realtimeTimer = null;
+
+async function loadRealtime() {
+  try {
+    const r = await fetch('/api/admin/realtime', { credentials: 'same-origin', cache: 'no-store' });
+    if (!r.ok) return;
+    const data = await r.json();
+    document.getElementById('dash-live-count').textContent = fmtNum(data.active);
+    renderTable('table-realtime', data.pages, [
+      { label: 'Página', cls: 'path', render: p => escHtml(p.path || '/') },
+      { label: 'Visitantes', num: true, render: p => fmtNum(p.visitors) }
+    ], 'Nadie navegando en este momento');
+  } catch { /* silent */ }
+}
+
+function startRealtimePolling() {
+  if (realtimeTimer) return;
+  realtimeTimer = setInterval(() => {
+    const view = document.getElementById('view-dashboard');
+    if (document.hidden || !view?.classList.contains('active')) return;
+    loadRealtime();
+  }, 30000);
+}
+
+function initDashboardControls() {
+  const sel = document.getElementById('dash-range');
+  const custom = document.getElementById('dash-custom');
+  const fromEl = document.getElementById('dash-from');
+  const toEl = document.getElementById('dash-to');
+  if (!sel) return;
+  let saved = null;
+  try { saved = localStorage.getItem('dash-range'); } catch { /* ignore */ }
+  if (saved && saved !== 'custom' && sel.querySelector(`option[value="${saved}"]`)) {
+    sel.value = saved; dashState.preset = saved;
+  }
+  const today = localToday();
+  fromEl.max = today; toEl.max = today;
+  sel.addEventListener('change', () => {
+    dashState.preset = sel.value;
+    if (sel.value === 'custom') {
+      const r = presetRange('30');
+      fromEl.value = fromEl.value || r.from;
+      toEl.value = toEl.value || r.to;
+      custom.hidden = false;
+      fromEl.focus();
+      return;
+    }
+    custom.hidden = true;
+    try { localStorage.setItem('dash-range', sel.value); } catch { /* ignore */ }
+    loadDashboard();
+  });
+  document.getElementById('dash-apply').addEventListener('click', () => {
+    if (!fromEl.value || !toEl.value) return;
+    dashState.from = fromEl.value <= toEl.value ? fromEl.value : toEl.value;
+    dashState.to = fromEl.value <= toEl.value ? toEl.value : fromEl.value;
+    loadDashboard();
+  });
 }
 
 function renderStatusBadge(status) {
@@ -1675,9 +1978,9 @@ async function loadPedidos(page) {
       tbody.innerHTML = data.data.map(p => `
         <tr>
           <td><strong>#${p.id}</strong></td>
-          <td>${p.name || ''}<br><small style="color:var(--admin-text-muted);">NIT: ${p.nit_id || ''}</small></td>
-          <td>${p.email || ''}</td>
-          <td>${p.city || ''}</td>
+          <td>${escHtml(p.name)}<br><small style="color:var(--admin-text-muted);">NIT: ${escHtml(p.nit_id)}</small></td>
+          <td>${escHtml(p.email)}</td>
+          <td>${escHtml(p.city)}</td>
           <td>${fmtCOP(p.total_value)}</td>
           <td>${p.bono_id ? `<span style="color:#16a34a;font-weight:700;" title="Descuento: ${fmtCOP(p.descuento_valor)} (${p.descuento_porcentaje}%)">🎉 -${p.descuento_porcentaje}%</span>` : '—'}</td>
           <td>${renderStatusBadge(p.payment_status)}</td>
@@ -1728,7 +2031,7 @@ window.__viewPedido = async (id) => {
     const itemsHtml = items.length ? `
       <table class="admin-table" style="margin-top:16px;">
         <thead><tr><th>Producto</th><th>SKU</th><th>Precio Unit.</th><th>Cant.</th><th>Subtotal</th></tr></thead>
-        <tbody>${items.map(i => `<tr><td>${i.product_name || ''}</td><td>${i.product_sku || ''}</td><td>${fmtCOP(i.price_unit)}</td><td>${i.quantity}</td><td>${fmtCOP(i.subtotal)}</td></tr>`).join('')}</tbody>
+        <tbody>${items.map(i => `<tr><td>${escHtml(i.product_name)}</td><td>${escHtml(i.product_sku)}</td><td>${fmtCOP(i.price_unit)}</td><td>${i.quantity}</td><td>${fmtCOP(i.subtotal)}</td></tr>`).join('')}</tbody>
       </table>` : '<p style="color:var(--admin-text-muted);margin-top:16px;">No se registraron productos para este pedido (pedido anterior al sistema de items).</p>';
 
     body.innerHTML = `
@@ -1737,20 +2040,20 @@ window.__viewPedido = async (id) => {
           <h4>Información del Pedido</h4>
           <div class="pedido-detail-row"><strong>Pedido #:</strong> ${p.id}</div>
           <div class="pedido-detail-row"><strong>Estado:</strong> ${renderStatusBadge(p.payment_status)}</div>
-          <div class="pedido-detail-row"><strong>ID Wompi:</strong> ${p.id_wompi || 'N/A'}</div>
-          <div class="pedido-detail-row"><strong>Método de Pago:</strong> ${p.payment_method || 'N/A'}</div>
+          <div class="pedido-detail-row"><strong>ID Wompi:</strong> ${escHtml(p.id_wompi || 'N/A')}</div>
+          <div class="pedido-detail-row"><strong>Método de Pago:</strong> ${escHtml(p.payment_method || 'N/A')}</div>
           <div class="pedido-detail-row"><strong>Fecha:</strong> ${formatDate(p.createdAt)}</div>
           ${p.updatedAt ? `<div class="pedido-detail-row"><strong>Actualizado:</strong> ${formatDate(p.updatedAt)}</div>` : ''}
         </div>
         <div class="pedido-detail-section">
           <h4>Datos del Cliente</h4>
-          <div class="pedido-detail-row"><strong>Nombre:</strong> ${p.name || ''}</div>
-          <div class="pedido-detail-row"><strong>NIT/Cédula:</strong> ${p.nit_id || ''}</div>
-          <div class="pedido-detail-row"><strong>Email:</strong> ${p.email || ''}</div>
-          <div class="pedido-detail-row"><strong>Teléfono:</strong> ${p.phone || ''}</div>
-          <div class="pedido-detail-row"><strong>Dirección:</strong> ${p.address || ''}</div>
-          <div class="pedido-detail-row"><strong>Ciudad:</strong> ${p.city || ''}</div>
-          ${p.notes ? `<div class="pedido-detail-row"><strong>Notas:</strong> ${p.notes}</div>` : ''}
+          <div class="pedido-detail-row"><strong>Nombre:</strong> ${escHtml(p.name)}</div>
+          <div class="pedido-detail-row"><strong>NIT/Cédula:</strong> ${escHtml(p.nit_id)}</div>
+          <div class="pedido-detail-row"><strong>Email:</strong> ${escHtml(p.email)}</div>
+          <div class="pedido-detail-row"><strong>Teléfono:</strong> ${escHtml(p.phone)}</div>
+          <div class="pedido-detail-row"><strong>Dirección:</strong> ${escHtml(p.address)}</div>
+          <div class="pedido-detail-row"><strong>Ciudad:</strong> ${escHtml(p.city)}</div>
+          ${p.notes ? `<div class="pedido-detail-row"><strong>Notas:</strong> ${escHtml(p.notes)}</div>` : ''}
         </div>
       </div>
       <div class="pedido-detail-section" style="margin-top:16px;">
@@ -1771,8 +2074,8 @@ window.__viewPedido = async (id) => {
         <h4>Documentos Legales ${p.documentos_verificados ? '<span class="admin-badge badge-success">Verificado</span>' : '<span class="admin-badge badge-warning">Pendiente de verificación</span>'}</h4>
         ${documentos.map(d => `
           <div class="pedido-detail-row" style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
-            <span><strong>${d.tipo === 'RUT' ? 'RUT' : 'Cámara de Comercio'}:</strong> ${d.filename || ''}</span>
-            <a href="${d.url}" target="_blank" rel="noopener" class="admin-btn-secondary admin-btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+            <span><strong>${d.tipo === 'RUT' ? 'RUT' : 'Cámara de Comercio'}:</strong> ${escHtml(d.filename)}</span>
+            <a href="${escHtml(safeUrl(d.url))}" target="_blank" rel="noopener" class="admin-btn-secondary admin-btn-sm" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               Descargar
             </a>
@@ -1837,15 +2140,15 @@ async function loadContacts(page) {
         try {
           const atts = typeof c.attachments === 'string' ? JSON.parse(c.attachments) : (c.attachments || []);
           if (Array.isArray(atts) && atts.length) {
-            attachHtml = atts.map(a => `<a href="${a.url || a}" target="_blank" style="color:var(--admin-kos-blue);font-size:0.8rem;">${a.name || 'Archivo'}</a>`).join(', ');
+            attachHtml = atts.map(a => `<a href="${escHtml(safeUrl(a.url || a))}" target="_blank" rel="noopener" style="color:var(--admin-kos-blue);font-size:0.8rem;">${escHtml(a.name || 'Archivo')}</a>`).join(', ');
           }
         } catch { }
         return `<tr>
-          <td>${c.id}</td>
-          <td>${c.name || ''}</td>
-          <td><a href="mailto:${c.email || ''}">${c.email || ''}</a></td>
-          <td>${c.phone || ''}</td>
-          <td title="${(c.message || '').replace(/"/g, '&quot;')}" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${msg}</td>
+          <td>#${c.id}</td>
+          <td>${escHtml(c.name)}</td>
+          <td><a href="mailto:${encodeURIComponent(c.email || '')}">${escHtml(c.email)}</a></td>
+          <td>${escHtml(c.phone)}</td>
+          <td title="${escHtml(c.message)}" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(msg)}</td>
           <td>${attachHtml || '-'}</td>
           <td>${formatDate(c.createdAt)}</td>
         </tr>`;
@@ -2342,3 +2645,64 @@ function renderCtNewPreview(files) {
 }
 
 window.__loadContactsPage = (p) => loadContacts(p);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Móvil: menú lateral desplegable y tablas como tarjetas
+// ═══════════════════════════════════════════════════════════════════════════════
+(function initMobileNav() {
+  const toggle = document.getElementById('admin-menu-toggle');
+  const sidebar = document.getElementById('admin-sidebar');
+  const overlay = document.getElementById('admin-nav-overlay');
+  const title = document.getElementById('admin-mobilebar-title');
+  if (!toggle || !sidebar || !overlay) return;
+  const mq = window.matchMedia('(max-width: 768px)');
+
+  function setOpen(open) {
+    sidebar.classList.toggle('is-open', open);
+    overlay.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+    if (open) sidebar.querySelector('.admin-nav-item.active, .admin-nav-item')?.focus();
+    else if (sidebar.contains(document.activeElement)) toggle.focus();
+  }
+
+  toggle.addEventListener('click', () => setOpen(!sidebar.classList.contains('is-open')));
+  overlay.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sidebar.classList.contains('is-open')) setOpen(false);
+  });
+  sidebar.querySelectorAll('button.admin-nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (title) title.textContent = btn.querySelector('span')?.textContent || '';
+      if (mq.matches) setOpen(false);
+    });
+  });
+  mq.addEventListener?.('change', (e) => { if (!e.matches) setOpen(false); });
+})();
+
+// Copia el encabezado de cada columna a sus celdas (data-label) para la vista en tarjetas
+function labelTableCells(root) {
+  root.querySelectorAll('table.admin-table').forEach(table => {
+    const heads = [...table.querySelectorAll('thead th')].map(th => th.textContent.trim());
+    if (!heads.length) return;
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      [...tr.children].forEach((td, i) => {
+        if (td.hasAttribute('colspan')) return;
+        const label = heads[i] ?? '';
+        if (td.dataset.label !== label) td.dataset.label = label;
+      });
+    });
+  });
+}
+
+(function observeTables() {
+  const root = document.getElementById('admin-section');
+  if (!root) return;
+  let scheduled = false;
+  new MutationObserver(() => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => { scheduled = false; labelTableCells(root); });
+  }).observe(root, { childList: true, subtree: true });
+  labelTableCells(root);
+})();

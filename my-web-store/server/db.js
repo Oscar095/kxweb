@@ -467,6 +467,70 @@ async function ensureSchema() {
     END
   `);
 
+  // page_views: columnas de analítica (visitante, dispositivo, fuente, embudo, bots)
+  const pageViewCols = {
+    visitor_id: 'NVARCHAR(100) NULL',
+    page_type: 'NVARCHAR(20) NULL',
+    device: 'NVARCHAR(20) NULL',
+    browser: 'NVARCHAR(30) NULL',
+    os: 'NVARCHAR(30) NULL',
+    source: 'NVARCHAR(100) NULL',
+    medium: 'NVARCHAR(30) NULL',
+    utm_campaign: 'NVARCHAR(150) NULL',
+    is_bot: 'BIT NULL'
+  };
+  for (const [col, def] of Object.entries(pageViewCols)) {
+    await pool.request().query(`
+      IF COL_LENGTH('dbo.page_views','${col}') IS NULL
+      BEGIN
+        ALTER TABLE dbo.page_views ADD ${col} ${def};
+      END
+    `);
+  }
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_page_views_createdAt' AND object_id = OBJECT_ID('dbo.page_views'))
+    BEGIN
+      CREATE INDEX IX_page_views_createdAt ON dbo.page_views (createdAt) INCLUDE (session_id, visitor_id, is_bot);
+    END
+  `);
+  // Rellena filas antiguas (anteriores a estas columnas). Solo afecta filas con is_bot NULL.
+  await pool.request().query(`
+    UPDATE dbo.page_views SET
+      is_bot = CASE WHEN user_agent IS NULL OR user_agent = ''
+        OR user_agent LIKE '%bot%' OR user_agent LIKE '%crawl%' OR user_agent LIKE '%spider%'
+        OR user_agent LIKE '%slurp%' OR user_agent LIKE '%headless%' OR user_agent LIKE '%lighthouse%'
+        OR user_agent LIKE '%facebookexternalhit%' OR user_agent LIKE '%preview%' THEN 1 ELSE 0 END,
+      visitor_id = ISNULL(visitor_id, session_id),
+      device = ISNULL(device, CASE
+        WHEN user_agent LIKE '%iPad%' OR user_agent LIKE '%Tablet%' THEN 'tablet'
+        WHEN user_agent LIKE '%Mobi%' OR user_agent LIKE '%iPhone%' OR user_agent LIKE '%Android%' THEN 'mobile'
+        ELSE 'desktop' END),
+      page_type = ISNULL(page_type, CASE
+        WHEN product_id IS NOT NULL THEN 'product'
+        WHEN page LIKE '/cart%' OR page LIKE '/en/cart%' THEN 'cart'
+        WHEN page LIKE '/checkout%' OR page LIKE '/en/checkout%' THEN 'checkout'
+        WHEN page LIKE '/confirmacion%' OR page LIKE '/en/confirmation%' THEN 'confirmation'
+        ELSE 'page' END),
+      medium = ISNULL(medium, CASE
+        WHEN ISNULL(referrer,'') = '' THEN 'directo'
+        WHEN referrer LIKE '%google.%' OR referrer LIKE '%bing.%' OR referrer LIKE '%yahoo.%' OR referrer LIKE '%duckduckgo.%' THEN 'orgánico'
+        WHEN referrer LIKE '%facebook.%' OR referrer LIKE '%instagram.%' OR referrer LIKE '%t.co/%' OR referrer LIKE '%linkedin.%'
+          OR referrer LIKE '%tiktok.%' OR referrer LIKE '%youtube.%' OR referrer LIKE '%whatsapp.%' OR referrer LIKE '%wa.me%' THEN 'social'
+        ELSE 'referido' END),
+      source = ISNULL(source, CASE
+        WHEN ISNULL(referrer,'') = '' THEN '(directo)'
+        WHEN referrer LIKE '%google.%' THEN 'google'
+        WHEN referrer LIKE '%bing.%' THEN 'bing'
+        WHEN referrer LIKE '%facebook.%' THEN 'facebook'
+        WHEN referrer LIKE '%instagram.%' THEN 'instagram'
+        WHEN referrer LIKE '%linkedin.%' THEN 'linkedin'
+        WHEN referrer LIKE '%tiktok.%' THEN 'tiktok'
+        WHEN referrer LIKE '%youtube.%' THEN 'youtube'
+        WHEN referrer LIKE '%whatsapp.%' OR referrer LIKE '%wa.me%' THEN 'whatsapp'
+        ELSE NULL END)
+    WHERE is_bot IS NULL
+  `);
+
   // product_translations (English name/description overlay — additive, never touches dbo.products)
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[product_translations]') AND type in (N'U'))

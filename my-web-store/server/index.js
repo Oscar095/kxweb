@@ -2642,173 +2642,345 @@ app.get('/api/admin/contacts', requireAdmin, async (req, res) => {
 const geoCache = new Map();
 const GEO_CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
+const BOT_RE = /bot|crawl|spider|slurp|headless|lighthouse|facebookexternalhit|preview|monitor|curl|wget|python-requests|axios|node-fetch/i;
+const SEARCH_ENGINES = { google: 'google', bing: 'bing', yahoo: 'yahoo', duckduckgo: 'duckduckgo', ecosia: 'ecosia', yandex: 'yandex' };
+const SOCIAL_SITES = {
+  facebook: 'facebook', 'fb.me': 'facebook', instagram: 'instagram', 't.co': 'x', 'twitter': 'x', 'x.com': 'x',
+  linkedin: 'linkedin', 'lnkd.in': 'linkedin', tiktok: 'tiktok', youtube: 'youtube', 'youtu.be': 'youtube',
+  whatsapp: 'whatsapp', 'wa.me': 'whatsapp', pinterest: 'pinterest'
+};
+const PAID_MEDIUMS = /^(cpc|ppc|paid|paidsocial|paid_social|display|cpm|ads?)$/i;
+
+function parseUserAgent(ua) {
+  const isBot = !ua || BOT_RE.test(ua);
+  let device = 'desktop';
+  if (/iPad|Tablet|PlayBook|Silk/i.test(ua) || (/Android/i.test(ua) && !/Mobi/i.test(ua))) device = 'tablet';
+  else if (/Mobi|iPhone|iPod|Android/i.test(ua)) device = 'mobile';
+  let browser = 'Otro';
+  if (/Edg\//.test(ua)) browser = 'Edge';
+  else if (/OPR\/|Opera/.test(ua)) browser = 'Opera';
+  else if (/SamsungBrowser/.test(ua)) browser = 'Samsung Internet';
+  else if (/Chrome\/|CriOS/.test(ua)) browser = 'Chrome';
+  else if (/Firefox\/|FxiOS/.test(ua)) browser = 'Firefox';
+  else if (/Safari\//.test(ua)) browser = 'Safari';
+  let os = 'Otro';
+  if (/Windows/.test(ua)) os = 'Windows';
+  else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS';
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/Mac OS X/.test(ua)) os = 'macOS';
+  else if (/Linux/.test(ua)) os = 'Linux';
+  return { isBot, device, browser, os };
+}
+
+// Clasifica el origen del tráfico como GA: source (google, instagram, sitio.com…) + medium (canal)
+function classifySource({ referrer, utmSource, utmMedium, gclid, fbclid, ownHost }) {
+  if (utmSource) {
+    const medium = utmMedium ? (PAID_MEDIUMS.test(utmMedium) ? 'pagado' : utmMedium.toLowerCase()) : '(no definido)';
+    return { source: utmSource.toLowerCase().slice(0, 100), medium: medium.slice(0, 30) };
+  }
+  if (gclid) return { source: 'google', medium: 'pagado' };
+  if (!referrer) return { source: fbclid ? 'facebook' : '(directo)', medium: fbclid ? 'social' : 'directo' };
+  let host = '';
+  try { host = new URL(referrer).hostname.toLowerCase().replace(/^www\./, ''); } catch { return { source: '(directo)', medium: 'directo' }; }
+  if (ownHost && (host === ownHost || host.endsWith('.' + ownHost))) return { source: '(interno)', medium: 'interno' };
+  for (const [k, v] of Object.entries(SEARCH_ENGINES)) if (host.includes(k + '.')) return { source: v, medium: 'orgánico' };
+  for (const [k, v] of Object.entries(SOCIAL_SITES)) {
+    const hit = k.includes('.') ? (host === k || host.endsWith('.' + k)) : host.includes(k + '.');
+    if (hit) return { source: v, medium: 'social' };
+  }
+  if (/mail\./.test(host) || host.includes('outlook.')) return { source: host.slice(0, 100), medium: 'email' };
+  return { source: host.slice(0, 100), medium: 'referido' };
+}
+
+function classifyPage(pathname, productId) {
+  if (productId != null) return 'product';
+  if (/^\/(en\/)?cart/.test(pathname)) return 'cart';
+  if (/^\/(en\/)?checkout/.test(pathname)) return 'checkout';
+  if (/^\/(confirmacion|en\/confirmation)/.test(pathname)) return 'confirmation';
+  return 'page';
+}
+
+function clientIp(req) {
+  let ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  // Azure App Service añade el puerto a la IP (1.2.3.4:56789)
+  if (/^\d+\.\d+\.\d+\.\d+:\d+$/.test(ip)) ip = ip.split(':')[0];
+  if (ip.startsWith('::ffff:')) ip = ip.slice(7);
+  return ip.slice(0, 50);
+}
+
+async function geolocate(ip) {
+  if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) return {};
+  const cached = geoCache.get(ip);
+  if (cached && (Date.now() - cached.ts < GEO_CACHE_TTL)) return cached;
+  try {
+    const geoResp = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,regionName,city`, { timeout: 3000 });
+    if (geoResp.ok) {
+      const geo = await geoResp.json();
+      if (geo.status === 'success') {
+        const entry = { country: geo.country || null, city: geo.city || null, region: geo.regionName || null, ts: Date.now() };
+        geoCache.set(ip, entry);
+        return entry;
+      }
+    }
+  } catch { /* ignore geo errors */ }
+  return {};
+}
+
 app.post('/api/track', async (req, res) => {
+  // Responde de inmediato: el registro no debe frenar la navegación del visitante
+  res.status(204).end();
   try {
     const b = req.body || {};
     const page = String(b.page || '').slice(0, 500);
-    const productId = b.product_id != null ? Number(b.product_id) : null;
+    const productId = b.product_id != null && Number.isFinite(Number(b.product_id)) ? Number(b.product_id) : null;
     const sessionId = String(b.session_id || '').slice(0, 100);
+    const visitorId = String(b.visitor_id || b.session_id || '').slice(0, 100);
     const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
-    const referrer = String(b.referrer || req.headers.referer || '').slice(0, 500);
+    const referrer = String(b.referrer || '').slice(0, 500);
+    const utmCampaign = String(b.utm_campaign || '').slice(0, 150) || null;
 
-    // Get client IP
-    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim().slice(0, 50);
+    const { isBot, device, browser, os } = parseUserAgent(userAgent);
+    const ownHost = String(req.headers.host || '').split(':')[0].toLowerCase().replace(/^www\./, '');
+    const { source, medium } = classifySource({
+      referrer,
+      utmSource: String(b.utm_source || '').trim(),
+      utmMedium: String(b.utm_medium || '').trim(),
+      gclid: !!b.gclid,
+      fbclid: !!b.fbclid,
+      ownHost
+    });
+    const pageType = classifyPage(page.split('?')[0], productId);
 
-    // Geolocate IP (with cache)
-    let country = null, city = null, region = null;
-    if (ip && ip !== '127.0.0.1' && ip !== '::1' && !ip.startsWith('192.168.') && !ip.startsWith('10.')) {
-      const cached = geoCache.get(ip);
-      if (cached && (Date.now() - cached.ts < GEO_CACHE_TTL)) {
-        country = cached.country;
-        city = cached.city;
-        region = cached.region;
-      } else {
-        try {
-          const geoResp = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,regionName,city`, { timeout: 3000 });
-          if (geoResp.ok) {
-            const geo = await geoResp.json();
-            if (geo.status === 'success') {
-              country = geo.country || null;
-              city = geo.city || null;
-              region = geo.regionName || null;
-              geoCache.set(ip, { country, city, region, ts: Date.now() });
-            }
-          }
-        } catch { /* ignore geo errors */ }
-      }
-    }
+    const ip = clientIp(req);
+    const { country = null, city = null, region = null } = isBot ? {} : await geolocate(ip);
 
     await db.query(
-      `INSERT INTO dbo.page_views (page, product_id, session_id, ip, country, city, region, user_agent, referrer)
-       VALUES (@page, @productId, @sessionId, @ip, @country, @city, @region, @userAgent, @referrer)`,
-      { page, productId, sessionId, ip, country, city, region, userAgent, referrer }
+      `INSERT INTO dbo.page_views (page, product_id, session_id, visitor_id, ip, country, city, region, user_agent, referrer,
+         page_type, device, browser, os, source, medium, utm_campaign, is_bot)
+       VALUES (@page, @productId, @sessionId, @visitorId, @ip, @country, @city, @region, @userAgent, @referrer,
+         @pageType, @device, @browser, @os, @source, @medium, @utmCampaign, @isBot)`,
+      { page, productId, sessionId, visitorId, ip, country, city, region, userAgent, referrer,
+        pageType, device, browser, os, source, medium, utmCampaign, isBot: isBot ? 1 : 0 }
     );
-
-    res.json({ ok: true });
   } catch (e) {
     console.error('POST /api/track error', e);
-    res.status(500).json({ ok: false });
   }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ADMIN: Dashboard
+// ADMIN: Dashboard (analítica tipo Google Analytics)
 // ═══════════════════════════════════════════════════════════════════════════════
+// Las fechas se interpretan en hora de Colombia (UTC-5, sin horario de verano);
+// en la base todo se guarda en UTC.
+const TZ_OFFSET_HOURS = -5;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function parseDay(str) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(str || ''));
+  if (!m) return null;
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  return Number.isNaN(t) ? null : t;
+}
+
+// Devuelve { from, to } en UTC para el rango de días locales [fromDay, toDay] (ambos incluidos)
+function localRangeToUtc(fromDay, toDay) {
+  return {
+    from: new Date(fromDay - TZ_OFFSET_HOURS * 3600 * 1000),
+    to: new Date(toDay + DAY_MS - TZ_OFFSET_HOURS * 3600 * 1000)
+  };
+}
+
+const PV_RANGE = `createdAt >= @from AND createdAt < @to AND ISNULL(is_bot, 0) = 0`;
+const LOCAL_DAY = (col) => `CONVERT(char(10), DATEADD(HOUR, ${TZ_OFFSET_HOURS}, ${col}), 23)`;
+
+async function trafficTotals(range) {
+  const [t] = await db.query(`
+    SELECT COUNT(*) AS pageviews,
+      COUNT(DISTINCT session_id) AS sessions,
+      COUNT(DISTINCT ISNULL(visitor_id, session_id)) AS visitors
+    FROM dbo.page_views WHERE ${PV_RANGE}
+  `, range);
+  const [b] = await db.query(`
+    SELECT COUNT(*) AS bounces FROM (
+      SELECT session_id FROM dbo.page_views WHERE ${PV_RANGE}
+      GROUP BY session_id HAVING COUNT(*) = 1
+    ) x
+  `, range);
+  const [n] = await db.query(`
+    SELECT COUNT(*) AS new_visitors FROM (
+      SELECT ISNULL(visitor_id, session_id) AS v, MIN(createdAt) AS first_seen
+      FROM dbo.page_views WHERE ISNULL(is_bot, 0) = 0 AND createdAt < @to
+      GROUP BY ISNULL(visitor_id, session_id)
+    ) x WHERE first_seen >= @from
+  `, range);
+  return { ...t, bounces: b?.bounces || 0, new_visitors: n?.new_visitors || 0 };
+}
+
+async function salesTotals(range) {
+  const [p] = await db.query(`
+    SELECT COUNT(*) AS pedidos,
+      SUM(CASE WHEN payment_status = 'APPROVED' THEN 1 ELSE 0 END) AS aprobados,
+      ISNULL(SUM(CASE WHEN payment_status = 'APPROVED' THEN total_value ELSE 0 END), 0) AS ingresos
+    FROM dbo.pedidos WHERE createdAt >= @from AND createdAt < @to
+  `, range);
+  const [c] = await db.query(
+    'SELECT COUNT(*) AS contactos FROM dbo.contacts WHERE createdAt >= @from AND createdAt < @to', range);
+  return { pedidos: p?.pedidos || 0, aprobados: p?.aprobados || 0, ingresos: Number(p?.ingresos || 0), contactos: c?.contactos || 0 };
+}
+
 app.get('/api/admin/dashboard', requireFullAdmin, async (req, res) => {
   try {
-    // KPIs
-    const [pedidosStats] = await db.query(`
-      SELECT
-        COUNT(*) AS total_pedidos,
-        ISNULL(SUM(total_value), 0) AS ingresos_totales,
-        SUM(CASE WHEN ISNULL(payment_status,'') = 'APPROVED' THEN 1 ELSE 0 END) AS pedidos_aprobados,
-        SUM(CASE WHEN ISNULL(payment_status,'PENDING') = 'PENDING' OR payment_status IS NULL THEN 1 ELSE 0 END) AS pedidos_pendientes,
-        SUM(CASE WHEN payment_status = 'DECLINED' OR payment_status = 'ERROR' THEN 1 ELSE 0 END) AS pedidos_rechazados
-      FROM dbo.pedidos
-    `);
+    // Rango: ?from=YYYY-MM-DD&to=YYYY-MM-DD (hora Colombia). Por defecto, últimos 30 días.
+    const todayLocal = Math.floor((Date.now() + TZ_OFFSET_HOURS * 3600 * 1000) / DAY_MS) * DAY_MS;
+    let toDay = parseDay(req.query.to) ?? todayLocal;
+    let fromDay = parseDay(req.query.from) ?? (toDay - 29 * DAY_MS);
+    if (fromDay > toDay) [fromDay, toDay] = [toDay, fromDay];
+    if (toDay - fromDay > 730 * DAY_MS) fromDay = toDay - 730 * DAY_MS; // máximo 2 años
+    const days = Math.round((toDay - fromDay) / DAY_MS) + 1;
 
-    const [contactsStats] = await db.query('SELECT COUNT(*) AS total_contacts FROM dbo.contacts');
+    const range = localRangeToUtc(fromDay, toDay);
+    const prevRange = localRangeToUtc(fromDay - days * DAY_MS, fromDay - DAY_MS);
 
-    const [viewsStats] = await db.query('SELECT COUNT(*) AS total_views FROM dbo.page_views');
+    const [traffic, trafficPrev, sales, salesPrev] = await Promise.all([
+      trafficTotals(range), trafficTotals(prevRange), salesTotals(range), salesTotals(prevRange)
+    ]);
 
-    // Ventas por mes (últimos 6 meses)
-    const ventasPorMes = await db.query(`
-      SELECT
-        FORMAT(createdAt, 'yyyy-MM') AS mes,
-        COUNT(*) AS pedidos,
-        ISNULL(SUM(total_value), 0) AS ingresos
-      FROM dbo.pedidos
-      WHERE createdAt >= DATEADD(MONTH, -6, GETUTCDATE())
-      GROUP BY FORMAT(createdAt, 'yyyy-MM')
-      ORDER BY mes ASC
-    `);
+    const [porDia, ventasPorDia, canales, fuentes, dispositivos, navegadores, topPaginas,
+      topVistos, topVendidos, topPaises, topCiudades, embudo, pedidosRecientes] = await Promise.all([
+      db.query(`
+        SELECT ${LOCAL_DAY('createdAt')} AS dia, COUNT(*) AS pageviews,
+          COUNT(DISTINCT session_id) AS sessions, COUNT(DISTINCT ISNULL(visitor_id, session_id)) AS visitors
+        FROM dbo.page_views WHERE ${PV_RANGE}
+        GROUP BY ${LOCAL_DAY('createdAt')} ORDER BY dia
+      `, range),
+      db.query(`
+        SELECT ${LOCAL_DAY('createdAt')} AS dia, COUNT(*) AS pedidos, ISNULL(SUM(total_value), 0) AS ingresos
+        FROM dbo.pedidos WHERE createdAt >= @from AND createdAt < @to AND payment_status = 'APPROVED'
+        GROUP BY ${LOCAL_DAY('createdAt')} ORDER BY dia
+      `, range),
+      // Canal y fuente se toman de la primera página de cada sesión (como GA)
+      db.query(`
+        WITH f AS (
+          SELECT medium, ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY createdAt) AS rn
+          FROM dbo.page_views WHERE ${PV_RANGE}
+        )
+        SELECT ISNULL(medium, 'referido') AS medium, COUNT(*) AS sessions
+        FROM f WHERE rn = 1 GROUP BY ISNULL(medium, 'referido') ORDER BY sessions DESC
+      `, range),
+      db.query(`
+        WITH f AS (
+          SELECT session_id, source, medium, ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY createdAt) AS rn
+          FROM dbo.page_views WHERE ${PV_RANGE}
+        ), c AS (SELECT session_id, COUNT(*) AS pv FROM dbo.page_views WHERE ${PV_RANGE} GROUP BY session_id)
+        SELECT TOP(15) ISNULL(f.source, '(otros sitios)') AS source, ISNULL(f.medium, 'referido') AS medium,
+          COUNT(*) AS sessions, SUM(CASE WHEN c.pv = 1 THEN 1 ELSE 0 END) AS bounces
+        FROM f JOIN c ON c.session_id = f.session_id
+        WHERE f.rn = 1
+        GROUP BY ISNULL(f.source, '(otros sitios)'), ISNULL(f.medium, 'referido')
+        ORDER BY sessions DESC
+      `, range),
+      db.query(`
+        WITH f AS (
+          SELECT device, ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY createdAt) AS rn
+          FROM dbo.page_views WHERE ${PV_RANGE}
+        )
+        SELECT ISNULL(device, 'desktop') AS device, COUNT(*) AS sessions
+        FROM f WHERE rn = 1 GROUP BY ISNULL(device, 'desktop') ORDER BY sessions DESC
+      `, range),
+      db.query(`
+        WITH f AS (
+          SELECT browser, ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY createdAt) AS rn
+          FROM dbo.page_views WHERE ${PV_RANGE}
+        )
+        SELECT TOP(6) ISNULL(browser, 'Desconocido') AS browser, COUNT(*) AS sessions
+        FROM f WHERE rn = 1 GROUP BY ISNULL(browser, 'Desconocido') ORDER BY sessions DESC
+      `, range),
+      db.query(`
+        SELECT TOP(10) LEFT(page, CHARINDEX('?', page + '?') - 1) AS path,
+          COUNT(*) AS pageviews, COUNT(DISTINCT ISNULL(visitor_id, session_id)) AS visitors
+        FROM dbo.page_views WHERE ${PV_RANGE} AND ISNULL(page_type, 'page') <> 'product'
+        GROUP BY LEFT(page, CHARINDEX('?', page + '?') - 1)
+        ORDER BY pageviews DESC
+      `, range),
+      db.query(`
+        SELECT TOP(10) pv.product_id, p.name AS product_name,
+          COUNT(*) AS views, COUNT(DISTINCT ISNULL(pv.visitor_id, pv.session_id)) AS visitors
+        FROM dbo.page_views pv
+        LEFT JOIN dbo.products p ON pv.product_id = p.id
+        WHERE pv.product_id IS NOT NULL AND pv.createdAt >= @from AND pv.createdAt < @to AND ISNULL(pv.is_bot, 0) = 0
+        GROUP BY pv.product_id, p.name
+        ORDER BY views DESC
+      `, range),
+      db.query(`
+        SELECT TOP(10) i.product_name, i.product_sku,
+          SUM(i.quantity) AS total_qty, ISNULL(SUM(i.subtotal), 0) AS total_revenue
+        FROM dbo.pedido_items i
+        JOIN dbo.pedidos p ON p.id = i.pedido_id
+        WHERE p.payment_status = 'APPROVED' AND p.createdAt >= @from AND p.createdAt < @to
+        GROUP BY i.product_name, i.product_sku
+        ORDER BY total_qty DESC
+      `, range),
+      db.query(`
+        SELECT TOP(10) ISNULL(country, 'Desconocido') AS country,
+          COUNT(DISTINCT ISNULL(visitor_id, session_id)) AS visitors, COUNT(*) AS views
+        FROM dbo.page_views WHERE ${PV_RANGE}
+        GROUP BY ISNULL(country, 'Desconocido') ORDER BY visitors DESC
+      `, range),
+      db.query(`
+        SELECT TOP(10) city, ISNULL(country, '') AS country,
+          COUNT(DISTINCT ISNULL(visitor_id, session_id)) AS visitors, COUNT(*) AS views
+        FROM dbo.page_views WHERE ${PV_RANGE} AND city IS NOT NULL
+        GROUP BY city, ISNULL(country, '') ORDER BY visitors DESC
+      `, range),
+      db.query(`
+        SELECT COUNT(DISTINCT session_id) AS sesiones,
+          COUNT(DISTINCT CASE WHEN page_type = 'product' THEN session_id END) AS producto,
+          COUNT(DISTINCT CASE WHEN page_type = 'cart' THEN session_id END) AS carrito,
+          COUNT(DISTINCT CASE WHEN page_type = 'checkout' THEN session_id END) AS checkout
+        FROM dbo.page_views WHERE ${PV_RANGE}
+      `, range),
+      db.query(`
+        SELECT TOP(5) id, name, email, total_value, payment_status, createdAt
+        FROM dbo.pedidos
+        ORDER BY createdAt DESC
+      `)
+    ]);
 
-    // Top productos más vendidos (de pedido_items)
-    const topVendidos = await db.query(`
-      SELECT TOP(10)
-        product_name,
-        product_sku,
-        SUM(quantity) AS total_qty,
-        SUM(subtotal) AS total_revenue
-      FROM dbo.pedido_items
-      GROUP BY product_name, product_sku
-      ORDER BY total_qty DESC
-    `);
-
-    // Top productos más vistos
-    const topVistos = await db.query(`
-      SELECT TOP(10)
-        pv.product_id,
-        p.name AS product_name,
-        COUNT(*) AS views
-      FROM dbo.page_views pv
-      LEFT JOIN dbo.products p ON pv.product_id = p.id
-      WHERE pv.product_id IS NOT NULL
-      GROUP BY pv.product_id, p.name
-      ORDER BY views DESC
-    `);
-
-    // Top países
-    const topPaises = await db.query(`
-      SELECT TOP(10)
-        ISNULL(country, 'Desconocido') AS country,
-        COUNT(*) AS views
-      FROM dbo.page_views
-      GROUP BY country
-      ORDER BY views DESC
-    `);
-
-    // Top ciudades
-    const topCiudades = await db.query(`
-      SELECT TOP(10)
-        ISNULL(city, 'Desconocida') AS city,
-        ISNULL(country, '') AS country,
-        COUNT(*) AS views
-      FROM dbo.page_views
-      WHERE city IS NOT NULL
-      GROUP BY city, country
-      ORDER BY views DESC
-    `);
-
-    // Visitas por día (últimos 30 días)
-    const visitasPorDia = await db.query(`
-      SELECT
-        FORMAT(createdAt, 'yyyy-MM-dd') AS dia,
-        COUNT(*) AS views
-      FROM dbo.page_views
-      WHERE createdAt >= DATEADD(DAY, -30, GETUTCDATE())
-      GROUP BY FORMAT(createdAt, 'yyyy-MM-dd')
-      ORDER BY dia ASC
-    `);
-
-    // Pedidos recientes
-    const pedidosRecientes = await db.query(`
-      SELECT TOP(5) id, name, email, total_value, payment_status, createdAt
-      FROM dbo.pedidos
-      ORDER BY createdAt DESC
-    `);
-
+    const fmtDay = (t) => new Date(t).toISOString().slice(0, 10);
     res.json({
-      kpis: {
-        total_pedidos: pedidosStats?.total_pedidos || 0,
-        ingresos_totales: pedidosStats?.ingresos_totales || 0,
-        pedidos_aprobados: pedidosStats?.pedidos_aprobados || 0,
-        pedidos_pendientes: pedidosStats?.pedidos_pendientes || 0,
-        pedidos_rechazados: pedidosStats?.pedidos_rechazados || 0,
-        total_contacts: contactsStats?.total_contacts || 0,
-        total_views: viewsStats?.total_views || 0
-      },
-      ventasPorMes,
-      topVendidos,
-      topVistos,
-      topPaises,
-      topCiudades,
-      visitasPorDia,
+      range: { from: fmtDay(fromDay), to: fmtDay(toDay), days },
+      prevRange: { from: fmtDay(fromDay - days * DAY_MS), to: fmtDay(fromDay - DAY_MS) },
+      traffic, trafficPrev, sales, salesPrev,
+      porDia, ventasPorDia, canales, fuentes, dispositivos, navegadores, topPaginas,
+      topVistos, topVendidos, topPaises, topCiudades,
+      embudo: { ...(embudo[0] || {}), pedidos: sales.pedidos, aprobados: sales.aprobados },
       pedidosRecientes
     });
   } catch (e) {
     console.error('GET /api/admin/dashboard error', e);
     res.status(500).json({ message: 'Error obteniendo dashboard' });
+  }
+});
+
+// Visitantes activos en los últimos 5 minutos
+app.get('/api/admin/realtime', requireFullAdmin, async (_req, res) => {
+  try {
+    const [t] = await db.query(`
+      SELECT COUNT(DISTINCT ISNULL(visitor_id, session_id)) AS active
+      FROM dbo.page_views
+      WHERE createdAt >= DATEADD(MINUTE, -5, SYSUTCDATETIME()) AND ISNULL(is_bot, 0) = 0
+    `);
+    const pages = await db.query(`
+      SELECT TOP(5) LEFT(page, CHARINDEX('?', page + '?') - 1) AS path, COUNT(DISTINCT ISNULL(visitor_id, session_id)) AS visitors
+      FROM dbo.page_views
+      WHERE createdAt >= DATEADD(MINUTE, -5, SYSUTCDATETIME()) AND ISNULL(is_bot, 0) = 0
+      GROUP BY LEFT(page, CHARINDEX('?', page + '?') - 1)
+      ORDER BY visitors DESC
+    `);
+    res.json({ active: t?.active || 0, pages });
+  } catch (e) {
+    console.error('GET /api/admin/realtime error', e);
+    res.status(500).json({ message: 'Error obteniendo tiempo real' });
   }
 });
 
