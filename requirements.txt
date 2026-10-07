@@ -1,0 +1,10 @@
+streamlit==1.36.0   # version probada: otras cambian el comportamiento de la app
+pandas==2.2.2
+numpy==2.4.4
+openpyxl==3.1.5
+xlrd==2.0.2         # leer el inventario del ERP en formato .xls
+reportlab==4.2.2
+pypdfium2==5.13.0   # ver la oferta en PDF dentro de la app
+pillow==12.3.0
+pytest==9.0.3
+pywin32==311; sys_platform == "win32"   # PDF con la plantilla Word (requiere Microsoft Word)

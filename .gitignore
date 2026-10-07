@@ -1,0 +1,12 @@
+﻿__pycache__/
+*.pyc
+.venv/
+data/
+salidas/
+logs/
+respaldos/
+dist/
+# Datos confidenciales (usuarios, cotizaciones, costos): no van a un repo publico
+data_inicial/cotizador.db
+data_inicial/catalogo.xlsx
+
