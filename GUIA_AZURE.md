@@ -75,12 +75,12 @@ az acr build -r $ACR -t cotizador:v1 .
 
 **Autenticación → Agregar proveedor de identidad → Microsoft** (inquilino actual), con *Requerir autenticación* y *Solicitudes no autenticadas: redirigir (HTTP 302)*.
 
-Así, antes de la pantalla del cotizador, cada persona entra con su cuenta de Microsoft 365 de Kos. Son **dos llaves**: la cuenta de Microsoft y el usuario y contraseña del cotizador. Si algún comercial no tiene cuenta de Kos, TI puede invitarlo como usuario invitado.
+Así, antes de la pantalla del cotizador, cada persona entra con su cuenta de Microsoft 365 de Kos. **Muy recomendado**: la pantalla de ingreso del cotizador muestra la lista de usuarios, y con esto solo la ven personas de Kos. Son **dos llaves**: la cuenta de Microsoft y el usuario y contraseña del cotizador. Si algún comercial no tiene cuenta de Kos, TI puede invitarlo como usuario invitado.
 
 ## 5. Verificar
 
 1. Abrir `https://<nombre>.azurewebsites.net`. El primer arranque puede tardar 2 o 3 minutos.
-2. Entrar con un usuario existente: las mismas contraseñas de hoy. El usuario se escribe, p. ej. «Carlos Rojas».
+2. Entrar eligiendo un usuario de la lista, con las mismas contraseñas de hoy.
 3. Crear una cotización de prueba dentro de la política, generar el PDF y revisar que salga con la plantilla de Kos (membrete, tabla azul y marca de agua).
 4. **Configuración → Datos del ERP**: descargar el respaldo y confirmar que el .zip trae `cotizador.db` y `catalogo.xlsx`.
 5. Si algo falla: **Supervisión → Secuencia de registro** muestra los mensajes del contenedor.

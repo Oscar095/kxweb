@@ -13,7 +13,8 @@ por Desc. item + Desc. detalle ext. 2; el diseño no cuenta.
    3.684 frente a 77,89), el que este mas cerca de la referencia logica del producto:
    los otros diseños del mismo producto + calibre o, si no los hay, el mismo producto
    en otro calibre o el producto base ('VASO 4 OZ' para 'VASO 4 OZ LIBRE DE PLASTICO').
-   Sin referencia se toma el mayor y queda marcado para revisar.
+   Sin referencia se toma el mayor y queda marcado para revisar. Si el costo promedio
+   es negativo (error del ERP), se toma el ultimo costo.
 2. Costo del producto + calibre: se descartan los diseños por fuera de 0,5 a 2 veces la
    mediana del grupo y el resto se promedia ponderando por existencias.
 3. Lista de productos: todo el archivo menos insumos (zuncho) y productos sin ningun
@@ -216,19 +217,20 @@ def calcular_costos(inv: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         else:
             ref, base_ref = externa, fuente
 
-        costos, dudosos = [], set()
+        costos, dudosos, negativos = [], set(), 0
         for r in g.itertuples():
             validos = [v for v in (r.promedio, r.ultimo) if v > 0]
             if r.coherente:
                 costo, decision = r.costo_fijo, "Promedio y último coinciden: el mayor"
+            elif r.promedio < 0 and r.ultimo > 0:
+                # Regla del gerente: costo promedio negativo en el ERP -> se toma el ultimo costo.
+                costo, negativos = r.ultimo, negativos + 1
+                decision = f"Costo promedio negativo en el ERP ({_decimal(r.promedio)}): se tomó el último costo"
             elif not validos:
                 costo, decision = np.nan, "Sin costo válido"
             elif len(validos) == 1:
                 costo = validos[0]
                 decision = "Solo " + ("costo promedio" if r.promedio > 0 else "último costo") + " válido"
-                if min(r.promedio, r.ultimo) < 0 and ref is None:
-                    otro = "promedio" if r.promedio < 0 else "último costo"
-                    revisar.append(f"El ERP trae {otro} negativo y no hay con qué comparar el otro")
             elif ref:
                 costo = _cercano(validos, ref)
                 cual = "promedio" if costo == r.promedio else "último costo"
@@ -278,6 +280,9 @@ def calcular_costos(inv: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
                      else float(usados["costo"].mean()))
             base = (f"Inventario: {len(usados)} de {len(g)} diseño{'s' if len(g) != 1 else ''}"
                     + (", ponderado por existencias" if len(usados) > 1 else ""))
+        if negativos:
+            notas.append(f"{negativos} diseño{'s' if negativos != 1 else ''} con costo promedio negativo "
+                         "en el ERP: se usó su último costo")
         filas_prod.append({
             "DESCRIPCION": item, "CALIBRE": calibre, "COSTO": round(costo, 2),
             "BASE_COSTO": ". ".join([base, *notas]), "REVISAR_COSTO": "; ".join(dict.fromkeys(revisar)),
@@ -393,7 +398,8 @@ def escribir_catalogo(items: pd.DataFrame, origen: Path, excluidos: pd.DataFrame
         f"{origen.name} (inventario con costo promedio y último costo). Es la única fuente del costo.",
         "Desc. item + Desc. detalle ext. 2 (calibre). El diseño (Desc. normal detalle ext. 1) no cuenta.",
         f"El mayor entre costo promedio y último costo si no difieren más de {DESVIACION_MAXIMA:.0%}; si difieren, "
-        "el más coherente con los otros diseños, el mismo producto en otro calibre o el producto base.",
+        "el más coherente con los otros diseños, el mismo producto en otro calibre o el producto base. "
+        "Si el costo promedio es negativo, el último costo.",
         "Promedio ponderado por existencias de los diseños entre 0,5 y 2 veces la mediana del producto.",
         "REVISAR_COSTO marca los costos dudosos. Detalle en data/auditoria_costos_inventario_<fecha>.xlsx.",
         f"Todo el inventario menos insumos y productos sin movimiento en {AÑOS_SIN_MOVIMIENTO} años "
@@ -434,20 +440,25 @@ def escribir_informe(items: pd.DataFrame, disenos: pd.DataFrame, excluidos: pd.D
         prod.insert(3, "COSTO_ANTERIOR", prod.pop("COSTO_ANTERIOR"))
         prod.insert(4, "CAMBIO_%", ((prod["COSTO"] / prod["COSTO_ANTERIOR"] - 1) * 100).round(1))
     usados = disenos["USADO"] == "Sí"
+    negativos = disenos[disenos["COSTO_PROMEDIO"] < 0][
+        ["DESCRIPCION", "CALIBRE", "DISENO", "COSTO_PROMEDIO", "ULTIMO_COSTO", "EXISTENCIA", "COSTO_DISENO", "USADO"]]
     resumen = pd.DataFrame({"Dato": [
         "Filas del inventario (item + diseño + calibre)", "Productos a cotizar (Desc. item + calibre)",
         "Diseños usados en el costo", "Diseños excluidos por costo atípico o sin costo",
-        "Diseños con promedio y último que no coinciden", "Productos para revisar (REVISAR_COSTO)",
-        "Productos excluidos de la lista (insumos o sin movimiento)",
+        "Diseños con promedio y último que no coinciden",
+        "Diseños con costo promedio negativo (se usó el último costo)",
+        "Productos para revisar (REVISAR_COSTO)", "Productos excluidos de la lista (insumos o sin movimiento)",
     ], "Valor": [
         len(disenos), len(items), int(usados.sum()), int((~usados).sum()),
-        int(disenos["DECISION"].str.contains("no coinciden").sum()), int((items["REVISAR_COSTO"] != "").sum()),
-        len(excluidos),
+        int(disenos["DECISION"].str.contains("no coinciden").sum()),
+        f"{len(negativos)} en {negativos.groupby(['DESCRIPCION', 'CALIBRE']).ngroups} productos",
+        int((items["REVISAR_COSTO"] != "").sum()), len(excluidos),
     ]})
     destino.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(destino, engine="openpyxl") as xw:
         resumen.to_excel(xw, sheet_name="Resumen", index=False)
         prod.to_excel(xw, sheet_name="Productos", index=False)
+        negativos.to_excel(xw, sheet_name="PromedioNegativo", index=False)
         disenos.to_excel(xw, sheet_name="Disenos", index=False)
         excluidos.to_excel(xw, sheet_name="ExcluidosDeLaLista", index=False)
         _ajustar_anchos(xw)

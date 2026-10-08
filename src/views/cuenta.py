@@ -25,15 +25,14 @@ def pantalla_login() -> None:
         mensaje = st.session_state.pop("login_msg", None)
         if mensaje:
             ui.aviso("info", mensaje)
+        nombres = [u["nombre"] for u in usuarios.listar_usuarios(solo_activos=True)]
         with ui.tarjeta():
             with st.form("login", border=False):
-                # Se escribe (no se elige de una lista): la app puede estar publicada en internet
-                # y no debe mostrar los nombres de los usuarios.
-                nombre = st.text_input("Usuario", placeholder="Tu nombre y primer apellido")
+                nombre = st.selectbox("Usuario", nombres, index=None, placeholder="Elige tu nombre")
                 clave = st.text_input("Contraseña", type="password")
                 entrar = st.form_submit_button("Ingresar", type="primary", use_container_width=True)
             if entrar:
-                if not nombre.strip() or not clave:
+                if not nombre or not clave:
                     st.error("Escribe tu usuario y tu contraseña.")
                 else:
                     resultado = usuarios.autenticar(nombre, clave)

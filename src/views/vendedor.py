@@ -637,23 +637,27 @@ def _seccion_productos(usuario, catalogo, flete_val: float, politica, cliente_id
             for l in lineas
         ]
         vista = _vista_lineas(enriched, usuario.rol == ROL_GERENTE, catalogo)
-        evento = st.dataframe(
+        vista.insert(0, "#", range(1, len(vista) + 1))
+        st.dataframe(
             ui.estilizar(vista, col_aprobacion=COL_APROBACION, col_mercado=COL_MERCADO),
-            column_config=COLUMNAS_LINEAS,
-            hide_index=True, use_container_width=True, on_select="rerun",
-            selection_mode="multi-row", key=f"nv_tabla_{st.session_state['nv_tabla_ver']}",
+            column_config={**COLUMNAS_LINEAS, "#": st.column_config.NumberColumn(width="small")},
+            hide_index=True, use_container_width=True,
         )
-        seleccion = [i for i in (evento.selection.rows if evento else []) if i < len(lineas)]
-        c1, c2 = st.columns([3, 1.2], vertical_alignment="center")
-        c1.caption("Marca una o varias filas para quitarlas.")
-        if c2.button(
-            f"Quitar ({len(seleccion)})" if seleccion else "Quitar",
-            disabled=not seleccion, use_container_width=True, key="nv_quitar",
-        ):
-            for i in sorted(seleccion, reverse=True):
+        # Un boton por linea: borrar un producto ya cotizado es directo y visible.
+        st.caption("Para borrar un producto de la cotización, pulsa «Quitar» en su línea.")
+        ver = st.session_state["nv_tabla_ver"]
+        for i, l in enumerate(lineas):
+            texto, boton = st.columns([5, 1], vertical_alignment="center")
+            texto.markdown(
+                f"<div class='kos-cot'><small>{i + 1}. <b>{ui.esc(l['producto'])}</b> · {ui.esc(l['calibre'])} · "
+                f"{ui.esc(fmt_miles(l.get('cantidad_mes')))} und/mes · {ui.esc(_fmt_precio(l.get('precio')))}"
+                "</small></div>",
+                unsafe_allow_html=True,
+            )
+            if boton.button("Quitar", key=f"nv_quitar_{ver}_{i}", use_container_width=True):
                 lineas.pop(i)
-            st.session_state["nv_tabla_ver"] += 1
-            st.rerun()
+                st.session_state["nv_tabla_ver"] += 1
+                st.rerun()
         return pd.DataFrame(enriched)
 
 
