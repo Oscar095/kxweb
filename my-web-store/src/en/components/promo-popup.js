@@ -2,10 +2,6 @@ export function initPromoPopup() {
   if (window._PROMO_V3_INIT) return;
   window._PROMO_V3_INIT = true;
 
-  if (localStorage.getItem('kx_promo_v3_dismissed') === 'true') {
-    return;
-  }
-
   const REQUIRED_TIME_MS = 10000;
 
   let sessionStart = sessionStorage.getItem('kx_promo_v3_start');
@@ -147,6 +143,14 @@ async function showPromoPopup() {
 
   if (document.getElementById('promo-v3-modal')) return; // avoid a double-open race
 
+  // The "current promo" is identified by the bono (or by the default if none is
+  // active). "Don't show again" is stored tied to that specific promo, so if the
+  // active coupon/promo changes, the previous dismissal no longer blocks it.
+  const promoKey = (bono && bono.id != null) ? `b${bono.id}` : 'default';
+  if (localStorage.getItem('kx_promo_v3_dismissed_key') === promoKey) {
+    return;
+  }
+
   const imgSrc = (bono && bono.url) || '/images/banner-bc-cel.jpg';
   // English title/button prefer the bono's English fields, then fall back to
   // its Spanish fields, then to this file's own default copy.
@@ -195,7 +199,7 @@ async function showPromoPopup() {
   const closePopup = () => {
     sessionStorage.setItem('kx_promo_v3_shown', 'true');
     if (overlay.querySelector('#promo-dont-show-checkbox').checked) {
-      localStorage.setItem('kx_promo_v3_dismissed', 'true');
+      localStorage.setItem('kx_promo_v3_dismissed_key', promoKey);
     }
     overlay.classList.remove('active');
     setTimeout(() => overlay.remove(), 500);
