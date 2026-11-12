@@ -1982,7 +1982,7 @@ async function loadPedidos(page) {
           <td>${escHtml(p.email)}</td>
           <td>${escHtml(p.city)}</td>
           <td>${fmtCOP(p.total_value)}</td>
-          <td>${p.bono_id ? `<span style="color:#16a34a;font-weight:700;" title="Descuento: ${fmtCOP(p.descuento_valor)} (${p.descuento_porcentaje}%)">🎉 -${p.descuento_porcentaje}%</span>` : '—'}</td>
+          <td>${p.bono_id ? `<span style="color:#16a34a;font-weight:700;" title="${p.codigo_bono ? `Código ${escHtml(p.codigo_bono)}` : 'Primera compra'} — Descuento: ${fmtCOP(p.descuento_valor)} (${p.descuento_porcentaje}%)">🎉 -${p.descuento_porcentaje}%</span>${p.codigo_bono ? `<br><small style="color:#6d28d9;font-weight:600;">${escHtml(p.codigo_bono)}</small>` : ''}` : '—'}</td>
           <td>${renderStatusBadge(p.payment_status)}</td>
           <td>${formatDate(p.createdAt)}</td>
           <td><button class="admin-btn-primary admin-btn-sm" onclick="window.__viewPedido(${p.id})">Ver</button></td>
@@ -2060,7 +2060,7 @@ window.__viewPedido = async (id) => {
         <h4>Totales</h4>
         <div class="pedido-totals">
           <div><strong>Subtotal:</strong> ${fmtCOP(p.subtotal)}</div>
-          ${p.bono_id ? `<div style="color:#16a34a;"><strong>Descuento 1ª compra (${p.descuento_porcentaje}%):</strong> -${fmtCOP(p.descuento_valor)}</div>` : ''}
+          ${p.bono_id ? `<div style="color:#16a34a;"><strong>${p.codigo_bono ? `Código ${escHtml(p.codigo_bono)}` : 'Descuento 1ª compra'} (${p.descuento_porcentaje}%):</strong> -${fmtCOP(p.descuento_valor)}</div>` : ''}
           <div><strong>IVA:</strong> ${fmtCOP(p.iva)}</div>
           <div style="font-size:1.2rem;"><strong>Total:</strong> ${fmtCOP(p.total_value)}</div>
         </div>
@@ -2269,11 +2269,16 @@ function renderBonosGrid(items) {
       ? `<div style="font-size:0.75rem; color:#777; margin-top:4px;">${b.fecha_inicio ? `Desde ${formatFechaCorta(b.fecha_inicio)}` : ''}${(b.fecha_inicio && b.fecha_fin) ? ' — ' : ''}${b.fecha_fin ? `Hasta ${formatFechaCorta(b.fecha_fin)}` : ''}</div>`
       : '';
 
+    const tipoBadge = b.codigo
+      ? `<span style="font-size:0.72rem; font-weight:700; color:#6d28d9; background:#ede9fe; padding:2px 8px; border-radius:10px; letter-spacing:.5px;" title="Se aplica cuando el cliente escribe este código en el checkout">Código: ${escHtml(b.codigo)}</span>`
+      : '<span style="font-size:0.72rem; font-weight:700; color:#0369a1; background:#e0f2fe; padding:2px 8px; border-radius:10px;" title="Sale en el popup y se aplica solo en la primera compra">Popup · 1ª compra</span>';
+
     details.innerHTML = `
       <h3 class="gpc-title">${b.nombre || ''}</h3>
       <div class="gpc-meta">
         ${activeBadge}
         ${vigenciaBadge}
+        ${tipoBadge}
         ${pct ? `<span class="gpc-tag">${pct}</span>` : ''}
       </div>
       ${vigenciaTexto}
@@ -2322,6 +2327,7 @@ function renderBonosGrid(items) {
       document.getElementById('bono-id').value = b.id;
       document.getElementById('bono-nombre').value = b.nombre || '';
       document.getElementById('bono-porcentaje').value = b.porcentaje_descuento != null ? b.porcentaje_descuento : '';
+      document.getElementById('bono-codigo').value = b.codigo || '';
       document.getElementById('bono-titulo').value = b.titulo || '';
       document.getElementById('bono-titulo-en').value = b.titulo_en || '';
       document.getElementById('bono-texto-boton').value = b.texto_boton || '';
@@ -2355,14 +2361,30 @@ async function submitBonoForm(ev) {
   try {
     const id = document.getElementById('bono-id').value;
     const imgInput = document.getElementById('bono-imagen');
-    if (!id && !imgInput.files[0]) {
-      status.textContent = 'La imagen es obligatoria para crear un bono nuevo.';
+    const codigo = document.getElementById('bono-codigo').value.trim().toUpperCase().replace(/\s+/g, '');
+    if (codigo && !/^[A-Z0-9_-]{1,50}$/.test(codigo)) {
+      status.textContent = 'El código solo puede tener letras, números, guion (-) o guion bajo (_), sin espacios.';
+      return;
+    }
+    if (codigo && !document.getElementById('bono-porcentaje').value) {
+      status.textContent = 'Un bono con código necesita un porcentaje de descuento.';
+      return;
+    }
+    const fIni = document.getElementById('bono-fecha-inicio').value;
+    const fFin = document.getElementById('bono-fecha-fin').value;
+    if (fIni && fFin && fIni > fFin) {
+      status.textContent = 'La fecha "Vigente hasta" no puede ser anterior a "Vigente desde".';
+      return;
+    }
+    if (!id && !codigo && !imgInput.files[0]) {
+      status.textContent = 'La imagen es obligatoria para crear un bono de popup (sin código).';
       return;
     }
 
     const fd = new FormData();
     fd.append('nombre', document.getElementById('bono-nombre').value.trim());
     fd.append('porcentaje_descuento', document.getElementById('bono-porcentaje').value || '');
+    fd.append('codigo', codigo);
     fd.append('titulo', document.getElementById('bono-titulo').value.trim());
     fd.append('titulo_en', document.getElementById('bono-titulo-en').value.trim());
     fd.append('texto_boton', document.getElementById('bono-texto-boton').value.trim());
@@ -2377,7 +2399,9 @@ async function submitBonoForm(ev) {
     const r = await fetch(url, { method, body: fd, credentials: 'same-origin' });
     if (!r.ok) {
       const txt = await r.text().catch(() => '');
-      status.textContent = 'Error: ' + txt;
+      let msg = txt;
+      try { msg = JSON.parse(txt).message || txt; } catch { /* texto plano */ }
+      status.textContent = 'Error: ' + msg;
       return;
     }
     status.innerHTML = '<strong style="color:green">Bono guardado.</strong>';

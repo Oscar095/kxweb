@@ -429,6 +429,14 @@ async function ensureSchema() {
       ALTER TABLE dbo.pedidos ADD descuento_porcentaje FLOAT NULL;
     END
   `);
+  // Código promocional con el que se aplicó el descuento (NULL = bono de primera compra o sin
+  // descuento). Copia del texto al momento de la compra, por si luego el bono se edita o borra.
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.pedidos','codigo_bono') IS NULL
+    BEGIN
+      ALTER TABLE dbo.pedidos ADD codigo_bono NVARCHAR(50) NULL;
+    END
+  `);
 
   // pedido_items (line items for each order)
   await pool.request().query(`
@@ -494,8 +502,13 @@ async function ensureSchema() {
     END
   `);
   // Rellena filas antiguas (anteriores a estas columnas). Solo afecta filas con is_bot NULL.
-  await pool.request().query(`
-    UPDATE dbo.page_views SET
+  // En lotes y sin bloquear: hecho de una sola vez superaba el timeout de la consulta, lanzaba
+  // error y cortaba ensureSchema aquí, así que ninguna migración de más abajo llegaba a correr.
+  // Si un lote falla se avisa y se sigue; lo que quede pendiente se completa en el próximo arranque.
+  try {
+    for (let lote = 0; lote < 200; lote++) {
+      const r = await pool.request().query(`
+    UPDATE TOP (2000) dbo.page_views SET
       is_bot = CASE WHEN user_agent IS NULL OR user_agent = ''
         OR user_agent LIKE '%bot%' OR user_agent LIKE '%crawl%' OR user_agent LIKE '%spider%'
         OR user_agent LIKE '%slurp%' OR user_agent LIKE '%headless%' OR user_agent LIKE '%lighthouse%'
@@ -530,6 +543,12 @@ async function ensureSchema() {
         ELSE NULL END)
     WHERE is_bot IS NULL
   `);
+      const afectadas = (r && r.rowsAffected && r.rowsAffected[0]) || 0;
+      if (afectadas < 2000) break;
+    }
+  } catch (e) {
+    console.warn('page_views: backfill de analítica incompleto (se reintenta en el próximo arranque):', e.message);
+  }
 
   // product_translations (English name/description overlay — additive, never touches dbo.products)
   await pool.request().query(`
@@ -631,6 +650,15 @@ async function ensureSchema() {
     IF COL_LENGTH('dbo.bonos','fecha_fin') IS NULL
     BEGIN
       ALTER TABLE dbo.bonos ADD fecha_fin DATETIME2 NULL;
+    END
+  `);
+  // Código promocional (ej. "EVENTO2026"). NULL = bono de primera compra que sale en el popup
+  // (solo uno activo a la vez). Con código = solo se aplica si el cliente lo escribe en el
+  // checkout; pueden convivir varios activos y no se muestran en el popup.
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.bonos','codigo') IS NULL
+    BEGIN
+      ALTER TABLE dbo.bonos ADD codigo NVARCHAR(50) NULL;
     END
   `);
 

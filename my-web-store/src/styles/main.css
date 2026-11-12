@@ -4799,7 +4799,73 @@ img.bs-card-img {
 
 @media (max-width: 960px) {
 	.co-layout {
-		grid-template-columns: 1fr
+		grid-template-columns: 1fr;
+		gap: 24px
+	}
+
+	/* Móvil/tablet: título → resumen del pedido → formulario → sellos de confianza. Las dos
+	   columnas se "disuelven" (display: contents) para poder reordenar sus hijos sin duplicar
+	   HTML. El código de descuento lo mueve checkout-page.js dentro del formulario. */
+	.co-layout > .co-form-col,
+	.co-layout > .co-summary-col {
+		display: contents
+	}
+
+	.co-layout > .co-form-col > .co-col-header {
+		order: 1;
+		margin-bottom: -8px
+	}
+
+	.co-layout > .co-summary-col > #order-summary {
+		order: 2
+	}
+
+	.co-layout > .co-form-col > .co-form {
+		order: 3
+	}
+
+	.co-layout > .co-summary-col > .co-trust-card {
+		order: 4
+	}
+}
+
+/* El hueco del código en móvil no ocupa espacio (ni gap del formulario) mientras esté vacío */
+.co-codigo-slot-mobile:empty {
+	display: none
+}
+
+@media (max-width: 600px) {
+	.co-codigo-slot-mobile .co-codigo-card {
+		padding: 16px
+	}
+}
+
+/* En escritorio el título ("Finalizar pedido") ocupa su propia fila y el formulario y el
+   resumen arrancan juntos en la fila de abajo, alineados arriba. Sin esto el resumen quedaba
+   a la altura del título porque el título vive dentro de la columna del formulario. */
+@media (min-width: 961px) {
+	.co-layout {
+		row-gap: 16px
+	}
+
+	.co-layout > .co-form-col {
+		display: contents
+	}
+
+	.co-layout > .co-form-col > .co-col-header {
+		grid-column: 1;
+		grid-row: 1;
+		margin-bottom: 0
+	}
+
+	.co-layout > .co-form-col > .co-form {
+		grid-column: 1;
+		grid-row: 2
+	}
+
+	.co-layout > .co-summary-col {
+		grid-column: 2;
+		grid-row: 2
 	}
 }
 
@@ -5271,6 +5337,160 @@ img.bs-card-img {
 .co-summary-total-amount {
 	color: var(--primary);
 	font-size: 1.25rem
+}
+
+/* ──── Código de descuento (checkout) ──── */
+.co-codigo-card {
+	padding: 18px 24px;
+	border-radius: 20px;
+	/* Mismo azul claro que .co-delivery-reminder, sobre base blanca sólida para que no se
+	   mezcle con el degradado del fondo y la tarjeta resalte en el resumen */
+	background: linear-gradient(rgba(0, 159, 227, 0.06), rgba(0, 159, 227, 0.06)), #fff;
+	border: 1px solid rgba(0, 159, 227, 0.2)
+}
+
+.co-codigo-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: .9rem;
+	font-weight: 600;
+	color: var(--text-main);
+	margin-bottom: 10px;
+	cursor: pointer
+}
+
+.co-codigo-title svg {
+	color: var(--primary);
+	flex-shrink: 0
+}
+
+.co-codigo-form {
+	display: flex;
+	gap: 8px
+}
+
+.co-codigo-form[hidden],
+.co-codigo-applied[hidden] {
+	display: none
+}
+
+.co-codigo-form input {
+	flex: 1;
+	min-width: 0;
+	height: 44px;
+	padding: 0 14px;
+	border: 1.5px solid var(--glass-border);
+	border-radius: 12px;
+	background: #fff;
+	color: var(--text-main);
+	font-size: 1rem;
+	font-weight: 600;
+	letter-spacing: .5px;
+	text-transform: uppercase
+}
+
+.co-codigo-form input::placeholder {
+	text-transform: none;
+	letter-spacing: 0;
+	font-weight: 400;
+	color: var(--muted)
+}
+
+.co-codigo-form input:focus {
+	outline: none;
+	border-color: var(--primary);
+	box-shadow: 0 0 0 3px rgba(0, 159, 227, .15)
+}
+
+.co-codigo-form input.co-codigo-input-error {
+	border-color: #dc2626
+}
+
+.co-codigo-btn {
+	flex-shrink: 0;
+	height: 44px;
+	padding: 0 18px;
+	border: none;
+	border-radius: 12px;
+	background: var(--primary);
+	color: #fff;
+	font-size: .9rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: opacity .2s
+}
+
+.co-codigo-btn:hover {
+	opacity: .9
+}
+
+.co-codigo-btn:focus-visible,
+.co-codigo-remove:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px
+}
+
+.co-codigo-btn:disabled {
+	opacity: .6;
+	cursor: wait
+}
+
+.co-codigo-applied {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap
+}
+
+.co-codigo-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 12px;
+	border-radius: 10px;
+	background: #dcfce7;
+	color: #15803d;
+	font-size: .9rem;
+	letter-spacing: .5px
+}
+
+.co-codigo-remove {
+	background: none;
+	border: none;
+	padding: 8px 4px;
+	color: var(--muted);
+	font-size: .85rem;
+	font-weight: 600;
+	text-decoration: underline;
+	cursor: pointer
+}
+
+.co-codigo-remove:hover {
+	color: #dc2626
+}
+
+.co-codigo-msg {
+	margin: 8px 0 0;
+	font-size: .8rem;
+	line-height: 1.4
+}
+
+.co-codigo-msg:empty {
+	display: none
+}
+
+.co-codigo-msg-ok {
+	color: #15803d
+}
+
+.co-codigo-msg-error {
+	color: #dc2626
+}
+
+.co-codigo-msg-info {
+	color: #b45309
 }
 
 /* ──── Trust badges card ──── */

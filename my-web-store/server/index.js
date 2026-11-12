@@ -319,24 +319,35 @@ app.post('/api/pedidos', async (req, res) => {
       return res.status(400).json({ message: 'name, email, phone, address y city son requeridos' });
     }
 
-    // Bono de primera compra: el servidor decide de forma independiente si aplica y cuánto —
-    // nunca se confía en un descuento que venga del cliente. Si el documento ya tiene algún
-    // pedido registrado, o no hay bono vigente, se sigue con los totales tal como los mandó el cliente.
+    // Bono (primera compra o código promocional): el servidor decide de forma independiente si
+    // aplica y cuánto — nunca se confía en un descuento que venga del cliente. Un solo bono por
+    // compra: si califican ambos gana el de mayor %. Sin bono aplicable se sigue con los totales
+    // tal como los mandó el cliente.
     let bonoAplicado = null;
+    let fuenteDescuento = null;
     let descuentoValor = 0;
     let descuentoPorcentaje = null;
+    const codigoBonoTxt = (b.codigo_bono == null ? '' : String(b.codigo_bono)).trim();
     try {
-      const { elegible, bono } = await getBonoElegible(tipoDocumento, nitId);
-      if (elegible && bono) {
-        descuentoPorcentaje = bono.porcentaje_descuento;
+      const d = await resolverDescuentoPedido(tipoDocumento, nitId, codigoBonoTxt);
+      if (d.errorCodigo) {
+        // El cliente vio un total con descuento que ya no aplica (código vencido, ya usado con
+        // ese documento, etc.): no se crea el pedido para no cobrarle un monto distinto.
+        return res.status(409).json({ message: 'Código de descuento no válido', codigoInvalido: true, motivo: d.errorCodigo });
+      }
+      if (d.bono) {
+        descuentoPorcentaje = d.bono.porcentaje_descuento;
         descuentoValor = Math.round(subtotal * descuentoPorcentaje / 100);
         const subtotalDescontado = Math.max(0, subtotal - descuentoValor);
         ivaVal = Math.round(subtotalDescontado * 0.19);
         totalValue = subtotalDescontado + ivaVal + fleteVal;
-        bonoAplicado = bono;
+        bonoAplicado = d.bono;
+        fuenteDescuento = d.fuente;
       }
     } catch (bonoErr) {
-      console.warn('Error resolviendo bono de primera compra:', bonoErr.message);
+      console.warn('Error resolviendo bono:', bonoErr.message);
+      // Si el cliente escribió un código y no se pudo validar, no seguir sin descuento en silencio
+      if (codigoBonoTxt) return res.status(503).json({ message: 'No se pudo validar el código de descuento, intenta de nuevo.' });
     }
 
     // Detectar tabla/columnas reales (por si la tabla fue creada manualmente con otros nombres)
@@ -395,7 +406,8 @@ app.post('/api/pedidos', async (req, res) => {
       fechaNacimiento: pick(['fecha_nacimiento']),
       bonoId: pick(['bono_id']),
       descuentoValor: pick(['descuento_valor']),
-      descuentoPorcentaje: pick(['descuento_porcentaje'])
+      descuentoPorcentaje: pick(['descuento_porcentaje']),
+      codigoBono: pick(['codigo_bono'])
     };
 
     const missing = ['nit', 'name', 'email', 'phone', 'address', 'city']
@@ -444,6 +456,7 @@ app.post('/api/pedidos', async (req, res) => {
     add(mapping.bonoId, 'bonoId', bonoAplicado ? bonoAplicado.id : null);
     add(mapping.descuentoValor, 'descuentoValor', bonoAplicado ? descuentoValor : null);
     add(mapping.descuentoPorcentaje, 'descuentoPorcentaje', bonoAplicado ? descuentoPorcentaje : null);
+    add(mapping.codigoBono, 'codigoBono', fuenteDescuento === 'codigo' ? bonoAplicado.codigo : null);
 
     // Intentar devolver id si existe columna id
     const idCol = pick(['id', 'Id', 'ID']);
@@ -527,7 +540,9 @@ app.post('/api/pedidos', async (req, res) => {
       amountInCents: Math.round(totalValue * 100),
       discountApplied: !!bonoAplicado,
       discountValue: bonoAplicado ? descuentoValor : 0,
-      discountPercentage: bonoAplicado ? descuentoPorcentaje : null
+      discountPercentage: bonoAplicado ? descuentoPorcentaje : null,
+      discountSource: fuenteDescuento,
+      discountCode: fuenteDescuento === 'codigo' ? bonoAplicado.codigo : null
     });
   } catch (e) {
     console.error('POST /api/pedidos error', e);
@@ -1728,6 +1743,7 @@ function mapBonoRow(r) {
     texto_boton_en: r.texto_boton_en || '',
     categoria_link: r.categoria_link || '',
     porcentaje_descuento: r.porcentaje_descuento != null ? Number(r.porcentaje_descuento) : null,
+    codigo: r.codigo || '',
     url: r.url ? (process.env.AZURE_STORAGE_PUBLIC === 'true' ? r.url : generateReadSasForBlob(r.url)) : '',
     activo: !!r.activo,
     fecha_inicio: r.fecha_inicio || null,
@@ -1736,17 +1752,26 @@ function mapBonoRow(r) {
   };
 }
 
-// Public — the storefront popup reads this without being logged in as admin
-app.get('/api/bonos', async (req, res) => {
+// "active=1" es público (popup, carrito y checkout lo leen sin login) y SOLO devuelve el bono
+// de primera compra (sin código): los bonos con código nunca se exponen al público, si no
+// cualquiera podría leer los códigos desde aquí. El listado completo es solo para el admin.
+app.get('/api/bonos', (req, res, next) => {
+  const onlyActive = String(req.query.active || '').toLowerCase();
+  if (onlyActive === '1' || onlyActive === 'true' || onlyActive === 'yes') return next();
+  return requireFullAdmin(req, res, next);
+}, async (req, res) => {
   try {
     const onlyActive = String(req.query.active || '').toLowerCase();
+    const isPublic = onlyActive === '1' || onlyActive === 'true' || onlyActive === 'yes';
     // "active=1" also enforces the vigencia window, so a scheduled/expired bono stops showing
     // up on the storefront on its own, without the admin having to flip `activo` by hand.
-    const where = (onlyActive === '1' || onlyActive === 'true' || onlyActive === 'yes')
-      ? 'WHERE activo = 1 AND (fecha_inicio IS NULL OR fecha_inicio <= SYSUTCDATETIME()) AND (fecha_fin IS NULL OR fecha_fin >= SYSUTCDATETIME())'
+    const where = isPublic
+      ? "WHERE activo = 1 AND (codigo IS NULL OR codigo = '') AND (fecha_inicio IS NULL OR fecha_inicio <= SYSUTCDATETIME()) AND (fecha_fin IS NULL OR fecha_fin >= SYSUTCDATETIME())"
       : '';
     const rows = await db.query(`SELECT * FROM dbo.bonos ${where} ORDER BY activo DESC, createdAt DESC, id DESC`);
-    res.json((rows || []).map(mapBonoRow));
+    const list = (rows || []).map(mapBonoRow);
+    if (isPublic) list.forEach(b => { delete b.codigo; });
+    res.json(list);
   } catch (e) {
     console.error('GET /api/bonos error', e);
     res.status(500).json({ message: 'Error listando bonos' });
@@ -1762,6 +1787,7 @@ async function getBonoElegible(tipoDocumento, nitId) {
   const rows = await db.query(
     `SELECT TOP 1 * FROM dbo.bonos
      WHERE activo = 1
+       AND (codigo IS NULL OR codigo = '')
        AND (fecha_inicio IS NULL OR fecha_inicio <= SYSUTCDATETIME())
        AND (fecha_fin IS NULL OR fecha_fin >= SYSUTCDATETIME())
      ORDER BY createdAt DESC, id DESC`
@@ -1800,6 +1826,130 @@ app.get('/api/bonos/elegibilidad', async (req, res) => {
   }
 });
 
+// ---- Códigos promocionales (bonos con `codigo`) ----
+// Formato permitido: letras, números, guion y guion bajo. Se guarda y compara en mayúsculas,
+// así "evento2026" y "EVENTO2026" son el mismo código.
+function normalizeCodigoBono(v) {
+  const s = (v == null ? '' : String(v)).trim().toUpperCase().replace(/\s+/g, '');
+  return /^[A-Z0-9_-]{1,50}$/.test(s) ? s : '';
+}
+
+// Valida un código escrito por el cliente. motivo (cuando valido=false):
+//   'no_existe'  → no hay bono con ese código, está desactivado o no tiene % configurado
+//   'no_vigente' → aún no llega su fecha de inicio
+//   'vencido'    → ya pasó su fecha de fin
+//   'ya_usado'   → ese documento ya tiene una compra PAGADA con este código
+// Solo cuentan los pedidos aprobados en Wompi: si el cliente abandona el pago y lo reintenta,
+// no pierde el código. Sin documento solo se valida el código en sí (documentoVerificado=false).
+async function resolveCodigoBono(codigoRaw, tipoDocumento, nitId) {
+  const codigo = normalizeCodigoBono(codigoRaw);
+  if (!codigo) return { valido: false, motivo: 'no_existe', bono: null };
+  const rows = await db.query(
+    `SELECT TOP 1 *,
+       CASE WHEN fecha_inicio IS NOT NULL AND fecha_inicio > SYSUTCDATETIME() THEN 1 ELSE 0 END AS _no_iniciado,
+       CASE WHEN fecha_fin IS NOT NULL AND fecha_fin < SYSUTCDATETIME() THEN 1 ELSE 0 END AS _vencido
+     FROM dbo.bonos WHERE UPPER(codigo) = @codigo ORDER BY id DESC`,
+    { codigo }
+  );
+  const row = rows && rows[0];
+  if (!row || !row.activo) return { valido: false, motivo: 'no_existe', bono: null };
+  const bono = mapBonoRow(row);
+  if (bono.porcentaje_descuento == null || bono.porcentaje_descuento <= 0) {
+    return { valido: false, motivo: 'no_existe', bono: null };
+  }
+  if (Number(row._no_iniciado) === 1) return { valido: false, motivo: 'no_vigente', bono: null };
+  if (Number(row._vencido) === 1) return { valido: false, motivo: 'vencido', bono: null };
+  if (tipoDocumento && nitId) {
+    const usado = await db.query(
+      `SELECT TOP 1 1 AS found FROM dbo.pedidos
+       WHERE bono_id = @bonoId AND tipo_documento = @td AND nit_id = @nit
+         AND payment_status IN ('APPROVED', 'APPROVED_PARTIAL')`,
+      { bonoId: bono.id, td: tipoDocumento, nit: nitId }
+    );
+    if (usado && usado.length) return { valido: false, motivo: 'ya_usado', bono: null };
+  }
+  return { valido: true, motivo: null, bono, documentoVerificado: !!(tipoDocumento && nitId) };
+}
+
+// Un solo bono por compra: si el cliente califica a primera compra Y escribe un código válido,
+// se aplica el de mayor porcentaje (empate → el código, porque el cliente lo eligió). Fuente
+// de verdad del descuento al crear el pedido. Si el código escrito no es válido devuelve
+// { errorCodigo } para que el pedido NO se cree con un total distinto al que el cliente vio.
+async function resolverDescuentoPedido(tipoDocumento, nitId, codigoRaw) {
+  const codigoTxt = (codigoRaw == null ? '' : String(codigoRaw)).trim();
+  let porCodigo = null;
+  if (codigoTxt) {
+    const r = await resolveCodigoBono(codigoTxt, tipoDocumento, nitId);
+    if (!r.valido) return { errorCodigo: r.motivo };
+    porCodigo = r.bono;
+  }
+  let primeraCompra = null;
+  try {
+    const { elegible, bono } = await getBonoElegible(tipoDocumento, nitId);
+    if (elegible && bono) primeraCompra = bono;
+  } catch (e) {
+    console.warn('Error resolviendo bono de primera compra:', e.message);
+  }
+  if (porCodigo && (!primeraCompra || porCodigo.porcentaje_descuento >= primeraCompra.porcentaje_descuento)) {
+    return { bono: porCodigo, fuente: 'codigo' };
+  }
+  if (primeraCompra) return { bono: primeraCompra, fuente: 'primera_compra' };
+  return { bono: null, fuente: null };
+}
+
+// Freno contra adivinar códigos a fuerza bruta: máximo N intentos FALLIDOS por IP en la
+// ventana. Es generoso a propósito: en un evento mucha gente comparte la misma IP del wifi.
+const CODIGO_MAX_FALLOS = 30;
+const CODIGO_VENTANA_MS = 10 * 60 * 1000;
+const _codigoFallos = new Map();
+function clientIp(req) {
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const ip = fwd || req.ip || (req.socket && req.socket.remoteAddress) || '';
+  // Azure App Service manda "ip:puerto" en x-forwarded-for para IPv4
+  return /^\d+\.\d+\.\d+\.\d+:\d+$/.test(ip) ? ip.replace(/:\d+$/, '') : ip;
+}
+function codigoBloqueado(ip) {
+  const e = _codigoFallos.get(ip);
+  if (!e) return false;
+  if (Date.now() > e.resetAt) { _codigoFallos.delete(ip); return false; }
+  return e.count >= CODIGO_MAX_FALLOS;
+}
+function registrarFalloCodigo(ip) {
+  const now = Date.now();
+  const e = _codigoFallos.get(ip);
+  if (!e || now > e.resetAt) _codigoFallos.set(ip, { count: 1, resetAt: now + CODIGO_VENTANA_MS });
+  else e.count++;
+  if (_codigoFallos.size > 5000) {
+    for (const [k, v] of _codigoFallos) if (now > v.resetAt) _codigoFallos.delete(k);
+  }
+}
+
+// Público — el checkout lo llama cuando el cliente toca "Aplicar" (y otra vez cuando escribe
+// su documento). Es solo una previsualización: POST /api/pedidos vuelve a validar todo.
+app.post('/api/bonos/validar-codigo', async (req, res) => {
+  try {
+    const ip = clientIp(req);
+    if (codigoBloqueado(ip)) {
+      return res.status(429).json({ valido: false, motivo: 'demasiados_intentos' });
+    }
+    const b = req.body || {};
+    const tipoDocumento = String(b.tipo_documento || '').trim();
+    const rawNit = String(b.nit || '').trim();
+    const nitId = (tipoDocumento === 'CE' || tipoDocumento === 'PA') ? rawNit : rawNit.replace(/\D+/g, '');
+    const r = await resolveCodigoBono(b.codigo, tipoDocumento, nitId);
+    if (!r.valido && r.motivo === 'no_existe') registrarFalloCodigo(ip);
+    res.json({
+      valido: r.valido,
+      motivo: r.motivo,
+      documentoVerificado: !!r.documentoVerificado,
+      bono: r.bono ? { id: r.bono.id, codigo: r.bono.codigo, porcentaje_descuento: r.bono.porcentaje_descuento } : null
+    });
+  } catch (e) {
+    console.error('POST /api/bonos/validar-codigo error', e);
+    res.status(500).json({ message: 'Error validando el código' });
+  }
+});
+
 // Fechas de vigencia llegan como "YYYY-MM-DD" (input type=date). fecha_fin se ancla al final
 // del día para que el bono siga vigente durante todo el día elegido como cierre.
 function parseFechaInicio(v) {
@@ -1815,30 +1965,58 @@ function parseFechaFin(v) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function fechasInvertidas(b) {
+  const ini = parseFechaInicio(b.fecha_inicio);
+  const fin = parseFechaFin(b.fecha_fin);
+  return !!(ini && fin && ini > fin);
+}
+
+// Valida el código que llega del formulario del admin. Devuelve { codigo } (null = sin código)
+// o { error } si el formato es inválido o ya lo usa otro bono.
+async function parseCodigoAdmin(raw, excludeId) {
+  const txt = (raw == null ? '' : String(raw)).trim();
+  if (!txt) return { codigo: null };
+  const codigo = normalizeCodigoBono(txt);
+  if (!codigo) return { error: 'El código solo puede tener letras, números, guion (-) o guion bajo (_), sin espacios, máximo 50 caracteres.' };
+  const dup = await db.query(
+    'SELECT TOP 1 id FROM dbo.bonos WHERE UPPER(codigo) = @codigo AND id <> @excludeId',
+    { codigo, excludeId: excludeId || 0 }
+  );
+  if (dup && dup.length) return { error: `El código ${codigo} ya lo usa otro bono.` };
+  return { codigo };
+}
+
 app.post('/api/bonos', requireFullAdmin, bonoUpload.single('imagen'), async (req, res) => {
   try {
     const b = req.body || {};
     const nombre = (b.nombre || '').toString().trim();
     if (!nombre) return res.status(400).json({ message: 'nombre requerido' });
-    if (!req.file) return res.status(400).json({ message: 'imagen requerida' });
-    if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+    const cod = await parseCodigoAdmin(b.codigo, 0);
+    if (cod.error) return res.status(400).json({ message: cod.error });
+    if (fechasInvertidas(b)) return res.status(400).json({ message: 'La fecha "Vigente hasta" no puede ser anterior a "Vigente desde".' });
+    // La imagen solo es necesaria para el popup; un bono con código no sale en el popup.
+    if (!req.file && !cod.codigo) return res.status(400).json({ message: 'imagen requerida' });
 
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
-    const basePath = rootPath ? `${rootPath}/Bonos` : 'Bonos';
-    const blobName = `${basePath}/${filename}`;
+    let blobUrl = null;
+    if (req.file) {
+      if (!blobServiceClient) return res.status(500).json({ message: 'Storage not configured' });
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${req.file.originalname}`;
+      const basePath = rootPath ? `${rootPath}/Bonos` : 'Bonos';
+      const blobName = `${basePath}/${filename}`;
 
-    const containerClient = blobServiceClient.getContainerClient(containerName);
-    try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
-    const blockClient = containerClient.getBlockBlobClient(blobName);
-    await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
+      const containerClient = blobServiceClient.getContainerClient(containerName);
+      try { await containerClient.createIfNotExists({ access: 'blob' }); } catch (err) { /* ignore */ }
+      const blockClient = containerClient.getBlockBlobClient(blobName);
+      await blockClient.uploadData(req.file.buffer, { blobHTTPHeaders: { blobContentType: req.file.mimetype } });
 
-    const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
-    const blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+      const blobPathEscaped = blobName.split('/').map(encodeURIComponent).join('/');
+      blobUrl = `https://${accountName}.blob.core.windows.net/${containerName}/${blobPathEscaped}`;
+    }
 
     const r = await db.query(
-      `INSERT INTO dbo.bonos (nombre, titulo, titulo_en, texto_boton, texto_boton_en, categoria_link, porcentaje_descuento, url, fecha_inicio, fecha_fin, activo)
+      `INSERT INTO dbo.bonos (nombre, titulo, titulo_en, texto_boton, texto_boton_en, categoria_link, porcentaje_descuento, codigo, url, fecha_inicio, fecha_fin, activo)
        OUTPUT INSERTED.id
-       VALUES (@nombre, @titulo, @titulo_en, @texto_boton, @texto_boton_en, @categoria_link, @porcentaje_descuento, @url, @fecha_inicio, @fecha_fin, 0);`,
+       VALUES (@nombre, @titulo, @titulo_en, @texto_boton, @texto_boton_en, @categoria_link, @porcentaje_descuento, @codigo, @url, @fecha_inicio, @fecha_fin, 0);`,
       {
         nombre,
         titulo: (b.titulo || '').toString().trim() || null,
@@ -1847,6 +2025,7 @@ app.post('/api/bonos', requireFullAdmin, bonoUpload.single('imagen'), async (req
         texto_boton_en: (b.texto_boton_en || '').toString().trim() || null,
         categoria_link: (b.categoria_link || '').toString().trim() || null,
         porcentaje_descuento: (b.porcentaje_descuento != null && b.porcentaje_descuento !== '') ? Number(b.porcentaje_descuento) : null,
+        codigo: cod.codigo,
         url: blobUrl,
         fecha_inicio: parseFechaInicio(b.fecha_inicio),
         fecha_fin: parseFechaFin(b.fecha_fin)
@@ -1856,7 +2035,7 @@ app.post('/api/bonos', requireFullAdmin, bonoUpload.single('imagen'), async (req
     res.status(201).json({ ok: true, id: id ?? null, url: blobUrl });
   } catch (e) {
     console.error('POST /api/bonos error', e);
-    res.status(500).json({ message: 'Error creando bono' });
+    res.status(500).json({ message: 'Error creando bono: ' + (e && e.message ? String(e.message).slice(0, 300) : 'desconocido') });
   }
 });
 
@@ -1865,6 +2044,9 @@ app.put('/api/bonos/:id', requireFullAdmin, bonoUpload.single('imagen'), async (
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
     const b = req.body || {};
+    const cod = await parseCodigoAdmin(b.codigo, id);
+    if (cod.error) return res.status(400).json({ message: cod.error });
+    if (fechasInvertidas(b)) return res.status(400).json({ message: 'La fecha "Vigente hasta" no puede ser anterior a "Vigente desde".' });
 
     let newUrl = null;
     if (req.file) {
@@ -1884,6 +2066,7 @@ app.put('/api/bonos/:id', requireFullAdmin, bonoUpload.single('imagen'), async (
       'nombre = @nombre', 'titulo = @titulo', 'titulo_en = @titulo_en',
       'texto_boton = @texto_boton', 'texto_boton_en = @texto_boton_en',
       'categoria_link = @categoria_link', 'porcentaje_descuento = @porcentaje_descuento',
+      'codigo = @codigo',
       'fecha_inicio = @fecha_inicio', 'fecha_fin = @fecha_fin',
       'updatedAt = SYSUTCDATETIME()'
     ];
@@ -1896,6 +2079,7 @@ app.put('/api/bonos/:id', requireFullAdmin, bonoUpload.single('imagen'), async (
       texto_boton_en: (b.texto_boton_en || '').toString().trim() || null,
       categoria_link: (b.categoria_link || '').toString().trim() || null,
       porcentaje_descuento: (b.porcentaje_descuento != null && b.porcentaje_descuento !== '') ? Number(b.porcentaje_descuento) : null,
+      codigo: cod.codigo,
       fecha_inicio: parseFechaInicio(b.fecha_inicio),
       fecha_fin: parseFechaFin(b.fecha_fin)
     };
@@ -1904,20 +2088,32 @@ app.put('/api/bonos/:id', requireFullAdmin, bonoUpload.single('imagen'), async (
     const r = await db.query(`UPDATE dbo.bonos SET ${sets.join(', ')} WHERE id = @id; SELECT @@ROWCOUNT AS affected;`, params);
     const affected = r && r[0] && r[0].affected ? Number(r[0].affected) : 0;
     if (affected === 0) return res.status(404).json({ message: 'Bono no encontrado' });
+    // Si al editar un bono activo se le quitó el código, pasa a ser el bono del popup: se
+    // mantiene la regla de un solo bono de popup activo apagando los demás sin código.
+    if (!cod.codigo) {
+      await db.query(
+        `IF EXISTS (SELECT 1 FROM dbo.bonos WHERE id = @id AND activo = 1)
+           UPDATE dbo.bonos SET activo = 0 WHERE id <> @id AND (codigo IS NULL OR codigo = '');`,
+        { id }
+      );
+    }
     res.json({ ok: true, url: newUrl || undefined });
   } catch (e) {
     console.error('PUT /api/bonos/:id error', e);
-    res.status(500).json({ message: 'Error actualizando bono' });
+    res.status(500).json({ message: 'Error actualizando bono: ' + (e && e.message ? String(e.message).slice(0, 300) : 'desconocido') });
   }
 });
 
-// Sets this bono as the single active one, deactivating every other bono
+// Bono SIN código (popup / primera compra): queda como el único activo de su tipo, apagando los
+// demás bonos sin código. Bono CON código: se activa solo, sin tocar a nadie — pueden convivir
+// varios códigos activos y siguen funcionando junto al bono de primera compra.
 app.patch('/api/bonos/:id/activate', requireFullAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
     const r = await db.query(
-      `UPDATE dbo.bonos SET activo = 0 WHERE id <> @id;
+      `IF EXISTS (SELECT 1 FROM dbo.bonos WHERE id = @id AND (codigo IS NULL OR codigo = ''))
+         UPDATE dbo.bonos SET activo = 0 WHERE id <> @id AND (codigo IS NULL OR codigo = '');
        UPDATE dbo.bonos SET activo = 1 WHERE id = @id;
        SELECT @@ROWCOUNT AS affected;`,
       { id }

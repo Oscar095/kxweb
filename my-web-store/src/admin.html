@@ -839,13 +839,21 @@
         <div class="admin-header-row">
           <h2>Bonos / Promociones</h2>
         </div>
-        <p style="color:var(--admin-text-muted); margin-bottom:24px;">Administra el popup promocional que aparece
-          después de navegar unos segundos por la web. Puedes guardar varios bonos, pero solo <strong>uno puede
-          estar activo</strong> a la vez. El descuento se aplica <strong>automáticamente</strong> en el checkout,
-          sobre toda la compra, solo a clientes cuyo número de documento no tenga <strong>ningún pedido
-          registrado</strong> todavía (primera compra) — sin importar si un pedido anterior con ese documento llegó
-          a pagarse o no. Si defines fecha de inicio y/o fin, el bono deja de aplicarse fuera de ese rango aunque
-          sigas dejándolo "activo".</p>
+        <p style="color:var(--admin-text-muted); margin-bottom:12px;">Hay dos tipos de bono:</p>
+        <ul style="color:var(--admin-text-muted); margin:0 0 24px 18px; line-height:1.6;">
+          <li><strong>Sin código (popup de primera compra):</strong> aparece en el popup después de navegar unos
+            segundos por la web. Solo <strong>uno</strong> de este tipo puede estar activo a la vez. El descuento se
+            aplica <strong>automáticamente</strong> en el checkout, solo a clientes cuyo número de documento no tenga
+            <strong>ningún pedido registrado</strong> todavía (se haya pagado o no).</li>
+          <li><strong>Con código (ej. EVENTO2026):</strong> no sale en el popup; se aplica solo cuando el cliente
+            escribe el código en el checkout. Cualquier cliente puede usarlo <strong>una vez por documento</strong>
+            (cuenta solo compras pagadas). Puedes tener varios códigos activos al mismo tiempo y no apagan el bono de
+            primera compra. La imagen y los textos del popup no son necesarios.</li>
+        </ul>
+        <p style="color:var(--admin-text-muted); margin-bottom:24px;">En cada compra se aplica <strong>un solo
+          bono</strong>: si el cliente califica a primera compra y además escribe un código, se queda con el de mayor
+          porcentaje. Si defines fecha de inicio y/o fin, el bono deja de aplicarse fuera de ese rango aunque sigas
+          dejándolo "activo".</p>
 
         <div class="glass-card">
           <form id="bono-form" class="admin-form" enctype="multipart/form-data">
@@ -860,6 +868,13 @@
                 <div class="field-group">
                   <label for="bono-porcentaje">Porcentaje de Descuento (%)</label>
                   <input id="bono-porcentaje" type="number" min="0" max="100" step="0.1" placeholder="Ej: 10" />
+                </div>
+                <div class="field-group">
+                  <label for="bono-codigo">Código para el checkout (opcional)</label>
+                  <input id="bono-codigo" type="text" maxlength="50" placeholder="Ej: EVENTO2026" autocomplete="off"
+                    style="text-transform:uppercase;" />
+                  <small style="color:var(--admin-text-muted);">Vacío = bono de popup / primera compra. Con código =
+                    el cliente lo escribe en el checkout. Solo letras, números, - y _.</small>
                 </div>
                 <div class="field-group">
                   <label for="bono-titulo">Título del Popup (Español)</label>
@@ -882,7 +897,7 @@
                   <select id="bono-categoria"></select>
                 </div>
                 <div class="field-group">
-                  <label for="bono-imagen">Imagen del Popup</label>
+                  <label for="bono-imagen">Imagen del Popup (no necesaria si el bono tiene código)</label>
                   <input id="bono-imagen" type="file" accept="image/*" />
                 </div>
                 <div class="field-group">

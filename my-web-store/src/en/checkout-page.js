@@ -116,11 +116,183 @@ function checkBonoElegibilidad(tipoDocumento, nit) {
     try {
       const qs = new URLSearchParams({ tipo_documento: tipoDocumento, nit: cleanNit });
       const r = await fetch(`/api/bonos/elegibilidad?${qs.toString()}`);
-      if (!r.ok) return;
-      _bonoPreview = await r.json();
-      renderOrderSummary();
+      if (r.ok) {
+        _bonoPreview = await r.json();
+        renderOrderSummary();
+      }
     } catch (e) { /* leave the preview as it was */ }
+    revalidarCodigoPorDocumento();
   }, 500);
+}
+
+// ── promo code (bono with a code) ─────────────────────────────────────────────
+// The customer types a code and it's checked against /api/bonos/validar-codigo. Like the
+// first-purchase bono, this is only a preview: POST /api/pedidos validates the code again and
+// decides the real discount. One bono per purchase: the higher percentage wins.
+// estado: 'idle' | 'checking' | 'valid' | 'invalid'
+let _codigo = { texto: '', estado: 'idle', bono: null, motivo: null, documentoVerificado: false };
+
+const CODIGO_MENSAJES = {
+  no_existe: 'This code is not valid.',
+  no_vigente: 'This code is not active yet.',
+  vencido: 'This code has expired.',
+  ya_usado: 'You already used this code on a previous purchase with this ID document.',
+  demasiados_intentos: 'Too many attempts. Please wait a few minutes and try again.',
+  error: "We couldn't validate the code. Please try again."
+};
+
+function normalizeCodigo(v) {
+  return String(v || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function documentoActual() {
+  const tipo = String(document.getElementById('tipoDocumento')?.value || '').trim();
+  const raw = String(document.getElementById('nitId')?.value || '').trim();
+  const nit = (tipo === 'CE' || tipo === 'PA') ? raw : raw.replace(/\D+/g, '');
+  return (tipo && nit.length >= 5) ? { tipo, nit } : { tipo: '', nit: '' };
+}
+
+// Validates the code and returns the final state ('valid' | 'invalid').
+async function validarCodigo(texto) {
+  const codigo = normalizeCodigo(texto);
+  if (!codigo) return _codigo.estado;
+  _codigo = { texto: codigo, estado: 'checking', bono: null, motivo: null, documentoVerificado: false };
+  renderOrderSummary();
+  const { tipo, nit } = documentoActual();
+  let next;
+  try {
+    const r = await fetch('/api/bonos/validar-codigo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo, tipo_documento: tipo, nit })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 429) next = { estado: 'invalid', motivo: 'demasiados_intentos' };
+    else if (!r.ok) next = { estado: 'invalid', motivo: 'error' };
+    else if (j.valido && j.bono) next = { estado: 'valid', bono: j.bono, documentoVerificado: !!j.documentoVerificado };
+    else next = { estado: 'invalid', motivo: j.motivo || 'no_existe' };
+  } catch (e) {
+    next = { estado: 'invalid', motivo: 'error' };
+  }
+  // If the customer changed or removed the code meanwhile, this answer no longer applies
+  if (_codigo.texto !== codigo) return _codigo.estado;
+  _codigo = { texto: codigo, bono: null, motivo: null, documentoVerificado: false, ...next };
+  renderOrderSummary();
+  return _codigo.estado;
+}
+
+function quitarCodigo() {
+  _codigo = { texto: '', estado: 'idle', bono: null, motivo: null, documentoVerificado: false };
+  const input = document.getElementById('co-codigo-input');
+  if (input) input.value = '';
+  renderOrderSummary();
+  input?.focus();
+}
+
+// When the customer changes their ID document, the code is validated again (that document
+// may have already used it, or the previous one had and the new one hasn't).
+function revalidarCodigoPorDocumento() {
+  if (!_codigo.texto) return;
+  if (_codigo.estado === 'valid' || _codigo.motivo === 'ya_usado') validarCodigo(_codigo.texto);
+}
+
+// The card is built once (so typed text and focus survive summary re-renders) and afterwards
+// only its state is updated through syncCodigoBox().
+function setupCodigoBox() {
+  const root = document.getElementById('co-codigo');
+  if (!root) return;
+  root.innerHTML = `
+    <div class="co-codigo-card glass-panel">
+      <label for="co-codigo-input" class="co-codigo-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+        Have a discount code?
+      </label>
+      <div class="co-codigo-form" id="co-codigo-form">
+        <input id="co-codigo-input" type="text" placeholder="Enter your code" maxlength="50"
+          autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <button type="button" id="co-codigo-btn" class="co-codigo-btn">Apply</button>
+      </div>
+      <div class="co-codigo-applied" id="co-codigo-applied" hidden>
+        <span class="co-codigo-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          <strong id="co-codigo-applied-code"></strong>
+          <span id="co-codigo-applied-pct"></span>
+        </span>
+        <button type="button" id="co-codigo-remove" class="co-codigo-remove">Remove</button>
+      </div>
+      <p id="co-codigo-msg" class="co-codigo-msg" role="status" aria-live="polite"></p>
+    </div>
+  `;
+  const input = document.getElementById('co-codigo-input');
+  const btn = document.getElementById('co-codigo-btn');
+  btn.addEventListener('click', () => validarCodigo(input.value));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); validarCodigo(input.value); }
+  });
+  // Editing the text after an error clears the error message
+  input.addEventListener('input', () => {
+    if (_codigo.estado === 'invalid') {
+      _codigo = { texto: '', estado: 'idle', bono: null, motivo: null, documentoVerificado: false };
+      syncCodigoBox({});
+    }
+  });
+  document.getElementById('co-codigo-remove').addEventListener('click', quitarCodigo);
+  syncCodigoBox({});
+}
+
+// On mobile the code card goes inside the form, right above "Payment Method"; on desktop, in
+// the right column under the summary. The same node is moved (keeps typed text, state and
+// listeners). The breakpoint matches .co-layout in main.css.
+function placeCodigoBox() {
+  const box = document.getElementById('co-codigo');
+  const slotMobile = document.getElementById('co-codigo-slot-mobile');
+  const summary = document.getElementById('order-summary');
+  if (!box || !slotMobile || !summary) return;
+  const mq = window.matchMedia('(max-width: 960px)');
+  const place = () => {
+    if (mq.matches) { if (box.parentElement !== slotMobile) slotMobile.appendChild(box); }
+    else if (summary.nextElementSibling !== box) summary.after(box);
+  };
+  place();
+  mq.addEventListener ? mq.addEventListener('change', place) : mq.addListener(place);
+}
+
+function syncCodigoBox({ usaCodigo = false, pctPrimera = 0, descuentoValor = 0 }) {
+  const form = document.getElementById('co-codigo-form');
+  if (!form) return;
+  const applied = document.getElementById('co-codigo-applied');
+  const btn = document.getElementById('co-codigo-btn');
+  const input = document.getElementById('co-codigo-input');
+  const msg = document.getElementById('co-codigo-msg');
+  const valid = _codigo.estado === 'valid' && _codigo.bono;
+
+  form.hidden = !!valid;
+  applied.hidden = !valid;
+  btn.disabled = _codigo.estado === 'checking';
+  btn.textContent = _codigo.estado === 'checking' ? 'Checking…' : 'Apply';
+  input.classList.toggle('co-codigo-input-error', _codigo.estado === 'invalid');
+  msg.className = 'co-codigo-msg';
+
+  if (valid) {
+    document.getElementById('co-codigo-applied-code').textContent = _codigo.bono.codigo;
+    document.getElementById('co-codigo-applied-pct').textContent = `−${_codigo.bono.porcentaje_descuento}%`;
+    if (!usaCodigo) {
+      msg.textContent = `Your first-purchase discount (${pctPrimera}%) is higher, so we applied that one. Only one bonus can be used per purchase.`;
+      msg.classList.add('co-codigo-msg-info');
+    } else {
+      msg.textContent = descuentoValor > 0
+        ? `Done! You save ${fmt(descuentoValor)} on this purchase.${_codigo.documentoVerificado ? '' : ' We confirm it with your ID document number.'}`
+        : 'Code applied.';
+      msg.classList.add('co-codigo-msg-ok');
+    }
+  } else if (_codigo.estado === 'invalid') {
+    msg.textContent = CODIGO_MENSAJES[_codigo.motivo] || CODIGO_MENSAJES.no_existe;
+    msg.classList.add('co-codigo-msg-error');
+  } else {
+    msg.textContent = '';
+  }
 }
 
 async function calcularFlete() {
@@ -189,11 +361,19 @@ function renderOrderSummary() {
   // back from the server yet. So the "pending" note must disappear as soon as that answer
   // arrives, even a negative one, so it doesn't hint at a discount for someone who doesn't get one.
   const bonoPendiente = !_bonoPreview.bono && !!_bonoActivo;
-  const descuentoPct = bonoConfirmado ? Number(_bonoPreview.bono.porcentaje_descuento) : 0;
-  const descuentoValor = bonoConfirmado ? Math.round(subtotal * descuentoPct / 100) : 0;
+  // One bono per purchase: code vs. first purchase, the higher one wins (tie → the code,
+  // same as the server).
+  const pctPrimera = bonoConfirmado ? Number(_bonoPreview.bono.porcentaje_descuento) : 0;
+  const pctCodigo = (_codigo.estado === 'valid' && _codigo.bono) ? Number(_codigo.bono.porcentaje_descuento) || 0 : 0;
+  const usaCodigo = pctCodigo > 0 && pctCodigo >= pctPrimera;
+  const descuentoPct = usaCodigo ? pctCodigo : pctPrimera;
+  const hayDescuento = descuentoPct > 0;
+  const descuentoLabel = usaCodigo ? `Code ${_codigo.bono.codigo} (${descuentoPct}%)` : `First-purchase discount (${descuentoPct}%)`;
+  const descuentoValor = hayDescuento ? Math.round(subtotal * descuentoPct / 100) : 0;
   const subtotalConDescuento = subtotal - descuentoValor;
-  const ivaConDescuento = bonoConfirmado ? Math.round(subtotalConDescuento * 0.19) : iva;
+  const ivaConDescuento = hayDescuento ? Math.round(subtotalConDescuento * 0.19) : iva;
   const totalConDescuento = subtotalConDescuento + ivaConDescuento;
+  syncCodigoBox({ usaCodigo, pctPrimera, descuentoValor });
 
   if (grouped.length === 0) {
     el.innerHTML = `
@@ -237,7 +417,7 @@ function renderOrderSummary() {
         <span class="co-summary-count">${grouped.length} ${grouped.length === 1 ? 'product' : 'products'}</span>
       </h3>
       <div class="co-summary-items">${rows}</div>
-      ${bonoPendiente ? `
+      ${bonoPendiente && !usaCodigo ? `
         <div class="co-summary-line" style="color:#00a4e4;font-size:.8rem;font-weight:600;">
           🎉 You have ${_bonoActivo.porcentaje_descuento != null ? `${_bonoActivo.porcentaje_descuento}% OFF` : 'a bonus'} on your first purchase — confirmed with your ID document
         </div>
@@ -247,9 +427,9 @@ function renderOrderSummary() {
           <span>Subtotal (excluding VAT)</span>
           <span>${fmt(subtotal)}</span>
         </div>
-        ${bonoConfirmado ? `
+        ${hayDescuento ? `
           <div class="co-summary-line" style="color:#16a34a;font-weight:600;">
-            <span>First-purchase discount (${descuentoPct}%)</span>
+            <span>${descuentoLabel}</span>
             <span>-${fmt(descuentoValor)}</span>
           </div>
         ` : ''}
@@ -615,6 +795,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const rutInput = document.getElementById('rutFile');
   const camaraInput = document.getElementById('camaraFile');
 
+  setupCodigoBox();
+  placeCodigoBox();
   renderOrderSummary();
   showReturnMessageFromWompi();
   renderRelatedProducts();
@@ -688,9 +870,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Form submit
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    const { amountInCents, subtotal, iva, flete, totalValue } = renderOrderSummary();
     msgEl.className = 'co-message';
     msgEl.textContent = '';
+
+    // Code typed but "Apply" never pressed (or still checking): validate it before going on,
+    // so the customer never pays without the discount they thought they had.
+    const codigoEscrito = normalizeCodigo(document.getElementById('co-codigo-input')?.value);
+    if (_codigo.estado === 'checking' || (codigoEscrito && _codigo.estado !== 'valid')) {
+      const estado = await validarCodigo(codigoEscrito || _codigo.texto);
+      if (estado !== 'valid') {
+        msgEl.textContent = 'Check your discount code: ' + (CODIGO_MENSAJES[_codigo.motivo] || CODIGO_MENSAJES.no_existe) + ' You can clear it to continue without a discount.';
+        msgEl.className = 'co-message co-message-error';
+        document.getElementById('co-codigo-input')?.focus();
+        return;
+      }
+    }
+
+    const { amountInCents, subtotal, iva, flete, totalValue } = renderOrderSummary();
 
     if (amountInCents <= 0) {
       msgEl.textContent = 'Your cart is empty.';
@@ -856,6 +1052,7 @@ document.addEventListener('DOMContentLoaded', () => {
         iva,
         flete,
         total_value: totalValue,
+        codigo_bono: (_codigo.estado === 'valid' && _codigo.bono) ? _codigo.bono.codigo : null,
         items: Array.from(itemsMap.values())
       };
 
@@ -864,6 +1061,18 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
+      // The server rejected the code (e.g. already used with this ID document, or it just
+      // expired): mark it invalid, show the total again without that discount and let the
+      // customer decide whether to continue.
+      if (saveResp.status === 409) {
+        const j = await saveResp.json().catch(() => ({}));
+        if (j?.codigoInvalido) {
+          _codigo = { ..._codigo, estado: 'invalid', bono: null, motivo: j.motivo || 'no_existe' };
+          renderOrderSummary();
+          throw new Error(`Your discount code no longer applies: ${CODIGO_MENSAJES[_codigo.motivo] || CODIGO_MENSAJES.no_existe} Please review the total and try again.`);
+        }
+      }
 
       if (!saveResp.ok) {
         // Don't surface the raw server message — the API responds in Spanish
@@ -890,7 +1099,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // recalculates the first-purchase discount), not the estimate shown on screen.
       const finalAmountInCents = Number.isFinite(saved?.amountInCents) ? saved.amountInCents : amountInCents;
       if (saved?.discountApplied) {
-        msgEl.textContent = `First-purchase discount applied (${saved.discountPercentage}%)!`;
+        msgEl.textContent = saved.discountSource === 'codigo'
+          ? `Code ${saved.discountCode} applied (${saved.discountPercentage}%)!`
+          : `First-purchase discount applied (${saved.discountPercentage}%)!`;
       }
 
       // Legal entity: upload RUT and Certificate of Good Standing (verifiable documents)
