@@ -138,7 +138,7 @@ async function showPromoPopup() {
   // keeps working exactly as before on a site with no bonos configured.
   let bono = null;
   try {
-    const r = await fetch('/api/bonos?active=1');
+    const r = await fetch('/api/bonos?active=1&popup=1');
     if (r.ok) {
       const list = await r.json();
       bono = Array.isArray(list) && list.length ? list[0] : null;

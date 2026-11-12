@@ -845,10 +845,13 @@
             segundos por la web. Solo <strong>uno</strong> de este tipo puede estar activo a la vez. El descuento se
             aplica <strong>automáticamente</strong> en el checkout, solo a clientes cuyo número de documento no tenga
             <strong>ningún pedido registrado</strong> todavía (se haya pagado o no).</li>
-          <li><strong>Con código (ej. EVENTO2026):</strong> no sale en el popup; se aplica solo cuando el cliente
-            escribe el código en el checkout. Cualquier cliente puede usarlo <strong>una vez por documento</strong>
-            (cuenta solo compras pagadas). Puedes tener varios códigos activos al mismo tiempo y no apagan el bono de
-            primera compra. La imagen y los textos del popup no son necesarios.</li>
+          <li><strong>Con código (cupón, ej. EVENTO2026):</strong> se aplica solo cuando el cliente escribe el código
+            en el checkout. Cualquier cliente puede usarlo <strong>las veces que quiera</strong> mientras el cupón esté
+            activo y dentro de sus fechas. Puedes tener varios códigos activos al mismo tiempo y no apagan el bono de
+            primera compra. La
+            imagen es opcional: <strong>si le subes imagen, el popup muestra este cupón</strong> en lugar del de
+            primera compra (el código nunca se publica en la web; si quieres que la gente lo vea, inclúyelo en la
+            imagen o el título).</li>
         </ul>
         <p style="color:var(--admin-text-muted); margin-bottom:24px;">En cada compra se aplica <strong>un solo
           bono</strong>: si el cliente califica a primera compra y además escribe un código, se queda con el de mayor
@@ -897,7 +900,7 @@
                   <select id="bono-categoria"></select>
                 </div>
                 <div class="field-group">
-                  <label for="bono-imagen">Imagen del Popup (no necesaria si el bono tiene código)</label>
+                  <label for="bono-imagen">Imagen del Popup (opcional en cupones: con imagen, el popup lo muestra)</label>
                   <input id="bono-imagen" type="file" accept="image/*" />
                 </div>
                 <div class="field-group">

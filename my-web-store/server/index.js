@@ -1763,14 +1763,29 @@ app.get('/api/bonos', (req, res, next) => {
   try {
     const onlyActive = String(req.query.active || '').toLowerCase();
     const isPublic = onlyActive === '1' || onlyActive === 'true' || onlyActive === 'yes';
-    // "active=1" also enforces the vigencia window, so a scheduled/expired bono stops showing
-    // up on the storefront on its own, without the admin having to flip `activo` by hand.
-    const where = isPublic
-      ? "WHERE activo = 1 AND (codigo IS NULL OR codigo = '') AND (fecha_inicio IS NULL OR fecha_inicio <= SYSUTCDATETIME()) AND (fecha_fin IS NULL OR fecha_fin >= SYSUTCDATETIME())"
-      : '';
-    const rows = await db.query(`SELECT * FROM dbo.bonos ${where} ORDER BY activo DESC, createdAt DESC, id DESC`);
+    // "popup=1": lo que muestra el popup promocional. Primero un cupón (bono con código)
+    // activo que tenga imagen — así su arte se publicita en la web — y si no hay, el bono de
+    // primera compra. Sin popup=1 (carrito/checkout) solo sale el de primera compra, porque
+    // ellos lo usan para avisar "X% OFF en tu primera compra".
+    const isPopup = isPublic && ['1', 'true', 'yes'].includes(String(req.query.popup || '').toLowerCase());
+    const vigente = 'activo = 1 AND (fecha_inicio IS NULL OR fecha_inicio <= SYSUTCDATETIME()) AND (fecha_fin IS NULL OR fecha_fin >= SYSUTCDATETIME())';
+    let sql;
+    if (isPopup) {
+      sql = `SELECT * FROM dbo.bonos
+             WHERE ${vigente}
+               AND ((codigo IS NULL OR codigo = '') OR (url IS NOT NULL AND url <> ''))
+             ORDER BY CASE WHEN codigo IS NOT NULL AND codigo <> '' THEN 0 ELSE 1 END, createdAt DESC, id DESC`;
+    } else if (isPublic) {
+      sql = `SELECT * FROM dbo.bonos WHERE ${vigente} AND (codigo IS NULL OR codigo = '') ORDER BY createdAt DESC, id DESC`;
+    } else {
+      // "active=1" also enforces the vigencia window, so a scheduled/expired bono stops showing
+      // up on the storefront on its own, without the admin having to flip `activo` by hand.
+      sql = 'SELECT * FROM dbo.bonos ORDER BY activo DESC, createdAt DESC, id DESC';
+    }
+    const rows = await db.query(sql);
     const list = (rows || []).map(mapBonoRow);
-    if (isPublic) list.forEach(b => { delete b.codigo; });
+    // El código nunca sale al público (ni en el popup); solo si el bono es de tipo cupón
+    if (isPublic) list.forEach(b => { b.es_cupon = !!b.codigo; delete b.codigo; });
     res.json(list);
   } catch (e) {
     console.error('GET /api/bonos error', e);
@@ -1838,10 +1853,9 @@ function normalizeCodigoBono(v) {
 //   'no_existe'  → no hay bono con ese código, está desactivado o no tiene % configurado
 //   'no_vigente' → aún no llega su fecha de inicio
 //   'vencido'    → ya pasó su fecha de fin
-//   'ya_usado'   → ese documento ya tiene una compra PAGADA con este código
-// Solo cuentan los pedidos aprobados en Wompi: si el cliente abandona el pago y lo reintenta,
-// no pierde el código. Sin documento solo se valida el código en sí (documentoVerificado=false).
-async function resolveCodigoBono(codigoRaw, tipoDocumento, nitId) {
+// Decisión de negocio: un cupón se puede usar las veces que sea mientras esté activo y dentro
+// de sus fechas, sin importar si ese cliente ya lo usó — no depende del documento.
+async function resolveCodigoBono(codigoRaw) {
   const codigo = normalizeCodigoBono(codigoRaw);
   if (!codigo) return { valido: false, motivo: 'no_existe', bono: null };
   const rows = await db.query(
@@ -1859,16 +1873,7 @@ async function resolveCodigoBono(codigoRaw, tipoDocumento, nitId) {
   }
   if (Number(row._no_iniciado) === 1) return { valido: false, motivo: 'no_vigente', bono: null };
   if (Number(row._vencido) === 1) return { valido: false, motivo: 'vencido', bono: null };
-  if (tipoDocumento && nitId) {
-    const usado = await db.query(
-      `SELECT TOP 1 1 AS found FROM dbo.pedidos
-       WHERE bono_id = @bonoId AND tipo_documento = @td AND nit_id = @nit
-         AND payment_status IN ('APPROVED', 'APPROVED_PARTIAL')`,
-      { bonoId: bono.id, td: tipoDocumento, nit: nitId }
-    );
-    if (usado && usado.length) return { valido: false, motivo: 'ya_usado', bono: null };
-  }
-  return { valido: true, motivo: null, bono, documentoVerificado: !!(tipoDocumento && nitId) };
+  return { valido: true, motivo: null, bono };
 }
 
 // Un solo bono por compra: si el cliente califica a primera compra Y escribe un código válido,
@@ -1879,7 +1884,7 @@ async function resolverDescuentoPedido(tipoDocumento, nitId, codigoRaw) {
   const codigoTxt = (codigoRaw == null ? '' : String(codigoRaw)).trim();
   let porCodigo = null;
   if (codigoTxt) {
-    const r = await resolveCodigoBono(codigoTxt, tipoDocumento, nitId);
+    const r = await resolveCodigoBono(codigoTxt);
     if (!r.valido) return { errorCodigo: r.motivo };
     porCodigo = r.bono;
   }
@@ -1924,8 +1929,8 @@ function registrarFalloCodigo(ip) {
   }
 }
 
-// Público — el checkout lo llama cuando el cliente toca "Aplicar" (y otra vez cuando escribe
-// su documento). Es solo una previsualización: POST /api/pedidos vuelve a validar todo.
+// Público — el checkout lo llama cuando el cliente toca "Aplicar". Es solo una
+// previsualización: POST /api/pedidos vuelve a validar el código al crear el pedido.
 app.post('/api/bonos/validar-codigo', async (req, res) => {
   try {
     const ip = clientIp(req);
@@ -1933,15 +1938,11 @@ app.post('/api/bonos/validar-codigo', async (req, res) => {
       return res.status(429).json({ valido: false, motivo: 'demasiados_intentos' });
     }
     const b = req.body || {};
-    const tipoDocumento = String(b.tipo_documento || '').trim();
-    const rawNit = String(b.nit || '').trim();
-    const nitId = (tipoDocumento === 'CE' || tipoDocumento === 'PA') ? rawNit : rawNit.replace(/\D+/g, '');
-    const r = await resolveCodigoBono(b.codigo, tipoDocumento, nitId);
+    const r = await resolveCodigoBono(b.codigo);
     if (!r.valido && r.motivo === 'no_existe') registrarFalloCodigo(ip);
     res.json({
       valido: r.valido,
       motivo: r.motivo,
-      documentoVerificado: !!r.documentoVerificado,
       bono: r.bono ? { id: r.bono.id, codigo: r.bono.codigo, porcentaje_descuento: r.bono.porcentaje_descuento } : null
     });
   } catch (e) {

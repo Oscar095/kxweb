@@ -121,7 +121,6 @@ function checkBonoElegibilidad(tipoDocumento, nit) {
         renderOrderSummary();
       }
     } catch (e) { /* leave the preview as it was */ }
-    revalidarCodigoPorDocumento();
   }, 500);
 }
 
@@ -130,13 +129,12 @@ function checkBonoElegibilidad(tipoDocumento, nit) {
 // first-purchase bono, this is only a preview: POST /api/pedidos validates the code again and
 // decides the real discount. One bono per purchase: the higher percentage wins.
 // estado: 'idle' | 'checking' | 'valid' | 'invalid'
-let _codigo = { texto: '', estado: 'idle', bono: null, motivo: null, documentoVerificado: false };
+let _codigo = { texto: '', estado: 'idle', bono: null, motivo: null };
 
 const CODIGO_MENSAJES = {
   no_existe: 'This code is not valid.',
   no_vigente: 'This code is not active yet.',
   vencido: 'This code has expired.',
-  ya_usado: 'You already used this code on a previous purchase with this ID document.',
   demasiados_intentos: 'Too many attempts. Please wait a few minutes and try again.',
   error: "We couldn't validate the code. Please try again."
 };
@@ -145,56 +143,43 @@ function normalizeCodigo(v) {
   return String(v || '').trim().toUpperCase().replace(/\s+/g, '');
 }
 
-function documentoActual() {
-  const tipo = String(document.getElementById('tipoDocumento')?.value || '').trim();
-  const raw = String(document.getElementById('nitId')?.value || '').trim();
-  const nit = (tipo === 'CE' || tipo === 'PA') ? raw : raw.replace(/\D+/g, '');
-  return (tipo && nit.length >= 5) ? { tipo, nit } : { tipo: '', nit: '' };
-}
 
 // Validates the code and returns the final state ('valid' | 'invalid').
 async function validarCodigo(texto) {
   const codigo = normalizeCodigo(texto);
   if (!codigo) return _codigo.estado;
-  _codigo = { texto: codigo, estado: 'checking', bono: null, motivo: null, documentoVerificado: false };
+  _codigo = { texto: codigo, estado: 'checking', bono: null, motivo: null };
   renderOrderSummary();
-  const { tipo, nit } = documentoActual();
   let next;
   try {
     const r = await fetch('/api/bonos/validar-codigo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ codigo, tipo_documento: tipo, nit })
+      body: JSON.stringify({ codigo })
     });
     const j = await r.json().catch(() => ({}));
     if (r.status === 429) next = { estado: 'invalid', motivo: 'demasiados_intentos' };
     else if (!r.ok) next = { estado: 'invalid', motivo: 'error' };
-    else if (j.valido && j.bono) next = { estado: 'valid', bono: j.bono, documentoVerificado: !!j.documentoVerificado };
+    else if (j.valido && j.bono) next = { estado: 'valid', bono: j.bono };
     else next = { estado: 'invalid', motivo: j.motivo || 'no_existe' };
   } catch (e) {
     next = { estado: 'invalid', motivo: 'error' };
   }
   // If the customer changed or removed the code meanwhile, this answer no longer applies
   if (_codigo.texto !== codigo) return _codigo.estado;
-  _codigo = { texto: codigo, bono: null, motivo: null, documentoVerificado: false, ...next };
+  _codigo = { texto: codigo, bono: null, motivo: null, ...next };
   renderOrderSummary();
   return _codigo.estado;
 }
 
 function quitarCodigo() {
-  _codigo = { texto: '', estado: 'idle', bono: null, motivo: null, documentoVerificado: false };
+  _codigo = { texto: '', estado: 'idle', bono: null, motivo: null };
   const input = document.getElementById('co-codigo-input');
   if (input) input.value = '';
   renderOrderSummary();
   input?.focus();
 }
 
-// When the customer changes their ID document, the code is validated again (that document
-// may have already used it, or the previous one had and the new one hasn't).
-function revalidarCodigoPorDocumento() {
-  if (!_codigo.texto) return;
-  if (_codigo.estado === 'valid' || _codigo.motivo === 'ya_usado') validarCodigo(_codigo.texto);
-}
 
 // The card is built once (so typed text and focus survive summary re-renders) and afterwards
 // only its state is updated through syncCodigoBox().
@@ -234,7 +219,7 @@ function setupCodigoBox() {
   // Editing the text after an error clears the error message
   input.addEventListener('input', () => {
     if (_codigo.estado === 'invalid') {
-      _codigo = { texto: '', estado: 'idle', bono: null, motivo: null, documentoVerificado: false };
+      _codigo = { texto: '', estado: 'idle', bono: null, motivo: null };
       syncCodigoBox({});
     }
   });
@@ -283,7 +268,7 @@ function syncCodigoBox({ usaCodigo = false, pctPrimera = 0, descuentoValor = 0 }
       msg.classList.add('co-codigo-msg-info');
     } else {
       msg.textContent = descuentoValor > 0
-        ? `Done! You save ${fmt(descuentoValor)} on this purchase.${_codigo.documentoVerificado ? '' : ' We confirm it with your ID document number.'}`
+        ? `Done! You save ${fmt(descuentoValor)} on this purchase.`
         : 'Code applied.';
       msg.classList.add('co-codigo-msg-ok');
     }
